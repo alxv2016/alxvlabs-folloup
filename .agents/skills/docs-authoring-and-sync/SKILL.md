@@ -223,6 +223,9 @@ script.
 - **A justifying comment kept a wrong behaviour alive** → it shows the behaviour was considered, not that it is still
   right → grep the behaviour across the code and change every claim together (GUIDELINES §7).
 - **A rewrite loses a reason nobody re-reads** → inventory against `git show HEAD:` before writing (GUIDELINES §8).
+- **A skill's rule says more than its doc** → it was condensed from memory of the doc: an unverified `[?]` fact
+  stated as settled, a rule proven on one part stated for all, a neighbouring section cited → before asking the
+  judge, read each rule against the exact section it cites and keep the doc's scope and tags (GUIDELINES §4.5).
 - **A design decision lives only in the design file** → the next agent cannot read it → write the rule and its reason
   into the doc that owns the topic, and link the design file as a source (GUIDELINES §1 Principle 1).
 

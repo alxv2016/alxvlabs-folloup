@@ -25,3 +25,7 @@ __pycache__/
 .DS_Store
 .idea/
 *.swp
+
+# Large vendor files kept on the machine only — the 3D model is 27 MB; download it from Seeed
+# (docs/STICKY_HARDWARE_SPECS.md links it) into STICKY_assets/drawings/.
+STICKY_assets/drawings/*.stp

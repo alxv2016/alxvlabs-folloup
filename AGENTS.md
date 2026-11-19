@@ -23,6 +23,7 @@ and the code: find out which is intended before changing either
 | `<src/>` | `<the app's source>` |
 | [`DESIGN.md`](DESIGN.md) | The design brief: the product's principles and every design token by role, per theme |
 | `docs/` | The knowledge: rules, reasons, decisions, open items |
+| [`STICKY_assets/`](STICKY_assets/) | Seeed's files for the reTerminal Sticky: the schematic (`schematic/`), the block diagram (`images/`), the 3D model (`drawings/`, kept out of git — STICKY_HARDWARE_SPECS §9 links Seeed's download) — [STICKY_HARDWARE_SPECS](docs/STICKY_HARDWARE_SPECS.md) is read from them |
 | `.agents/` | The agent kit: skills, agents, rubrics, hooks, the project settings ([.agents/README.md](.agents/README.md)) |
 
 `<Where code lives, and the layering an edit must keep: which folder may import which.>`
@@ -73,6 +74,7 @@ Scope is `portable` or `project`
 | [`typography`](.agents/skills/typography/SKILL.md) | Applying the project's type scale: which role goes where, hierarchy, fonts, line height and spacing, line length and alignment, emphasis, numbers, editorial treatments, text that scales — web, phones, watches and embedded LVGL | `portable` |
 | [`ux-designer`](.agents/skills/ux-designer/SKILL.md) | **Read first for a new flow, feature or screen.** How the experience works — people, tasks, flows, structure, interaction models, states, errors — from HCI's principles and the laws of UX; the UX brief before the mock; research plans; the review of an experience | `portable` |
 | [`esp-idf-setup`](.agents/skills/esp-idf-setup/SKILL.md) | Setting up an ESP-IDF firmware project from the hardware spec in `docs/` — `main`, `app_shell`, `app_hooks`, the board, LVGL on request — and adding a feature to one | `portable` |
+| [`sticky-hardware`](.agents/skills/sticky-hardware/SKILL.md) | **Read first for any reTerminal Sticky firmware work.** Bring-up, a driver or pin, the e-paper refresh on V1.0 (SSD1677) and V2.0 (SSD2677) in one image, sleep, wake and power-off, battery and charging, a symptom in the spec's traps; the pin and shared-bus check | `project` |
 | [`react-vite-setup`](.agents/skills/react-vite-setup/SKILL.md) | Setting up a React, Vite and TypeScript web app from the web app spec in `docs/` — the shell, features, components with their stories, tokens from DESIGN.md, Vitest, Storybook and Playwright tests — and adding a feature or a component to one | `portable` |
 | [`ux-content`](.agents/skills/ux-content/SKILL.md) | Any words a person reads on a screen — labels, buttons, errors, empty states, confirmations, accessible names — and the string check | `portable` |
 | [`secrets-handling`](.agents/skills/secrets-handling/SKILL.md) | How the product takes, stores, shows, logs and rotates its users' secrets; bench and CI credentials; after a leak; the secret scan | `portable` |
@@ -197,6 +199,7 @@ not of the product: the target and the person's sign-off are what show it works.
 | [FEEDBACK](.agents/skills/touch-and-gesture/references/feedback.md) | Feedback beyond the screen — one vocabulary of haptics, sound and status lights, when it fires, pending, done and failed — generic, any project; kept in the touch-and-gesture skill |
 | [HARNESS](.agents/HARNESS.md) | This repo's harness: the guard case by case, checks by path, the hand-over gate, the person's approvals |
 | [DESIGN](DESIGN.md) | The design brief: principles, tokens per theme, contrast pairs, components, accessibility floors, exceptions |
+| [STICKY_HARDWARE_SPECS](docs/STICKY_HARDWARE_SPECS.md) | The reTerminal Sticky board: constraints, firmware facts, pins, buses, power, sleep and wake, bring-up order, traps |
 
 Sync rules: a doc changes in the same commit as the code it describes; a heading keeps its number; every doc is listed
 in [README.md](README.md#documentation).

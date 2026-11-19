@@ -260,6 +260,11 @@ CHECKS = {
     # "test":  {"run": ["npm", "test", "--", "--run"], "when": ("src/", "tests/")},
     # "lint":  {"run": ["npm", "run", "lint"], "when": ("src/",)},
     # "types": {"run": ["npx", "tsc", "--noEmit"], "when": ("src/",)},
+    # The reTerminal Sticky's pins against board_config.h, and the shared-bus and pin rules (the sticky-hardware skill).
+    "sticky": {"run": ["python3", ".agents/skills/sticky-hardware/scripts/sticky_check.py"],
+               "when": ("docs/STICKY_HARDWARE_SPECS.md", "components/", "main/", ".agents/skills/sticky-hardware/")},
+    "sticky-selftest": {"run": ["python3", ".agents/skills/sticky-hardware/scripts/sticky_check.py", "--test"],
+                        "when": (".agents/skills/sticky-hardware/",)},
 }
 
 # The project's own judges, beyond the kit's (doc-reviewer, code-reviewer, ui-designer): agent name → the paths
