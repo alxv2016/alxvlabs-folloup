@@ -1,0 +1,42 @@
+# The pre-commit hook's rules on every push and pull request (.agents/HARNESS.md §7): no generated file, no secret, no
+# debug marker, no broken invariant. The hook runs them at each commit, but only in a clone that set core.hooksPath and
+# on a commit not made with --no-verify; this is the backstop for the rest. Add the project's build and tests as
+# further jobs once they exist.
+name: checks
+
+on:
+  push:
+  pull_request:
+
+jobs:
+  rules:
+    name: harness rules
+    # A named release, not ubuntu-latest, which moves to a new release under the job; the job needs only git and
+    # Python 3.
+    runs-on: ubuntu-24.04
+    steps:
+      - uses: actions/checkout@v5 # v5 runs on Node.js 24; v4's Node.js 20 is deprecated on the runners
+        with:
+          fetch-depth: 0 # the pushed range's first commit, to diff against
+      - name: The pre-commit hook on what was pushed
+        run: >-
+          python3 .agents/githooks/pre-commit
+          --range "${{ github.event.pull_request.base.sha || github.event.before }}..${{ github.sha }}"
+      - name: The hooks' and the kit scripts' self-tests
+        run: |
+          python3 .agents/hooks/guard.py --test
+          python3 .agents/hooks/untrusted.py --test
+          python3 .agents/skills/verify-change/scripts/verify.py --test
+          python3 .agents/skills/docs-authoring-and-sync/scripts/new_doc.py --test
+          python3 .agents/skills/design-system/scripts/design_check.py --test
+          python3 .agents/skills/design-system/scripts/token_check.py --test
+          python3 .agents/skills/accessibility/scripts/contrast.py --test
+          python3 .agents/skills/accessibility/scripts/a11y_check.py --test
+          python3 .agents/skills/motion/scripts/motion_check.py --test
+          python3 .agents/skills/touch-and-gesture/scripts/touch_check.py --test
+          python3 .agents/skills/layout/scripts/layout_check.py --test
+          python3 .agents/skills/typography/scripts/typography_check.py --test
+          python3 .agents/skills/esp-idf-setup/scripts/esp_idf.py --test
+          python3 .agents/skills/react-vite-setup/scripts/react_vite.py --test
+          python3 .agents/skills/secrets-handling/scripts/secret_scan.py --test
+          python3 .agents/skills/ux-content/scripts/ux_lint.py --test
