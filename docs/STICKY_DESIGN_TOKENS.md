@@ -171,7 +171,7 @@ their value on each refresh — the design check reads them (§7).
 - **One C++ header carries every token**, generated from or kept equal to DESIGN.md's front matter; its path is set in
   `TOKEN_FILES` in `.agents/project.py` once the firmware exists `[?]`.
 - **A token's path becomes its symbol**: `colors.text-primary` → `kColorTextPrimary`, `spacing.target` →
-  `kSpacingTarget`, `stroke.focus` → `kStrokeFocus`, `rounded.sm` → `kRoundedSm`.
+  `kSpacingTarget`, `spacing.stroke.focus` → `kSpacingStrokeFocus`, `rounded.sm` → `kRoundedSm`.
 - **A colour is stored as its level, 0 to 3**, with the hex in a comment — `kColorTextSecondary = 1;  // #555555`.
 - **A type role is a struct of the font, its line box and its weight**; the font is the compiled one-bit font for that
   size (§3).

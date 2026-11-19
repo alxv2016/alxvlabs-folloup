@@ -3,8 +3,8 @@ version: alpha
 name: ALXV Labs FolloUp
 description: FolloUp's design system for e-ink — a voice-first capture companion on the reTerminal Sticky's 3.97-inch black-and-white e-paper glass, read at a glance and usable by anyone.
 colors:
-  black: "#000000"
-  white: "#FFFFFF"
+  black: "{colors.scale.primary.0}"
+  white: "{colors.scale.primary.3}"
   scale:
     primary:  # the panel's four greys — the system's one palette
       0: "#000000"  # level 0 — black on every refresh
@@ -77,11 +77,11 @@ spacing:
   list-row-height: 80px
   toggle-height: 44px
   overlay-offset: 6px
-stroke:
-  hairline: 2px
-  default: 3px
-  focus: 4px
-  strong: 4px
+  stroke:
+    hairline: 2px
+    default: 3px
+    focus: 4px
+    strong: 4px
 motion:
   state-change:
     duration: 0ms
@@ -186,16 +186,16 @@ components:
     typography: "{typography.label}"
   divider:
     backgroundColor: "{colors.divider}"
-    height: "{stroke.hairline}"
+    height: "{spacing.stroke.hairline}"
   focus-ring:
     backgroundColor: "{colors.focus-ring}"
-    width: "{stroke.focus}"
+    width: "{spacing.stroke.focus}"
   focus-ring-on-fill:
     backgroundColor: "{colors.focus-ring-on-fill}"
-    width: "{stroke.focus}"
+    width: "{spacing.stroke.focus}"
   card-outline:
     backgroundColor: "{colors.outline}"
-    width: "{stroke.default}"
+    width: "{spacing.stroke.default}"
   band:
     backgroundColor: "{colors.band}"
     height: "{spacing.sm}"
@@ -354,7 +354,7 @@ At 235 ppi a pixel is 0.108 mm and a point is 3.26 px.
 
 - **Depth is a line and a hard offset, never a blur or a gradient** — a blur is greys a partial refresh throws away,
   and a gradient bands into four steps.
-- **An overlay — a dialog, the keyboard, a select list — stands on a `stroke.strong` outline with a solid
+- **An overlay — a dialog, the keyboard, a select list — stands on a `spacing.stroke.strong` outline with a solid
   `spacing.overlay-offset` in black**, so it reads as lifted off the page on either refresh.
 
 ### Dither
@@ -367,9 +367,9 @@ At 235 ppi a pixel is 0.108 mm and a point is 3.26 px.
 
 ### Strokes
 
-- **Nothing thinner than `stroke.hairline`, 2 px** — a one-pixel line breaks up and ghosts on e-paper.
-- **`stroke.default`, 3 px, outlines controls and cards; `stroke.focus` and `stroke.strong`, 4 px, the focus ring and
-  overlays.**
+- **Nothing thinner than `spacing.stroke.hairline`, 2 px** — a one-pixel line breaks up and ghosts on e-paper.
+- **`spacing.stroke.default`, 3 px, outlines controls and cards; `spacing.stroke.focus` and
+  `spacing.stroke.strong`, 4 px, the focus ring and overlays.**
 
 ### Corners
 
@@ -452,17 +452,17 @@ At 235 ppi a pixel is 0.108 mm and a point is 3.26 px.
 - **Select list, keyboard** — the large overlays, each with Cancel or Back; the keyboard's 64 px keys fit six to a
   row, and its layout is open.
 - **Icons** — a meaningful icon always has its word beside it ("Home", "Wi-Fi"); no icon stroke under
-  `stroke.hairline`.
+  `spacing.stroke.hairline`.
 - **Status line** — news that asks nothing, until the next change of screen.
 - **Wait indicator** — still words and a segmented progress bar, stepping no faster than every 5 s.
 - **Recording indicator** — "Recording" and its time, with a distinct tone at start and stop.
 
 ### States
 
-- **Focused** — the `stroke.focus` ring, always. Around a control with room, it sits `spacing.focus-offset` outside
-  it. Inside a full-width row, a chip or a footer button, so it never touches a neighbour or the glass's edge, it sits
-  on the edge of a control with no outline, and `spacing.focus-offset` inside an outlined one — 11 px in from its
-  edge.
+- **Focused** — the `spacing.stroke.focus` ring, always. Around a control with room, it sits `spacing.focus-offset`
+  outside it. Inside a full-width row, a chip or a footer button, so it never touches a neighbour or the glass's
+  edge, it sits on the edge of a control with no outline, and `spacing.focus-offset` inside an outlined one — 11 px
+  in from its edge.
 - **Chosen** — inverted: `surface-chosen` with `text-on-fill`. A focused, chosen row or chip is inverted with the ring
   in `focus-ring-on-fill`.
 - **Disabled** — a dither outline with the label kept and the reason in words; prefer explaining over disabling.
