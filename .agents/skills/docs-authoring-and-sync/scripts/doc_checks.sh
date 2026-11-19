@@ -26,6 +26,13 @@ else
     DESIGN_FILE=$(cfg DESIGN_FILE)
     DOCS=(docs/*.md .agents/skills/*/references/*.md)
     for f in .agents/HARNESS.md "$DESIGN_FILE"; do [ -f "$f" ] && DOCS+=("$f"); done  # when the repo has them
+    # A design file to Google's DESIGN.md spec opens with YAML front matter: it is not a numbered doc, so it is not
+    # checked here — Google's linter and the design check of its supporting doc cover it.
+    if [ -f "$DESIGN_FILE" ] && [ "$(head -n 1 "$DESIGN_FILE")" = "---" ]; then
+        KEEP=()
+        for f in "${DOCS[@]}"; do [ "$f" != "$DESIGN_FILE" ] && KEEP+=("$f"); done
+        DOCS=("${KEEP[@]}")
+    fi
     WITH_README=(README.md)
     WHOLE=1
 fi

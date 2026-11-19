@@ -1,4 +1,4 @@
-# Followup — Hardware Specs
+# FolloUp — Hardware Specs
 
 The reTerminal Sticky as firmware sees it: what breaks the hardware or the boot when crossed, the chip and its memory,
 the console, the e-paper panel, every pin the code uses, the buses and the devices on them, the power path and the
@@ -123,7 +123,7 @@ Firmware facts and Pins tables by their rows, wherever they sit.
 | Display panel | 3.97 in, black and white e-paper — GDEM0397T81 on V1.0, glossy; matte on V2.0 | `[TEAM]` `[FW]` `[DOC]` |
 | Display interface | SPI, 4-wire (BS1 low) with no MISO; reads come back on `EP_SDI`, the SPI device in half-duplex 3-wire mode | `[SCH]` `[SRC]` |
 | Display resolution | 800 x 480, 235 ppi | `[DOC]` |
-| Display greyscale | Black and white, and 4-level greyscale on a full refresh | `[DOC]` |
+| Display greyscale | 4 levels only on a greyscale full refresh; a partial or mono full refresh is 1 bit, levels 0–1 black and 2–3 white | `[DOC]` `[SRC]` |
 | Display pixel clock | 20 MHz on the SSD1677; Seeed's driver runs both controllers at 10 MHz | `[FW]` `[SRC]` |
 | Display orientation | 800 x 480 landscape in the controller's RAM; held as a 480 x 800 portrait | `[FW]` |
 | Display frame buffer | 48000 bytes at 1 bit per pixel, bit 0 black and bit 1 white; 96000 bytes at 2 bits for greyscale, the most significant pixel first | `[D]` `[SRC]` |

@@ -260,6 +260,10 @@ CHECKS = {
     # "test":  {"run": ["npm", "test", "--", "--run"], "when": ("src/", "tests/")},
     # "lint":  {"run": ["npm", "run", "lint"], "when": ("src/",)},
     # "types": {"run": ["npx", "tsc", "--noEmit"], "when": ("src/",)},
+    # DESIGN.md follows Google's DESIGN.md spec and holds no kit tables; its colour roles and contrast pairs, on both
+    # refreshes, are proved in its supporting doc.
+    "design-tokens": {"run": ["python3", ".agents/skills/design-system/scripts/design_check.py", "--file",
+                              "docs/STICKY_DESIGN_TOKENS.md"], "when": ("DESIGN.md", "docs/STICKY_DESIGN_TOKENS.md")},
     # The reTerminal Sticky's pins against board_config.h, and the shared-bus and pin rules (the sticky-hardware skill).
     "sticky": {"run": ["python3", ".agents/skills/sticky-hardware/scripts/sticky_check.py"],
                "when": ("docs/STICKY_HARDWARE_SPECS.md", "components/", "main/", ".agents/skills/sticky-hardware/")},

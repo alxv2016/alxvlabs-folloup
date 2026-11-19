@@ -184,3 +184,4 @@ check says it was skipped and passes.
 | The 3D model, kept out of git | [Seeed's download](https://files.seeedstudio.com/wiki/reterminal_sticky/res/reTerminal_Sticky_3D.stp), linked in STICKY_HARDWARE_SPECS §9 |
 | Seeed's ESP-IDF demos, the reference for both controllers | [sticky-esp-idf-peripherals](https://github.com/Seeed-Projects/sticky-esp-idf-peripherals), [sticky-esp-idf-dashboard](https://github.com/Seeed-Projects/sticky-esp-idf-dashboard) |
 | Setting up the ESP-IDF project from the spec | [`esp-idf-setup`](../esp-idf-setup/SKILL.md) |
+| The design system on the glass, and how the firmware implements it | [DESIGN.md](../../../DESIGN.md), [STICKY_DESIGN_TOKENS](../../../docs/STICKY_DESIGN_TOKENS.md) |

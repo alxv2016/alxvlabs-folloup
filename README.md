@@ -114,7 +114,8 @@ Everything is plain files and Python's standard library: no package to install, 
 | Doc | What it holds |
 | --- | --- |
 | [AGENT_HARNESS](docs/AGENT_HARNESS.md) | What an agent harness is and how each part works — the rules, the loop, the guard, the reviewers, the design gates, memory, token use, and the bootstrap prompt. Generic: any project, any stack |
-| [DESIGN](DESIGN.md) | The product's design brief — principles and tokens. A demo until you write yours; AGENT_HARNESS §23 explains how agents use it |
+| [DESIGN](DESIGN.md) | FolloUp's design system for e-ink, to Google's DESIGN.md spec — brand, principles and every token; AGENT_HARNESS §23 explains how agents use a design brief |
+| [STICKY_DESIGN_TOKENS](docs/STICKY_DESIGN_TOKENS.md) | How the firmware implements DESIGN.md on the e-paper glass: each colour role on a full and a partial refresh with its contrast proof, fonts, the token header, the refresh policy and feedback, enforcement |
 | [STICKY_HARDWARE_SPECS](docs/STICKY_HARDWARE_SPECS.md) | The reTerminal Sticky as firmware sees it: critical constraints, the ESP32-S3R8, the e-paper panel, every pin, the buses and devices, power, sleep and wake, bring-up order, traps and open items |
 | [DOCUMENTATION_GUIDELINES](.agents/skills/docs-authoring-and-sync/references/guidelines.md) | How every doc is written and kept true, so an agent finds what it needs. Generic: any project, any stack |
 | [DESIGN_BRIEF](.agents/skills/design-system/references/brief.md) | How a design brief is written and kept, from token roles to surfaces, layers and tokens in code. Generic: any project, any stack |

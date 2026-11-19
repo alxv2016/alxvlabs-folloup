@@ -179,6 +179,9 @@ python3 .agents/skills/docs-authoring-and-sync/scripts/check_links.py           
 python3 .agents/skills/docs-authoring-and-sync/scripts/new_doc.py --test        # the scaffolder's own cases
 ```
 
+A root `DESIGN.md` written to Google's DESIGN.md spec — it opens with YAML front matter — is not a numbered doc and is
+not linted by these checks; Google's linter and the design check of its supporting doc cover it.
+
 Baselines are counts sanctioned today: a new hit on a line you touched is yours to fix, an old one elsewhere is left
 for its own change (§7). When a hit is sanctioned, raise the baseline beside the check with its reason, here and in the
 script.

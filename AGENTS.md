@@ -21,7 +21,7 @@ and the code: find out which is intended before changing either
 | Path | Holds |
 | --- | --- |
 | `<src/>` | `<the app's source>` |
-| [`DESIGN.md`](DESIGN.md) | The design brief: the product's principles and every design token by role, per theme |
+| [`DESIGN.md`](DESIGN.md) | FolloUp's design system for e-ink, to Google's DESIGN.md spec: principles, and every token in its front matter — its code side is [STICKY_DESIGN_TOKENS](docs/STICKY_DESIGN_TOKENS.md) |
 | `docs/` | The knowledge: rules, reasons, decisions, open items |
 | [`STICKY_assets/`](STICKY_assets/) | Seeed's files for the reTerminal Sticky: the schematic (`schematic/`), the block diagram (`images/`), the 3D model (`drawings/`, kept out of git — STICKY_HARDWARE_SPECS §9 links Seeed's download) — [STICKY_HARDWARE_SPECS](docs/STICKY_HARDWARE_SPECS.md) is read from them |
 | `.agents/` | The agent kit: skills, agents, rubrics, hooks, the project settings ([.agents/README.md](.agents/README.md)) |
@@ -198,7 +198,8 @@ not of the product: the target and the person's sign-off are what show it works.
 | [FOCUS](.agents/skills/accessibility/references/focus.md) | The focus model every input shares — the ring apart from the position, where the next step starts, overlays, keeping focus in view, the ring's craft, the input mapping — generic, any project; kept in the accessibility skill |
 | [FEEDBACK](.agents/skills/touch-and-gesture/references/feedback.md) | Feedback beyond the screen — one vocabulary of haptics, sound and status lights, when it fires, pending, done and failed — generic, any project; kept in the touch-and-gesture skill |
 | [HARNESS](.agents/HARNESS.md) | This repo's harness: the guard case by case, checks by path, the hand-over gate, the person's approvals |
-| [DESIGN](DESIGN.md) | The design brief: principles, tokens per theme, contrast pairs, components, accessibility floors, exceptions |
+| [DESIGN](DESIGN.md) | FolloUp's design system for e-ink, to Google's DESIGN.md spec: brand, principles, colours, type, layout, depth, shapes, motion, voice, components, focus and input, accessibility |
+| [STICKY_DESIGN_TOKENS](docs/STICKY_DESIGN_TOKENS.md) | How the firmware implements DESIGN.md: each role on both refreshes and the contrast proof, fonts, the token header, the refresh policy and feedback, enforcement |
 | [STICKY_HARDWARE_SPECS](docs/STICKY_HARDWARE_SPECS.md) | The reTerminal Sticky board: constraints, firmware facts, pins, buses, power, sleep and wake, bring-up order, traps |
 
 Sync rules: a doc changes in the same commit as the code it describes; a heading keeps its number; every doc is listed
