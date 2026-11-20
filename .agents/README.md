@@ -62,7 +62,7 @@ The gates, the checks per path and what `finish` refuses: [HARNESS.md](HARNESS.m
 | --- | --- |
 | [`project.py`](project.py) | The project's facts every script reads — the one file a project fills in |
 | [`skills/`](skills/) | The 17 skills, each a `SKILL.md` with its `scripts/` |
-| [`agents/`](agents/) | The 8 agents, one prompt each |
+| [`agents/`](agents/) | The 9 agents, one prompt each |
 | [`rubrics/`](rubrics/) | What each reviewer scores |
 | [`hooks/`](hooks/) | The guard before every tool call, and the injection flag after reading outside content |
 | [`githooks/`](githooks/) | The pre-commit hook; CI runs the same rules on every push |
@@ -126,6 +126,7 @@ The gates, the checks per path and what `finish` refuses: [HARNESS.md](HARNESS.m
 | Agent | What it is for | Model / effort | Scope |
 | --- | --- | --- | --- |
 | [`target-runner`](agents/target-runner.md) | Builds, runs the change on the target, takes screenshots and logs, and reports what it saw | haiku / low | `project` |
+| [`bench-runner`](agents/bench-runner.md) | Flashes a reTerminal Sticky, checks its boot, benchmarks the refresh and takes the glass's frame, with the bench scripts in `tests/bench/` | haiku / low | `project` |
 | [`open-items-curator`](agents/open-items-curator.md) | Matches the docs' open items against new results and proposes closing the answered ones; edits nothing | sonnet / medium | `project` |
 
 Why each runs on the model it does: [HARNESS.md](HARNESS.md) §8.

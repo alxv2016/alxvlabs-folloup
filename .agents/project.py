@@ -51,14 +51,14 @@ PROJECT_WIDE_DOCS = ("docs/AGENT_HARNESS.md", ".agents/skills/docs-authoring-and
 #   Mobile:  ("ios/", "android/", "lib/", "pubspec.yaml")
 #   Python:  ("src/", "tests/", "pyproject.toml")
 #   ESP-IDF: ("main/", "components/", "CMakeLists.txt", "sdkconfig.defaults", "partitions.csv")
-CODE_PATHS = ()
+CODE_PATHS = ("main/", "components/", "CMakeLists.txt", "sdkconfig.defaults", "partitions.csv")
 
 # The files that change what a person sees: screens, components, styles, copy, icons. Empty: no UI gates and no
 # ui-designer judge. Fill it in for any project with an interface.
 #   Web:     ("src/components/", "src/pages/", "src/app/", "*.css", "*.scss", "src/styles/")
 #   Mobile:  ("ios/*/Views/", "android/app/src/main/res/", "lib/widgets/", "lib/screens/")
 #   ESP-IDF with LVGL: ("components/app_shell/screen_*", "components/ui_*/", "components/<feature>/*_screen.cpp")
-UI_PATHS = ()
+UI_PATHS = ("components/app_shell/screen_*", "components/ui/", "components/lvgl_display/", "components/hw_test/")
 
 # The design brief at the repo root: the product's principles and every design token by role, with its value per
 # theme (DESIGN.md is the template's demo). The ui-designer and design-system skills read it first; the design check
@@ -82,7 +82,7 @@ UX_STRINGS = {"paths": (), "calls": (), "names": (), "baseline": 0}
 # check's token-drift half do not run.
 #   ("src/styles/tokens.css",)  ("design/tokens.json",)  ("lib/theme/tokens.dart",)
 #   ESP-IDF with LVGL: ("components/ui_theme/include/ui_theme.h",) — constants named by role, colours as 0xRRGGBB
-TOKEN_FILES = ()
+TOKEN_FILES = ("components/design_tokens/include/design_tokens.h",)
 
 # Files a build or a tool writes. Never committed — the pre-commit hook refuses them — and the guard asks before an
 # agent edits one. Keep these in .gitignore as well.
@@ -139,6 +139,10 @@ ALLOWED_HOSTS = ("github.com", "githubusercontent.com")
 # loses data on the target.
 FLASH_TARGETS = ("flash", "app-flash", "bootloader-flash", "partition-table-flash", "encrypted-flash",
                  "encrypted-app-flash", "dfu-flash", "erase-flash", "erase_flash", "erase-otadata", "erase_otadata")
+ERASE_TARGETS = ("erase-flash", "erase_flash", "erase-otadata", "erase_otadata")
+# An esptool write's arguments that reach below the app at 0x10000 (partitions.csv), or erase before it writes.
+BELOW_APP = ("0", "00", "0x0", "0X0", "0x00", "0x0000", "0x8000", "0x9000", "0xf000", "0xF000", "--erase-all", "-e",
+             "-[!-]*e*")
 WEB_PMS = ("npm", "pnpm", "yarn", "bun")  # the package managers a web app's scripts run through
 NPM_AUTH = ("*_authToken*", "*_auth", "*_password*")  # the registry credentials in an npm or pnpm config
 ASK_COMMANDS = [
@@ -148,13 +152,19 @@ ASK_COMMANDS = [
     ("twine", ("upload",), "publishes a package to the registry"),
     ("cargo", ("publish",), "publishes a crate to the registry"),
     ("gh", ("release", "create"), "publishes a release"),
-    # ESP-IDF: writing the board — through idf.py, the build tool under it, esptool and the partition tools — and
-    # installing ESP-IDF itself (gigabytes in the home folder)
-    ("idf.py", (FLASH_TARGETS,), "writes the board's flash"),
-    ("ninja", (FLASH_TARGETS,), "writes the board's flash"),
-    ("cmake", ("--build", FLASH_TARGETS), "writes the board's flash"),
-    ("esptool*", (("write[_-]flash", "write[_-]flash[_-]status", "write[_-]mem", "erase[_-]flash",
-                   "erase[_-]region"),), "writes or erases the board's flash"),
+    # ESP-IDF, as claude-agent-deck-3's guard has it (the person's choice): flashing and resetting the board need no
+    # yes, so a change is validated on the glass without asking; what would lose data on it does — erasing, an
+    # esptool write below the app (an image at 0x0, the partition table, NVS, PHY data), the partition and OTA tools.
+    # Burning an eFuse is denied below. Installing ESP-IDF itself (gigabytes in the home folder) still asks.
+    ("idf.py", (ERASE_TARGETS,), "erases the board's flash — NVS with it"),
+    ("idf.py", (FLASH_TARGETS, ("--extra-args", "--extra-args=*")),
+     "--extra-args goes to esptool unread, where an erase or an address below the app can hide"),
+    ("ninja", (ERASE_TARGETS,), "erases the board's flash — NVS with it"),
+    ("cmake", ("--build", ERASE_TARGETS), "erases the board's flash — NVS with it"),
+    ("esptool*", (("erase[_-]flash", "erase[_-]region", "write[_-]flash[_-]status", "write[_-]mem"),),
+     "erases the board's flash, or writes its status register or memory"),
+    ("esptool*", (("write[_-]flash",), BELOW_APP),
+     "writes below the app partition — the bootloader, the partition table, NVS or PHY data — or erases first"),
     ("parttool*", (("write[_-]partition", "erase[_-]partition"),), "writes a partition on the board"),
     ("otatool*", (("write[_-]ota[_-]partition", "erase[_-]ota[_-]partition", "erase[_-]otadata",
                    "switch[_-]ota[_-]partition"),), "writes the board's OTA partitions"),
@@ -254,10 +264,12 @@ INVARIANTS = []
 #           the last lines of a failure are printed.
 #   "when": the paths that call for it (patterns as above).
 #   "wait": True to run it after the parallel ones — for a check that reads what another one writes.
+#   "counts": True when its failure counts toward the retry limit — the build and the tests; a lint or a self-test
+#           failure is fixed and run again without spending an attempt (.agents/HARNESS.md §4).
 # A check whose program is not installed fails with "not found" — add the tool, or take the check out.
 CHECKS = {
-    # "build": {"run": ["npm", "run", "build"], "when": ("src/", "package.json")},
-    # "test":  {"run": ["npm", "test", "--", "--run"], "when": ("src/", "tests/")},
+    # "build": {"run": ["npm", "run", "build"], "when": ("src/", "package.json"), "counts": True},
+    # "test":  {"run": ["npm", "test", "--", "--run"], "when": ("src/", "tests/"), "counts": True},
     # "lint":  {"run": ["npm", "run", "lint"], "when": ("src/",)},
     # "types": {"run": ["npx", "tsc", "--noEmit"], "when": ("src/",)},
     # DESIGN.md follows Google's DESIGN.md spec and holds no kit tables; its colour roles and contrast pairs, on both
@@ -267,6 +279,11 @@ CHECKS = {
     # The reTerminal Sticky's pins against board_config.h, and the shared-bus and pin rules (the sticky-hardware skill).
     "sticky": {"run": ["python3", ".agents/skills/sticky-hardware/scripts/sticky_check.py"],
                "when": ("docs/STICKY_HARDWARE_SPECS.md", "components/", "main/", ".agents/skills/sticky-hardware/")},
+    # The firmware, from a shell with ESP-IDF 6.1.1 activated (idf.py is a shell function there, so its script is
+    # run directly) — the build-run-test skill.
+    "build": {"run": ["bash", "-c", 'python "$IDF_PATH/tools/idf.py" build'],
+              "when": ("main/", "components/", "CMakeLists.txt", "sdkconfig.defaults", "partitions.csv"),
+              "counts": True},
     "sticky-selftest": {"run": ["python3", ".agents/skills/sticky-hardware/scripts/sticky_check.py", "--test"],
                         "when": (".agents/skills/sticky-hardware/",)},
 }
@@ -290,26 +307,34 @@ GATES = [
 # Where the change finally runs, in a few words — the Verified block names it.
 #   "the app in a browser at localhost:3000"  "the iOS simulator"  "a phone over USB"  "the staging site"
 #   "the ESP32-S3 board over USB, its serial console on the same port"
-TARGET = "<target>"
+TARGET = "a reTerminal Sticky over USB (V1.0 SSD1677 and V2.0 SSD2677), its console on UART0 through the CH343P"
 
 # Extra guard self-test cases for the project's own gates: (command, "deny" | "ask" | None). Give each gate a case,
 # and a near-miss that must pass.
 #   ("vercel --prod", "ask"), ("vercel dev", None)
 GUARD_CASES = [
-    # ESP-IDF: writing the board asks, burning an eFuse is denied, reading either passes
-    ("idf.py -p /dev/cu.usbmodem1101 flash monitor", "ask"), ("idf.py app-flash", "ask"),
-    ("idf.py erase-flash", "ask"), ("idf.py build", None), ("idf.py monitor", None), ("idf.py size", None),
-    ("python -m esptool --port /dev/x write-flash 0x0 a.bin", "ask"), ("esptool.py erase_flash", "ask"),
-    ("esptool.py chip_id", None),
+    # ESP-IDF: flashing the app passes; erasing, a write below the app and --extra-args ask; an eFuse is denied
+    ("idf.py -p /dev/cu.usbmodem1101 flash monitor", None), ("idf.py app-flash", None),
+    ("idf.py -p /dev/cu.wchusbserial1 flash", None), ("idf.py flash --extra-args=-e", "ask"),
+    ("idf.py erase-flash", "ask"), ("idf.py erase_otadata", "ask"), ("idf.py build", None), ("idf.py monitor", None),
+    ("idf.py size", None),
+    ("python -m esptool --port /dev/x write-flash 0x0 a.bin", "ask"), ("esptool.py write_flash 0 merged.bin", "ask"),
+    ("esptool.py write_flash 0x8000 partition-table.bin", "ask"), ("esptool.py write_flash 0x9000 nvs.bin", "ask"),
+    ("esptool.py write_flash --erase-all 0x10000 app.bin", "ask"), ("esptool write-flash -ze 0x10000 app.bin", "ask"),
+    ("esptool.py write_flash -z 0x10000 app.bin", None),
+    ("python -m esptool --chip esp32s3 -p /dev/x -b 460800 write-flash 0x10000 folloup.bin", None),
+    ("esptool.py erase_flash", "ask"), ("esptool.py erase_region 0x9000 0x6000", "ask"), ("esptool.py chip_id", None),
     ("idf.py efuse-burn --do-not-confirm DIS_USB_JTAG 1", "deny"), ("idf.py efuse-write-protect X", "deny"),
     ("espefuse.py burn_key BLOCK_KEY0 key.bin", "deny"), ("espefuse --port /dev/x burn-efuse X 1", "deny"),
     ("espefuse.py write_protect_efuse X", "deny"), ("espefuse.py set_flash_voltage 3.3V", "deny"),
     ("espefuse.py summary", None), ("idf.py efuse-summary", None),
     ("eim install -i v6.1", "ask"), ("eim wizard", "ask"), ("eim list", None),
     # the same writes, spelled through the build tool, a runner or a shell
-    ("ninja -C build flash", "ask"), ("cmake --build build --target app-flash", "ask"),
+    ("ninja -C build flash", None), ("cmake --build build --target app-flash", None),
+    ("ninja -C build erase-flash", "ask"), ("cmake --build build --target erase-flash", "ask"),
     ("uvx --from esptool esptool write-flash 0x0 a.bin", "ask"), ("pipx run esptool erase-flash", "ask"),
-    ('bash -lc "idf.py flash"', "ask"), ('bash -c -l "idf.py flash"', "ask"), ("timeout 60 idf.py -p /dev/x flash", "ask"),
+    ('bash -lc "idf.py flash"', None), ('bash -c -l "idf.py erase-flash"', "ask"),
+    ("timeout 60 idf.py -p /dev/x flash", None),
     ("parttool.py write_partition --partition-name nvs --input n.bin", "ask"), ("otatool.py erase_otadata", "ask"),
     ("python -m espefuse burn_efuse X 1", "deny"),
     # near misses: a file or an option value that only looks like a write

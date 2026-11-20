@@ -1,0 +1,11 @@
+## IDF Component Manager manifest. The resolved versions are recorded in dependencies.lock, which is committed;
+## managed_components/ is not. After editing this file, `idf.py reconfigure` re-solves; change a version only on
+## purpose, with `idf.py update-dependencies` (APP_ARCHITECTURE §5).
+dependencies:
+  idf:
+    version: '>=6.1.1,<6.2'  # the 6.1.1 series: a newer one is adopted on purpose
+
+  # The LVGL port: LVGL's task, its tick and its lock. The display and inputs are components/lvgl_display's own: the
+  # port has no e-paper path (STICKY_DESIGN_TOKENS §5).
+  espressif/esp_lvgl_port: '^2'
+  lvgl/lvgl: '^9'

@@ -22,6 +22,7 @@ heading path for why. Do not renumber; add new material under the next free numb
 | --- | --- |
 | `[HW]` | From STICKY_HARDWARE_SPECS |
 | `[D]` | Derived: calculated from the cited values |
+| `[SEEN]` | Seen on the glass by the person, on a V1.0 or V2.0 board running this repo's firmware |
 | `[?]` | Unverified — tracked in §8 |
 
 | § | Section | Look here for |
@@ -148,33 +149,49 @@ their value on each refresh — the design check reads them (§7).
 | Token | Value | What the code does |
 | --- | --- | --- |
 | `kRefreshPartialLimit` | 20 | Counts partial refreshes; the next update after 20 is drawn full, and a full one resets the count — proven on the SSD1677, Seeed's practice on the SSD2677 `[HW]` `[?]` |
-| `kFeedbackTickMs` | 100 ms | The buzzer tick fires within this of an accepted press, before the refresh is queued |
-| `kWaitIndicatorDelayMs` | 1000 ms | A wait's indicator is drawn only once the wait has run this long — `motion.wait-indicator` |
-| `kSelfUpdateMinMs` | 5000 ms | The least time between two self-driven redraws of the same area — `motion.self-update` |
-| `kClockTickMs` | 60000 ms | The clock's redraw — `motion.clock-tick` |
+| `kFeedbackTickMs` | 100 ms | The buzzer tick sounds as the input watcher reads a press — one poll, 10 ms (`kWatchMs`), after it — even during a refresh |
+| `kWaitIndicatorDelayMs` | 1000 ms | Declared for DESIGN.md's rule — a wait's indicator drawn only once the wait has run this long, `motion.wait-indicator`; no screen has a wait indicator yet |
+| `kSelfUpdateMinMs` | 5000 ms | The period of the hardware-test screens' self-updates (Sensors, Battery and power) — DESIGN.md's floor between two self-driven redraws of an area, `motion.self-update`, which no code enforces |
+| `kClockTickMs` | 60000 ms | Declared for DESIGN.md's clock redraw, `motion.clock-tick`; the firmware has no clock yet |
 
-- **A full refresh is drawn for**: the first frame after boot or wake; the update after `kRefreshPartialLimit`
-  partials; closing the keyboard, a select list, the sticky overlay or a dialog over half the glass; and the frame left
-  on the glass before sleep (DESIGN → Motion → Nothing animates). When a greyscale full refresh is drawn is open (§8).
-- **Two full refreshes never run back to back** — a second request within one full refresh's time waits, never dropped,
-  and draws the latest state when it runs; the frame before sleep always waits for its turn.
-- **Input during a refresh is kept** — every accepted press ticks at once; UP and DOWN move focus to the latest place;
-  an OK pressed before the frame lands is held and acts on the frame that was drawn, and a second OK in that time is
-  dropped (DESIGN → Motion → Press).
-- **An open overlay holds the screen under it** — what changes underneath is kept in state and drawn when the overlay
-  closes, so the overlay's own refresh is never queued behind the page's.
-- **Every refresh sends the whole frame** — the SSD1677 drives no window, and Seeed's SSD2677 driver sends the whole
-  frame too `[HW]`.
+- **A full refresh is drawn for**: the first frame after boot or wake; a full a screen asks for (`RequestFull`, the
+  hardware-test screens'); the update after `kRefreshPartialLimit` partials; the one-bit frame after a greyscale
+  refresh; on the V1.0, the pause of 2 s after 150 frames by scans; and, as a recovery, a partial that fails — drawn
+  again in full at once — and the next frame after a failed refresh, settle or standby, since the glass is then
+  unknown. In order, with the code that sets each:
+  [STICKY_EPAPER_WAVEFORMS §3.4](STICKY_EPAPER_WAVEFORMS.md#34-which-refresh-a-frame-gets). When a greyscale full
+  refresh is drawn is open (§8).
+- **DESIGN.md also keeps a full refresh for closing a large overlay and for the frame left before sleep** (DESIGN →
+  Motion → Nothing animates) — no screen in the firmware has an overlay or that last frame yet, so no code sets them.
+- **A new screen on the V1.0 is two partials, through white**, not a full one — 1.0 to 1.25 s against a full's 1.6 s,
+  and counted as two toward `kRefreshPartialLimit`, so one that would pass it is drawn full. Ten page changes, then a
+  full refresh, left no trace on the glass over a run of 80 `[SEEN]`.
+- **Two full refreshes back to back are DESIGN.md's to forbid, and not yet enforced** — DESIGN → Do's and Don'ts asks
+  that a second request within one full refresh's time waits, never dropped, and the frame before sleep waits its
+  turn; `Send` has no minimum interval between full refreshes yet (§8).
+- **Input during a refresh is kept** (DESIGN → Motion → Press) — a task of its own, above LVGL's, reads UP, DOWN, OK
+  and the touch panel every 10 ms, ticks on each press, and queues each press and release; LVGL replays the queue when
+  the refresh ends, so a short press inside a refresh is never lost and moves focus once. An OK pressed before the frame
+  the last OK caused has been drawn is dropped; how a queued OK lands after queued moves is open (§8). A press or a
+  move is queued only with room left for its release, so a release is never lost; holding OK for 1 s goes back,
+  whether or not LVGL saw the hold begin. The tick sounded at once during a full refresh `[SEEN]`.
+- **An open overlay holds the screen under it, by DESIGN.md's rule** — what changes underneath is kept in state and
+  drawn when the overlay closes, so the overlay's own refresh is never queued behind the page's; no overlay exists in
+  the firmware yet.
+- **Which refresh a frame gets is the display's policy** — a refresh by the controller's own waveform, or, on the
+  SSD1677, scans for a small change; scans never count toward `kRefreshPartialLimit`, and after 150 scan frames the next
+  pause of 2 s gets the full refresh ([STICKY_EPAPER_WAVEFORMS §3.4](STICKY_EPAPER_WAVEFORMS.md#34-which-refresh-a-frame-gets)).
 
 ## 6. The token header
 
-- **One C++ header carries every token**, generated from or kept equal to DESIGN.md's front matter; its path is set in
-  `TOKEN_FILES` in `.agents/project.py` once the firmware exists `[?]`.
+- **One C++ header carries every token** — `components/design_tokens/include/design_tokens.h`, kept equal to DESIGN.md's
+  front matter by hand and named in `TOKEN_FILES` in `.agents/project.py`.
 - **A token's path becomes its symbol**: `colors.text-primary` → `kColorTextPrimary`, `spacing.target` →
   `kSpacingTarget`, `spacing.stroke.focus` → `kSpacingStrokeFocus`, `rounded.sm` → `kRoundedSm`.
 - **A colour is stored as its level, 0 to 3**, with the hex in a comment — `kColorTextSecondary = 1;  // #555555`.
-- **A type role is a struct of the font, its line box and its weight**; the font is the compiled one-bit font for that
-  size (§3).
+- **A type role is a struct of its size, its line box and its weight**; `ui::Font(role)` gives the font LVGL
+  draws it in. The firmware renders Inter through LVGL's Tiny TTF at each size for now, and the flush thresholds it
+  to one bit on a partial refresh; compiling each role at one bit (§3) is open (§8).
 
 ## 7. Enforcement
 
@@ -189,9 +206,14 @@ their value on each refresh — the design check reads them (§7).
 
 | Item | Status | Unblocked by |
 | --- | --- | --- |
-| The token header's path, and its symbols generated from DESIGN.md's front matter | Open | The firmware's first display component |
+| Generating the token header's symbols from DESIGN.md's front matter, instead of by hand | Open | A second change to the tokens, which makes a generator worth it |
+| Compiling each type role at one bit a pixel, in place of Tiny TTF's anti-aliased glyphs | Open | The glyph ranges below, and how the Tiny TTF text reads on the glass |
 | A script that compares DESIGN.md's front matter with §2's tables | Open | The token header, which a third copy would make worth checking |
 | Inter's optical sizes per role, and the glyph ranges every string needs | Open | The first strings in the firmware, compiled and drawn on the glass |
 | The glass's real white and black, against the levels' nominal 21 : 1 | Open | A reading with a light meter on a V1.0 and a V2.0 board |
 | Whether the SSD2677 holds the 20-partials rule without ghosting, and its refresh times | Open | STICKY_HARDWARE_SPECS's open items, settled on a V2.0 board |
 | When a greyscale full refresh is drawn, and whether grey roles show on screens that take input | Open | The person, with the driver and the first screens |
+| Each type role drawn at its line box — `ui::LineBox()` is not applied, so Tiny TTF's 1.21 em draws body at about 38 px, not 42 `[?]` | Open | The person's choice, after the hardware-test screens are checked for fit on the glass |
+| The first button press showing the focus ring and moving nothing (DESIGN → Focus and input) — `input.cpp` has no state for a ring not yet shown | Open | The person's choice, with the focus walk on the glass |
+| A guard against two full refreshes back to back (DESIGN → Do's and Don'ts) — `Send` has no minimum interval between them | Open | The person's choice, with how often Full, Speed and Four greys flash on the glass |
+| How input replayed after a refresh should act — today an OK acts on the focus as the queued moves leave it, where DESIGN → Motion → Press says the frame the person saw; an ignored second OK still ticks; a double tap is replayed twice; a held UP or DOWN repeats after LVGL's long-press time. Proposed: DESIGN.md's Press lines say what the code does, or the code keeps the focus a press began on | Open | The person's choice, before a screen with a destructive action or a long list |

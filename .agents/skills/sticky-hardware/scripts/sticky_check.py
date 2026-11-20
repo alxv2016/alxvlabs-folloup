@@ -1,9 +1,10 @@
 #!/usr/bin/env python3
-"""The reTerminal Sticky's hardware rules that code can show (STICKY_HARDWARE_SPECS §1, §3).
+"""The reTerminal Sticky's hardware rules that code can show (STICKY_HARDWARE_SPECS §1, §3; STICKY_EPAPER_WAVEFORMS §2).
 
-    python3 .agents/skills/sticky-hardware/scripts/sticky_check.py          # pins and code
+    python3 .agents/skills/sticky-hardware/scripts/sticky_check.py          # pins, code and otp
     python3 .agents/skills/sticky-hardware/scripts/sticky_check.py pins     # the spec's pins against board_config.h
     python3 .agents/skills/sticky-hardware/scripts/sticky_check.py code     # the shared-bus and pin rules in C/C++
+    python3 .agents/skills/sticky-hardware/scripts/sticky_check.py otp      # the display drivers' commands
     python3 .agents/skills/sticky-hardware/scripts/sticky_check.py --test   # the script's own cases
 
 Run from the repo root. Prints each check's name and hit count, then one line per hit; exits 1 on any hit and 2 on an
@@ -25,7 +26,19 @@ BOARD_CONFIG = Path("components/board_config/include/board_config.h")
 CODE_DIRS = (Path("components"), Path("main"))
 SKIP_DIRS = {"managed_components", "build", ".git"}
 CODE_EXT = {".c", ".cc", ".cpp", ".h", ".hh", ".hpp"}
-CHECK_NAMES = ("pins", "code")
+CHECK_NAMES = ("pins", "code", "otp")
+
+# The display drivers' commands (STICKY_EPAPER_WAVEFORMS §2), read where they are sent: `Command(0xNN` and
+# `Write(0xNN`. The SSD2677 sends only Seeed's commands and its partial window (0x83, PTLW) — its undocumented opcodes
+# include OTP programming (0x90 enters it, 0x91 burns the OTP); the SSD1677 never sends its OTP-programming commands
+# nor the voltages; the shared bus code sends only the ID probe.
+SENT_COMMAND = re.compile(r"\b(?:Command|Write)\s*\(\s*(0[xX][0-9A-Fa-f]{1,2})\b")
+SSD2677_ALLOWED = {0x00, 0x02, 0x04, 0x06, 0x07, 0x10, 0x12, 0x30, 0x40, 0x50, 0x61, 0x62, 0x65, 0x70, 0x83, 0xA5, 0xE0,
+                   0xE6, 0xE7, 0xE9}
+SSD1677_DENIED = {0x30: "programs the waveform OTP", 0x36: "programs the OTP selection", 0x2A: "programs VCOM into OTP",
+                  0x08: "programs the initial code into OTP", 0x03: "writes the gate voltage",
+                  0x04: "writes the source voltages", 0x2C: "writes VCOM"}
+EPAPER_ALLOWED = {0x70}
 
 PIN_ROW = re.compile(r"^\|\s*`?([A-Z][A-Z0-9_]*)`?\s*\|\s*([^|]*?)\s*\|")
 ONE_GPIO = re.compile(r"^GPIO(\d{1,2})$")
@@ -155,6 +168,32 @@ def code_hits(files: dict[str, str]) -> list[str]:
     return hits
 
 
+def otp_hits(files: dict[str, str]) -> list[str]:
+    """Commands the display drivers must never send (STICKY_EPAPER_WAVEFORMS §2): path → text."""
+    hits = []
+    for path, raw in sorted(files.items()):
+        parts = Path(path).parts
+        if "ssd2677" in parts:
+            def bad(op: int) -> str | None:
+                return None if op in SSD2677_ALLOWED else "is not one of Seeed's SSD2677 commands or 0x83 — its " \
+                    "undocumented opcodes include OTP programming"
+        elif "ssd1677" in parts:
+            def bad(op: int) -> str | None:
+                return f"{SSD1677_DENIED[op]}" if op in SSD1677_DENIED else None
+        elif "epaper" in parts:
+            def bad(op: int) -> str | None:
+                return None if op in EPAPER_ALLOWED else "the shared bus code sends only the ID probe (0x70)"
+        else:
+            continue
+        text = strip_comments(raw)
+        for m in SENT_COMMAND.finditer(text):
+            why = bad(int(m.group(1), 16))
+            if why:
+                hits.append(f"{path}:{line_of(text, m.start())}: command `{m.group(1)}` {why} "
+                            f"(STICKY_EPAPER_WAVEFORMS §2)")
+    return hits
+
+
 def read_code(root: Path) -> dict[str, str]:
     files = {}
     for base in CODE_DIRS:
@@ -198,6 +237,12 @@ def check_code(code: dict[str, str]) -> bool:
     if not code:
         return report("sticky code", [], "no C/C++ under components/ or main/ yet")
     return report("sticky code", code_hits(code))
+
+
+def check_otp(code: dict[str, str]) -> bool:
+    if not code:
+        return report("sticky otp", [], "no C/C++ under components/ or main/ yet")
+    return report("sticky otp", otp_hits(code))
 
 
 def self_test() -> int:
@@ -251,6 +296,24 @@ def self_test() -> int:
                           "inline constexpr gpio_num_t kA = GPIO_NUM_4;\n", "components/foo_board_config.h":
                           "constexpr gpio_num_t kB = GPIO_NUM_5;\n"})), 2)
     expect("GPIO_NUM_NC is not a literal pin", code_hits({"main/x.cpp": "int p = GPIO_NUM_NC;\n"}), [])
+    # otp: Seeed's SSD2677 commands pass and anything else is a hit; the SSD1677's OTP and voltage commands are hits;
+    # comments never count; other components are not read
+    expect("SSD2677 allow-list", otp_hits({"components/ssd2677/ssd2677.cpp":
+                                           "bus_.Write(0x00, {0x2F});\nbus_.Command(0xA5);\nbus_.Write(0xE6, {s});\n"
+                                           "bus_.Write(0x83, {0x00, 0x00});\n"}), [])
+    expect("SSD2677 opcode off the list", len(otp_hits({"components/ssd2677/ssd2677.cpp": "bus_.Write(0x84, {1});\n"})), 1)
+    expect("SSD2677 OTP program and burn", len(otp_hits({"components/ssd2677/ssd2677.cpp":
+                                                         "bus_.Command(0x90);\nbus_.Write(0x91, {1});\n"})), 2)
+    expect("SSD2677 opcode in a comment", otp_hits({"components/ssd2677/ssd2677.cpp":
+                                                    "// never send 0x90, as in Command(0x90)\n"}), [])
+    expect("SSD1677 documented commands", otp_hits({"components/ssd1677/ssd1677.cpp":
+                                                    "bus_.Write(0x22, {0x0C});\nbus_.Command(0x32);\nbus_.Command(0x20);\n"}), [])
+    expect("SSD1677 OTP and voltage commands", len(otp_hits({"components/ssd1677/ssd1677.cpp":
+                                                             "bus_.Command(0x30);\nbus_.Write(0x04, {1});\n"
+                                                             "bus_.Write(0x2C, {0x30});\n"})), 3)
+    expect("shared bus: the ID probe only", len(otp_hits({"components/epaper/epaper_bus.cpp":
+                                                          "Command(0x70);\nbus.Command(0x12);\n"})), 1)
+    expect("other components unread", otp_hits({"components/devices/devices.cpp": "Write(0x30, {1});\n"}), [])
     with contextlib.redirect_stdout(io.StringIO()):
         expect("unknown check name", main(["pin"]), 2)
         with tempfile.TemporaryDirectory() as tmp:
@@ -285,6 +348,8 @@ def main(argv: list[str]) -> int:
         ok = check_pins(root, code) and ok
     if "code" in which:
         ok = check_code(code) and ok
+    if "otp" in which:
+        ok = check_otp(code) and ok
     return 0 if ok else 1
 
 

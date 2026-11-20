@@ -236,9 +236,9 @@ When two pull against each other, the earlier wins — between options that both
 2. **Black and white first.** Every screen reads in pure black and white, and grey only adds to it. The panel shows
    four levels only on a greyscale full refresh; every other refresh is one bit a pixel, which turns dark grey black
    and light grey white.
-3. **Still, and changed sparingly.** The glass changes only when something changed, in one refresh, over as small an
-   area as the change needs. A full refresh flashes the whole glass for about 1.65 s, partial refreshes leave traces
-   that build up, and every refresh costs battery.
+3. **Still, and changed sparingly.** The glass changes only when something changed, in as few refreshes and
+   over as small an area as the change needs. A full refresh flashes the whole glass for 1 s on a V2.0 and 1.6 s on a
+   V1.0; partial refreshes leave traces that build up, and every refresh costs battery.
 4. **Glanceable and calm.** A screen is read in a glance from where the device hangs, and stays true with no power:
    one primary item, the largest type that fits, capture one action away — the AI button or a Record button — and a
    designed last frame, because it stays on the glass while the device sleeps.
@@ -383,7 +383,8 @@ At 235 ppi a pixel is 0.108 mm and a point is 3.26 px.
 
 - **Every motion token is a step** — `steps(1, start)`, no duration: a change is the next frame. No slide, fade, scale,
   spinner, blinking cursor or marquee; e-paper cannot show them, and trying costs refreshes.
-- **The refresh is the motion.** A press, a selection and a change of screen land in one partial refresh. A full
+- **The refresh is the motion.** A press and a selection land in one partial refresh, and so does a change of screen
+  on the V2.0; on the V1.0 a change of screen is two, through white, 1 to 1.25 s, so the old page leaves no ghost. A full
   refresh — the whole glass flashing — is kept for the first frame after waking, the update after twenty partial
   refreshes, closing a large overlay, and the frame left on the glass before sleep.
 - **When grey shows is open** — whether grey roles are drawn on screens that take input, collapsing to black or white
@@ -516,7 +517,19 @@ At 235 ppi a pixel is 0.108 mm and a point is 3.26 px.
 
 ## Exceptions
 
-- **None in use.** A value off these tokens is argued here — what, where and why — before a screen uses it.
+A value off these tokens is argued here — what, where and why — before a screen uses it.
+
+- **The hardware-test demo** (`components/hw_test`) — a bench tool for V1.0 and V2.0 boards, not a FolloUp screen.
+  - **What:** its fixtures' sizes (the checker, the grey bands, the touch marks and dot, the microphone bar and its
+    scale, the benchmark's track and its step, the footer's Back), a test's absolute grey levels (the checker's dots,
+    the words on each grey band), its timers and lengths (stats shown after a refresh, the benchmark's frames, a
+    second of recording, leaving a screen, the page walk's 3 s on each page), the refresh benchmark's bar, which
+    animates as fast as the glass allows, and the page walk, which changes screen by itself from the console.
+  - **Why:** each measures the glass, the touch or a sensor — a fixture sized to the test, not to reading — the
+    benchmark exists to drive the glass as fast as it goes, and the page walk to change screen many times over for a
+    ghosting run, so Nothing animates and Nothing leaves on a timer cannot hold there.
+  - **Where it stops:** a size that matches a token uses the token; text, colours by role, focus and hit areas follow
+    this file; nothing outside `components/hw_test` uses the exception.
 
 ## Open items
 

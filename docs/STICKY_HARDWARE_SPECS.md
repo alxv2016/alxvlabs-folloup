@@ -86,9 +86,13 @@ Firmware facts and Pins tables by their rows, wherever they sit.
   to the SPI bus, and the sensors fail once the display starts `[SRC]` `[DOC]`.
 - **Initialise `SPI2_HOST` once, at board start-up, and never free it** — the panel and the card each add and remove
   only their own device; a second `spi_bus_initialize()` or a `spi_bus_free()` from either breaks the other `[SRC]`.
-- **The panel drives its whole area on every refresh** — the SSD1677's RAM window registers (`0x44`, `0x45`) scope
-  where writes land, not what is driven, so every refresh writes both RAM planes (`0x24`, `0x26`) in full `[MEAS]`;
-  Seeed's SSD2677 driver also sends the whole frame on a partial refresh and ignores the window `[SRC]`.
+- **The SSD1677 drives its whole area on every refresh** — its RAM window registers (`0x44`, `0x45`) scope where
+  writes land, not what is driven, so whatever the RAM holds outside a window is driven too `[MEAS]`: an image refresh
+  writes both RAM planes (`0x24`, `0x26`) in full, and a scan clears the last scan's masks with its own window
+  ([STICKY_EPAPER_WAVEFORMS §3.3](STICKY_EPAPER_WAVEFORMS.md#33-the-ssd1677-scans)). The SSD2677 is sent the whole
+  frame for a full or grey refresh, and for a partial only the box of changed pixels, through its partial window,
+  whose partial mode drives the box alone
+  ([STICKY_EPAPER_WAVEFORMS §3.1](STICKY_EPAPER_WAVEFORMS.md#31-the-ssd2677-v20)) `[SRC]` `[FW]`.
 
 ### 1.3 Power, sensors and touch
 
@@ -124,7 +128,7 @@ Firmware facts and Pins tables by their rows, wherever they sit.
 | Display interface | SPI, 4-wire (BS1 low) with no MISO; reads come back on `EP_SDI`, the SPI device in half-duplex 3-wire mode | `[SCH]` `[SRC]` |
 | Display resolution | 800 x 480, 235 ppi | `[DOC]` |
 | Display greyscale | 4 levels only on a greyscale full refresh; a partial or mono full refresh is 1 bit, levels 0–1 black and 2–3 white | `[DOC]` `[SRC]` |
-| Display pixel clock | 20 MHz on the SSD1677; Seeed's driver runs both controllers at 10 MHz | `[FW]` `[SRC]` |
+| Display pixel clock | Writes at 20 MHz and reads at 2 MHz on both controllers — the SSD2677 reads at 2.5 MHz at most; Seeed's driver runs both at 10 MHz | `[DS]` `[FW]` `[SRC]` |
 | Display orientation | 800 x 480 landscape in the controller's RAM; held as a 480 x 800 portrait | `[FW]` |
 | Display frame buffer | 48000 bytes at 1 bit per pixel, bit 0 black and bit 1 white; 96000 bytes at 2 bits for greyscale, the most significant pixel first | `[D]` `[SRC]` |
 | Display rotation | Seeed's dashboard rotates every frame 180° between its logical portrait and the panel, with the panel driver's `mirror_x` set, which the driver applies on the SSD2677 only | `[DOC]` `[SRC]` |
@@ -262,10 +266,11 @@ else.**
 
 ### 4.3 Display timing
 
+**Each refresh's and each frame's time on both controllers, dated, with its build:
+[STICKY_EPAPER_WAVEFORMS §4](STICKY_EPAPER_WAVEFORMS.md#4-measurements).** What sharing the bus costs:
+
 | Measure | Value | Conditions | Source |
 | --- | --- | --- | --- |
-| A forced full refresh, seen as the flash when a modal closes | about 1.65 s | Not dated; build not recorded | `[MEAS]` `[?]` |
-| One frame's SPI transfer | about 40 ms | Bus held by the panel alone; not dated | `[MEAS]` `[?]` |
 | One frame's SPI transfer, the card writing | about 126 ms | SD writes sharing the bus; not dated | `[MEAS]` `[?]` |
 
 ### 4.4 Parts
@@ -305,7 +310,8 @@ else.**
 ### 4.5 Display controllers
 
 **The SSD1677 (V1.0) and the SSD2677 (V2.0) sit on the same pins and the same 800 x 480 glass, but share no command
-set, BUSY polarity or timing** `[SRC]` `[TEAM]`.
+set, BUSY polarity or timing** `[SRC]` `[TEAM]`. How each refresh is driven — the waveforms, the SSD1677's scans, the
+presets — is [STICKY_EPAPER_WAVEFORMS](STICKY_EPAPER_WAVEFORMS.md).
 
 | Item | SSD1677 (V1.0) | SSD2677 (V2.0) | Source |
 | --- | --- | --- | --- |
@@ -314,11 +320,11 @@ set, BUSY polarity or timing** `[SRC]` `[TEAM]`.
 | Reset pulse | 10 ms low, 10 ms high | 20 ms low, 10 ms high | `[SRC]` |
 | Busy timeout | 8 s | 30 s | `[SRC]` |
 | Command set | RAM planes `0x24`, `0x26`; Display Update Control 2 (`0x22`), then Master Activation (`0x20`) | Init: panel setting (`0x00`), booster (`0x06`), `0xE7`, PLL (`0x30`), `0x50`, timing (`0x62`), resolution (`0x61`), `0xE0` = `0x10`, `0x65`, `0xE9`; each refresh: the waveform latch, data (`0x10`), power on (`0x04`) if not already on, refresh (`0x12`, data `0x00`), and power off (`0x02`) after greyscale only | `[FW]` `[SRC]` |
-| Full refresh | `0x22` = `0xF7` in our firmware, which turns the analog block and clock off after; Seeed uses `0xF4`, which keeps them on until a standby | Waveform latched by temperature, then refresh | `[FW]` `[SRC]` |
-| Partial refresh | `0x22` = `0xFC`; `0xFF` for the first after standby | Old and new frames interleaved, 2 bits a pixel, sent whole | `[FW]` `[SRC]` |
-| Waveform by temperature | The controller's own | Chosen by the app from a temperature: `0xE0` = `0x12`, `0xE6` = the waveform, then `0xA5`; the temperature from the controller (`0x40`), or supplied — Seeed passes the SHT40's once, at start-up | `[SRC]` |
+| Full refresh | `0x22` = `0xF4`, which keeps the analog block and clock on until a standby | Waveform latched by temperature, then refresh | `[FW]` `[SRC]` |
+| Partial refresh | `0x22` = `0xFC`; `0xFF` for every partial from a standby until the controller is set up again | Old and new frames interleaved, 2 bits a pixel, for the box of changed pixels alone, through the partial window `0x83` ([STICKY_EPAPER_WAVEFORMS §3.1](STICKY_EPAPER_WAVEFORMS.md#31-the-ssd2677-v20)) | `[FW]` `[SRC]` `[DS]` |
+| Waveform by temperature | The controller's own | Chosen by forcing the temperature: `0xE0` (CCSET) sets TSFIX, `0xE6` (TS_SET) the signed °C, then Seeed's undocumented `0xA5` — the waveforms by band in [STICKY_EPAPER_WAVEFORMS §3.1](STICKY_EPAPER_WAVEFORMS.md#31-the-ssd2677-v20); the temperature from the controller (`0x40`), or supplied — Seeed passes the SHT40's once, at start-up | `[DS]` `[SRC]` |
 | 4-level greyscale | Supported; `0x22` = `0xD7` already turns off the analog block and clock, so skip a standby after it | Supported, 2 bits a pixel (96000 bytes) | `[SRC]` |
-| High voltage after a refresh | Off with `0xF7`, `0xD7`; on with `0xF4`, `0xFC` | Left on after a mono full or partial refresh, off after greyscale | `[FW]` `[SRC]` |
+| High voltage after a refresh | Off with `0xD7`, `0xFF`; on with `0xF4`, `0xFC`, `0xCC` | Left on after a mono full or partial refresh, off after greyscale | `[FW]` `[SRC]` |
 | Deep sleep | `0x10` = `0x03` | Power off (`0x02`) if still powered, then `0x07` with check byte `0xA5` | `[SRC]` |
 
 ---
@@ -497,7 +503,7 @@ the card before the panel, then the rest.**
 - **The panel ghosts after a large, high-contrast overlay closes, with the bus serialised** → a partial refresh cannot
   clear that much contrast → a full refresh when a large overlay closes `[MEAS]`.
 - **Elements drawn earlier light up again after a partial refresh** → a windowed write left stale RAM outside the
-  window, and the next refresh drove it → write both RAM planes in full on every refresh (§1) `[MEAS]`.
+  window, and the next refresh drove it → on the SSD1677, write both RAM planes in full on every refresh (§1) `[MEAS]`.
 - **The panel will not start with a card inserted** → the card was not yet in SPI mode when the panel's traffic began
   → mount the card first and keep it mounted (§7) `[MEAS]`.
 - **The panel stops answering after an SD read** → the SD code freed the whole SPI bus the panel shares → free only the
@@ -581,10 +587,9 @@ pinhole and openings on the bottom** `[DOC]`.
 | Whether releasing the latch on battery (§5.2) cuts the rail on our board — Seeed's reference power-off is the same release, and Seeed documents it cutting power (§5.3) | Open — documented by Seeed, not yet seen on our board | The person: shut down on battery alone and see whether the board goes dark or falls back to deep sleep |
 | Whether an RTC alarm (`RTC_INTn` low) powers the board on from off, as the schematic's power-on node (§5.2) implies — Seeed's demos never set the alarm | Open — traced on the schematic, unseen on the board | An RTC alarm set before a battery power-off |
 | The IMU on a V2.0 board — every unit carries it and V1.0 is confirmed (§4.2), though the schematic's block diagram draws it with a dashed border | Open | `WHO_AM_I` reading `0x6A` on a V2.0 board once the IMU driver runs |
-| Whether the 20 MHz panel clock holds on the SSD2677, and for reads on either controller — Seeed runs both at 10 MHz | Open | The ID and temperature reads, and a full refresh, at 20 MHz on a V1.0 and a V2.0 board |
-| The SSD2677's refresh timings and its ghosting under the 20-partials rule | Open | A V2.0 board, timed beside a V1.0 |
-| Which `0x22` value our SSD1677 full refresh keeps — `0xF7` (analog and clock off after) or Seeed's `0xF4` (on until a standby) — and whether `EP_PWR_EN` stays high or goes low in deep sleep (§6) | Open — our firmware and Seeed's demos differ | The team's choice, then a full refresh and a deep-sleep wake checked on a V1.0 board |
+| The SSD2677's ghosting under the 20-partials rule | Open | A long run of partials on a V2.0 board, the glass checked before the full refresh |
+| Whether `EP_PWR_EN` stays high or goes low in deep sleep (§6) | Open | A deep-sleep wake checked on a V1.0 and a V2.0 board |
 | Whether V2.0 changes anything off the pin map — Seeed's demos drive both controllers with one pin map, but the schematic in `STICKY_assets/` is Rev 01 and names no controller | Open | Seeed's schematic for V2.0, or the team |
 | Whether the CH343P's Q4 on GPIO0 disturbs the sensor I2C bus when a serial monitor toggles DTR or RTS | Open | A logic analyser on GPIO0 while a monitor opens the port |
-| The display timings in §4.3, with a date, a build and a run count | Open | A full refresh and a frame's transfer timed on the board |
+| A frame's transfer with the card writing (§4.3), with a date and a build | Open | A refresh timed while the card writes |
 | The IMU motion thresholds in §6, with a date and a build | Open | The motion log on the board, picked up and set down |

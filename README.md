@@ -97,7 +97,7 @@ The agent cannot hand over while a yes is missing: `verify.py finish` refuses.
 | [.agents/README.md](.agents/README.md) | The kit in plain words: each skill and agent, what it is for | — |
 | [.agents/HARNESS.md](.agents/HARNESS.md) | This repo's policy, case by case | The project's rows |
 | [.agents/skills/](.agents/skills/) | 17 skills — the loop, docs, commits, UI design, UX design, accessibility, design tokens, layout, typography, motion, touch and gesture, UX content, secrets handling, ESP-IDF setup, React and Vite setup, build and run, and the reTerminal Sticky's hardware. The docs, accessibility, design-system, layout, typography, ux-designer, motion, touch-and-gesture, ui-designer, ux-content, secrets-handling, esp-idf-setup and react-vite-setup skills are portable: each carries its guidelines, criteria, brief or principles and its scripts, so its folder works in any repo | `build-run-test` |
-| [.agents/agents/](.agents/agents/) | 8 agents — `ui-designer`, `ux-designer`, `doc-writer`, `ux-content-writer`, `code-reviewer`, `doc-reviewer`, `target-runner`, `open-items-curator` | — |
+| [.agents/agents/](.agents/agents/) | 9 agents — `ui-designer`, `ux-designer`, `doc-writer`, `ux-content-writer`, `code-reviewer`, `doc-reviewer`, `target-runner`, `bench-runner`, `open-items-curator` | — |
 | [.agents/rubrics/](.agents/rubrics/) | What each reviewer scores; grows as you report what they missed | — |
 | `.agents/hooks/` | The guard and the injection flag, with self-tests | — |
 | `.agents/githooks/pre-commit` | Refuses a commit with a secret, a build file or a debug line | — |
@@ -115,6 +115,7 @@ Everything is plain files and Python's standard library: no package to install, 
 | --- | --- |
 | [AGENT_HARNESS](docs/AGENT_HARNESS.md) | What an agent harness is and how each part works — the rules, the loop, the guard, the reviewers, the design gates, memory, token use, and the bootstrap prompt. Generic: any project, any stack |
 | [DESIGN](DESIGN.md) | FolloUp's design system for e-ink, to Google's DESIGN.md spec — brand, principles and every token; AGENT_HARNESS §23 explains how agents use a design brief |
+| [APP_ARCHITECTURE](docs/APP_ARCHITECTURE.md) | How the firmware is put together: `main`, `app_shell`, `app_hooks`, the board, the devices, LVGL on the glass, Seeed's vendored drivers, the features; the layering rules, boot order and versions |
 | [STICKY_DESIGN_TOKENS](docs/STICKY_DESIGN_TOKENS.md) | How the firmware implements DESIGN.md on the e-paper glass: each colour role on a full and a partial refresh with its contrast proof, fonts, the token header, the refresh policy and feedback, enforcement |
 | [STICKY_HARDWARE_SPECS](docs/STICKY_HARDWARE_SPECS.md) | The reTerminal Sticky as firmware sees it: critical constraints, the ESP32-S3R8, the e-paper panel, every pin, the buses and devices, power, sleep and wake, bring-up order, traps and open items |
 | [DOCUMENTATION_GUIDELINES](.agents/skills/docs-authoring-and-sync/references/guidelines.md) | How every doc is written and kept true, so an agent finds what it needs. Generic: any project, any stack |
@@ -135,6 +136,7 @@ Everything is plain files and Python's standard library: no package to install, 
 | [FOCUS](.agents/skills/accessibility/references/focus.md) | The focus model every input shares — touch, mouse, keyboard, an encoder and buttons — from WCAG 2.2, the WAI-ARIA Authoring Practices and the HTML Standard. Generic: any project, any stack |
 | [FEEDBACK](.agents/skills/touch-and-gesture/references/feedback.md) | Haptics, sound and a device's status lights as one small vocabulary, when feedback fires, and pending, done and failed. Generic: any project, any stack |
 | [ACCESSIBILITY](.agents/skills/accessibility/references/criteria.md) | The WCAG 2.2 AA floors every screen meets, and how to meet and test each on the web, iOS, Android and an embedded device with an LVGL screen, with closed functionality under EN 301 549. Generic: any project, any stack |
+| [STICKY_EPAPER_WAVEFORMS](docs/STICKY_EPAPER_WAVEFORMS.md) | How the glass is refreshed on V1.0 (SSD1677) and V2.0 (SSD2677): the waveforms, the SSD1677's scans, the speed presets, their measured times, and the panel's safety rules |
 
 The kit's own pages: [.agents/README.md](.agents/README.md) (the skills and agents in plain words) and
 [.agents/HARNESS.md](.agents/HARNESS.md) (this repo's policy, case by case).

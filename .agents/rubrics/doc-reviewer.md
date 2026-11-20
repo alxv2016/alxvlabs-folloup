@@ -50,3 +50,4 @@ A result without evidence counts as unsure.
 
 | Item | Since | From the person | Looks for |
 | --- | --- | --- | --- |
+| L1 | 2026-11-19 | A doc's "never send an undocumented command" passed while the driver sent five | A rule in a doc that bounds what code does — *never*, *only*, *every* — over a set the code enumerates (commands sent, pins, keys): each member the code uses, grepped and checked against the rule's source, not the rule's wording alone |

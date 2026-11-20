@@ -1,0 +1,6 @@
+# Codex's definition of the kit's agent (.agents/HARNESS.md §3.2, §8): the instructions are the kit's own; the model is
+# the session's, the effort the agent's.
+name = "bench-runner"
+description = "Flashes a reTerminal Sticky, checks its boot, benchmarks the refresh and takes the glass's frame"
+developer_instructions = "Read .agents/agents/bench-runner.md and follow it. It reports and fixes nothing."
+model_reasoning_effort = "low"

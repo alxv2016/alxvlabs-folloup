@@ -20,13 +20,17 @@ and the code: find out which is intended before changing either
 
 | Path | Holds |
 | --- | --- |
-| `<src/>` | `<the app's source>` |
+| [`main/`](main/), [`components/`](components/) | The ESP-IDF firmware: `main` composes, `app_shell` sequences, `board` brings the hardware up, `devices`, `lvgl_display` and `ui` serve it, features such as `hw_test` plug in — [APP_ARCHITECTURE](docs/APP_ARCHITECTURE.md) |
+| [`components/epaper`](components/epaper/), [`ssd1677`](components/ssd1677/), [`ssd2677`](components/ssd2677/) | The display drivers: the panel interface and bus, and each controller — how the glass is refreshed is [STICKY_EPAPER_WAVEFORMS](docs/STICKY_EPAPER_WAVEFORMS.md) |
 | [`DESIGN.md`](DESIGN.md) | FolloUp's design system for e-ink, to Google's DESIGN.md spec: principles, and every token in its front matter — its code side is [STICKY_DESIGN_TOKENS](docs/STICKY_DESIGN_TOKENS.md) |
 | `docs/` | The knowledge: rules, reasons, decisions, open items |
 | [`STICKY_assets/`](STICKY_assets/) | Seeed's files for the reTerminal Sticky: the schematic (`schematic/`), the block diagram (`images/`), the 3D model (`drawings/`, kept out of git — STICKY_HARDWARE_SPECS §9 links Seeed's download) — [STICKY_HARDWARE_SPECS](docs/STICKY_HARDWARE_SPECS.md) is read from them |
 | `.agents/` | The agent kit: skills, agents, rubrics, hooks, the project settings ([.agents/README.md](.agents/README.md)) |
 
-`<Where code lives, and the layering an edit must keep: which folder may import which.>`
+Every arrow points at `app_hooks` or down at the board — never at a feature: `main` → `app_shell` and the listed
+features; `app_shell` → `app_hooks`, `board`, `devices`, `lvgl_display`, `ui`; a feature → `app_hooks` and the shared components;
+`board` → `board_config` and the display drivers. `esp_idf.py check` fails a break (E1–E5,
+[APP_ARCHITECTURE §2](docs/APP_ARCHITECTURE.md#2-rules)).
 
 ---
 
@@ -97,6 +101,7 @@ An agent is a focused role with its own prompt in [.agents/agents/](.agents/agen
 | [`code-reviewer`](.agents/agents/code-reviewer.md) | Reviews a diff to the code against the project's rules | `project` |
 | [`doc-reviewer`](.agents/agents/doc-reviewer.md) | Checks docs against the guidelines (form) and the code (drift) | `project` |
 | [`target-runner`](.agents/agents/target-runner.md) | Runs the change on the target and reports what it saw | `project` |
+| [`bench-runner`](.agents/agents/bench-runner.md) | Flashes a reTerminal Sticky, checks its boot, benchmarks the refresh and takes the glass's frame, with the bench scripts in `tests/bench/` | `project` |
 | [`open-items-curator`](.agents/agents/open-items-curator.md) | Proposes closing the docs' open items that new results answer | `project` |
 
 ---
@@ -104,14 +109,14 @@ An agent is a focused role with its own prompt in [.agents/agents/](.agents/agen
 ## Harness
 
 Every change runs through [`verify-change`](.agents/skills/verify-change/SKILL.md): `verify.py start "<task>"`, the
-person's yes on a draft (`approve`), edit, `verify.py run` (the checks the touched files need; exit 3 — three failures
+person's yes on a draft (`approve`), edit, `verify.py run` (the checks the touched files need; exit 3 — three failed builds
 in a row — stop and ask), the judges it names (`review`), the target (`target`) and the person's sign-off (`signoff`),
 then `finish` — the hand-over gate. The guard runs before every tool call: it **denies** reading credentials and
 secret files, burning a chip's eFuses and printing a registry token, even with a yes; it also denies a new skill or
 agent until it carries the person's choice of scope (rule 9), a new ESP-IDF project until `docs/` holds its hardware
 spec, and a new React and Vite app's configs until it holds a web app spec; it **asks** before a commit, a push,
 discarding changes, deleting files, sending data off the machine, a fetch from a host outside the allow-list,
-publishing or deploying, flashing a board, installing browsers, updating visual baselines, editing generated files or
+publishing or deploying, erasing a board or writing below its app (flashing the app passes), installing browsers, updating visual baselines, editing generated files or
 the harness itself, and `<the project's own gates>`; it **allows** reading, building, testing and running the app. The
 injection flag runs after a tool returns outside content; the pre-commit hook and CI at each commit. Blocked: ask the
 person, never reword the command. The person runs `git config core.hooksPath .agents/githooks` once. The project's
@@ -121,10 +126,12 @@ settings: [`.agents/project.py`](.agents/project.py); the whole of it: [HARNESS]
 
 ## Environment
 
-- **Tools:** `<languages, runtimes and versions; the package manager>`.
+- **Tools:** C++ (gnu++26) and C on ESP-IDF 6.1.1, installed with `eim`; LVGL 9 and `esp_lvgl_port` 2 from the
+  component manager; Python 3.9+ for the kit.
 - **Run commands** from the repo root; long ones through
   `python3 .agents/skills/build-run-test/scripts/quiet.py -- <command>`.
-- **The target:** `<where a change finally runs>` ([`build-run-test`](.agents/skills/build-run-test/SKILL.md)).
+- **The target:** a reTerminal Sticky over USB — a V1.0 (SSD1677) and a V2.0 (SSD2677) board
+  ([`build-run-test`](.agents/skills/build-run-test/SKILL.md)).
 - **MCP servers** in [.mcp.json](.mcp.json): `<the design file, the platform's docs — or none>`.
 
 ---
@@ -141,8 +148,8 @@ settings: [`.agents/project.py`](.agents/project.py); the whole of it: [HARNESS]
 
 ## Configuration and generated files
 
-- **Generated, never committed:** `GENERATED` in `.agents/project.py` — `<build/, dist/, …>`.
-- **Managed by a tool, committed, never hand-edited:** `MANAGED` — `<lock files, vendored code>`; change the manifest.
+- **Generated, never committed:** `GENERATED` in `.agents/project.py` — `build/`, `managed_components/`, `sdkconfig`.
+- **Managed by a tool, committed, never hand-edited:** `MANAGED` — `dependencies.lock`; change `main/idf_component.yml`. Seeed's `gt911`, `bq27220`, `pcf8563` and `debug_logging` components are kept as Seeed ships them.
 - `<Settings files and what each controls.>`
 
 ---
@@ -199,6 +206,8 @@ not of the product: the target and the person's sign-off are what show it works.
 | [FEEDBACK](.agents/skills/touch-and-gesture/references/feedback.md) | Feedback beyond the screen — one vocabulary of haptics, sound and status lights, when it fires, pending, done and failed — generic, any project; kept in the touch-and-gesture skill |
 | [HARNESS](.agents/HARNESS.md) | This repo's harness: the guard case by case, checks by path, the hand-over gate, the person's approvals |
 | [DESIGN](DESIGN.md) | FolloUp's design system for e-ink, to Google's DESIGN.md spec: brand, principles, colours, type, layout, depth, shapes, motion, voice, components, focus and input, accessibility |
+| [APP_ARCHITECTURE](docs/APP_ARCHITECTURE.md) | How the firmware is put together: the parts, the layering rules, boot order, adding a feature, versions |
+| [STICKY_EPAPER_WAVEFORMS](docs/STICKY_EPAPER_WAVEFORMS.md) | How the glass is refreshed on each controller: the waveforms, the SSD1677's scans, the presets, their measured times, the panel's safety rules |
 | [STICKY_DESIGN_TOKENS](docs/STICKY_DESIGN_TOKENS.md) | How the firmware implements DESIGN.md: each role on both refreshes and the contrast proof, fonts, the token header, the refresh policy and feedback, enforcement |
 | [STICKY_HARDWARE_SPECS](docs/STICKY_HARDWARE_SPECS.md) | The reTerminal Sticky board: constraints, firmware facts, pins, buses, power, sleep and wake, bring-up order, traps |
 

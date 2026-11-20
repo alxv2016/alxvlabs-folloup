@@ -1,0 +1,10 @@
+menu "FolloUp e-paper"
+
+    config FOLLOUP_DISPLAY_FLIP_180
+        bool "Turn the screen and touch 180 degrees"
+        default n
+        help
+            The portrait mapping follows Seeed's drivers. If the screen reads upside down on the glass, turn this
+            on: it turns the frame and the touch points together.
+
+endmenu

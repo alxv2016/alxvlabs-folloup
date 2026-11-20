@@ -1,0 +1,48 @@
+# folloup — the build settings that differ from ESP-IDF's defaults, each with its reason. Edit this file, never
+# sdkconfig: sdkconfig is generated from it, and after a change here `rm sdkconfig && idf.py reconfigure` applies it.
+
+# The chip and its flash (STICKY_HARDWARE_SPECS §2).
+CONFIG_IDF_TARGET="esp32s3"
+CONFIG_ESPTOOLPY_FLASHSIZE_32MB=y
+
+# The partition table, sized to the flash (partitions.csv).
+CONFIG_PARTITION_TABLE_CUSTOM=y
+CONFIG_PARTITION_TABLE_CUSTOM_FILENAME="partitions.csv"
+
+# PSRAM, octal (STICKY_HARDWARE_SPECS §2): on, and malloc may place a large allocation there.
+CONFIG_SPIRAM=y
+CONFIG_SPIRAM_MODE_OCT=y
+CONFIG_SPIRAM_USE_MALLOC=y
+
+# Flash and PSRAM at 80 MHz, quad flash — Seeed's settings for this module.
+CONFIG_ESPTOOLPY_FLASHMODE_QIO=y
+CONFIG_ESPTOOLPY_FLASHFREQ_80M=y
+CONFIG_SPIRAM_SPEED_80M=y
+
+# The console on UART0, through the CH343P. No USB Serial/JTAG console: GPIO19 and 20 carry the microphone
+# (STICKY_HARDWARE_SPECS §3.4).
+CONFIG_ESP_CONSOLE_UART_DEFAULT=y
+CONFIG_ESP_CONSOLE_SECONDARY_NONE=y
+
+# A 1 ms tick, so LVGL's timers and the input reads keep time; a larger main stack for the boot sequence.
+CONFIG_FREERTOS_HZ=1000
+CONFIG_ESP_MAIN_TASK_STACK_SIZE=8192
+
+# LVGL on the glass (STICKY_DESIGN_TOKENS §5, §6): 8-bit grey, rendered by the C library's malloc into PSRAM; Inter
+# through Tiny TTF; no theme, so nothing carries a pressed tint or a transition the glass cannot show.
+CONFIG_LV_COLOR_DEPTH_8=y
+CONFIG_LV_USE_CLIB_MALLOC=y
+CONFIG_LV_USE_CLIB_STRING=y
+CONFIG_LV_USE_CLIB_SPRINTF=y
+CONFIG_LV_USE_TINY_TTF=y
+CONFIG_LV_USE_THEME_DEFAULT=n
+CONFIG_LV_USE_THEME_SIMPLE=n
+CONFIG_LV_USE_THEME_MONO=n
+CONFIG_LV_FONT_MONTSERRAT_14=y
+CONFIG_LV_DEF_REFR_PERIOD=10
+
+# The card's filesystem: long names, read for the storage test.
+CONFIG_FATFS_LFN_HEAP=y
+
+# The CPU at 240 MHz: LVGL's render and the frame's packing and encoding run on it before every refresh.
+CONFIG_ESP_DEFAULT_CPU_FREQ_MHZ_240=y

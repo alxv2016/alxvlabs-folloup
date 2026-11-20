@@ -40,7 +40,7 @@ guard's self-test cases are its policy's examples. Steps: the [`verify-change`](
 
 1. **Run every change through `verify.py`** — `start`, `run`, the judges `run` names, `finish` — and hand over only
    when `finish` exits 0 ([`verify-change`](skills/verify-change/SKILL.md)).
-2. **Stop at exit 3** — three failed attempts in a row mean the plan is wrong; ask the person.
+2. **Stop at exit 3** — three failed builds or tests in a row mean the plan is wrong; ask the person.
 3. **Ask the person when the guard asks** — a block is a rule from AGENTS.md; never reword or split a command to get
    past it.
 4. **Record the person's yes with `verify.py approve`, naming the file they approved** — a mock, a motion study, the
@@ -130,7 +130,7 @@ what to write, and the corrected call goes on:
 | A fetch from any other host, or any upload — `curl -d`, `-F`, a non-GET method; `ssh`, `scp`, `nc`, a remote `rsync` | Data leaving the machine |
 | Writing `GENERATED` paths (`build/`, `dist/`, `node_modules/`, …) or `MANAGED` files (lock files, vendored code) | A tool writes them; change the source or the manifest |
 | `ASK_COMMANDS` in `project.py`: publishing (`npm publish`, `twine upload`, `cargo publish`, `gh release create`), `<deploys, migrations, paid calls>` | Outward-facing or irreversible |
-| `ASK_COMMANDS` for a board: flashing or erasing it (`idf.py *flash`, `idf.py erase*`, `esptool* write*`, `esptool* erase*`); installing ESP-IDF (`eim install`). A word or program with `*` is a glob | The board's firmware is lost; an install is gigabytes outside the repo |
+| `ASK_COMMANDS` for a board: erasing it (`idf.py erase*`, `esptool* erase*`), an esptool write below the app (`write*flash` at `0x0`, `0x8000`, `0x9000`, `0xf000`, or with an erase), `idf.py` flashing with `--extra-args`, the partition and OTA tools; installing ESP-IDF (`eim install`). Flashing the app and resetting the board pass with no yes, as in claude-agent-deck-3 — the person's choice. A word or program with `*` is a glob | Erasing loses NVS and the stored settings; a write below the app can leave the board unbootable; an install is gigabytes outside the repo |
 | `ASK_COMMANDS` for a web app (`WEB_PMS`: npm, pnpm, yarn, bun): updating snapshots or visual baselines (`playwright* --update-snapshots` or `-u`; a package manager's `--update-snapshots`, `-u` or `--update`; `vitest* -u`); installing Playwright's browsers or their system packages (`playwright* install`, `install-deps`); a scaffolder (`npm create` or `init`, `pnpm`, `yarn` or `bun create`, `create-vite*`, `storybook* init`, `add`, `upgrade` or `automigrate`); `--host` on `vite`, `storybook*` or a package manager; a global install (`-g` alone or in a cluster, `--global`, `--location global`, `yarn global`); a deploy (`netlify* deploy`, every `vercel*` call — it deploys when called bare — `wrangler* deploy` or `publish`, `firebase* deploy`, `gh-pages*`, `chromatic*`). A program with `*` takes npx's `@version` and package names; a word is matched anywhere, so `npm run init` asks too | A baseline is a new look, the person's to accept; browsers are hundreds of megabytes outside the repo; a scaffolder writes over files; the rest reach past the machine |
 | A branch switch or merge that rewrites the kit | Codex's sandbox cannot write `.agents/` or `.claude/`; git would stop halfway |
 | Writing the skills, agents, rubrics, hooks, git hooks, `project.py`, `.claude/settings.json`, `.codex/`, `.github/workflows/` | The harness itself |
@@ -194,7 +194,8 @@ what to write, and the corrected call goes on:
 - **A judge joins the plan once its file exists** in `.agents/agents/`.
 - **A judge's pass stands until its own files change** — `review` records a hash of the changed files that judge
   reads, so a fix elsewhere leaves it standing; `finish` names only the judges whose files moved.
-- **Three failures in a row — runs or blocking reviews — exit 3.**
+- **Three failures in a row of a counted check — `"counts": True` in `CHECKS`: here, `build` — exit 3.** A lint, a
+  doc check, a self-test or a blocking review is fixed and run again without spending an attempt.
 - **Each judge scores against its rubric**, `.agents/rubrics/<judge>.md` — for the `ui-designer`, its skill's
   `references/rubric.md` plus the items learned here, in its file: the Verdict rule, the evidence each result
   needs (a result without evidence is unsure), R-items one per step of its Procedure, and the items learned since. Its
@@ -212,6 +213,7 @@ what to write, and the corrected call goes on:
 | A `DEBUG_MARKERS` line in the code | A temporary line must not ship |
 | An `INVARIANTS` line missing | A setting off its shipping value |
 | A judge the files call for with no review, a blocking one, or one older than its files | §4 |
+| Two runs on the target with changed code and no finding or decision recorded between, nor one recorded later with `--for-run` naming the later run | A change after the person looked almost always follows something they saw — a lesson for the judgements log ([AGENT_HARNESS §9.4](../docs/AGENT_HARNESS.md#94-the-judgements-log-and-calibration)) |
 | A change in a gate's paths without the person's yes of each kind the gate names, on a file unchanged since; a draft's yes given after the first run that built it (the first run whose gated files differ from what they held at `start`, so a change an earlier task left uncommitted does not count; a task or run recorded before the loop kept that content falls back to the first run that touched a gated file); a `built` yes on code that changed since; a run on the target with no sign-off for the code as it ran — unless the person recorded `decision "no visible change: <why>"`, or `"design given: <where>"` for the draft | §9 |
 
 ```markdown
@@ -276,7 +278,7 @@ Each agent's frontmatter sets `model` and `effort`; Codex's TOML repeats the eff
 | `code-reviewer`, `ui-designer` | `sonnet` | `high` | Applies rules to a diff, or designs against them; a miss costs a round on the target |
 | `doc-reviewer`, `open-items-curator` | `sonnet` | `medium` | Mostly scripts and greps, then light judgment |
 | `doc-writer` | `sonnet` | `medium` | Writes from verified facts to fixed rules; the template and the checks carry the form |
-| `target-runner` | `haiku` | `low` | Runs scripts and reports what they printed |
+| `target-runner`, `bench-runner` | `haiku` | `low` | Runs scripts and reports what they printed |
 
 Move a judge up a tier when calibration shows it missing findings it has items for (AGENT_HARNESS §18.2).
 
