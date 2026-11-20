@@ -25,6 +25,13 @@ void Unlock();
 
 // --- The refresh -------------------------------------------------------------------------------------------------
 
+// A grey fill's code in LVGL's L8 frame: one step above the plain grey, so the one-bit frame draws it as a dither —
+// a fixed black-and-white pattern locked to the glass's pixels — that every partial refresh keeps, while a grey text
+// or line of the plain level still thresholds to solid black or white. A greyscale refresh reads both as the grey
+// (DESIGN → Colors → The four levels; STICKY_DESIGN_TOKENS §4).
+inline constexpr uint8_t kDitherDark = 0x56;   // #555555's fill: one pixel in four white
+inline constexpr uint8_t kDitherLight = 0xAB;  // #AAAAAA's fill: three pixels in four white
+
 enum class Refresh : uint8_t { kNone, kPartial, kFull, kGray };
 
 // The next frame is drawn as a full refresh, then partials resume (STICKY_DESIGN_TOKENS §5).

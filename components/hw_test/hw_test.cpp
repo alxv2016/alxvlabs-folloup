@@ -241,8 +241,8 @@ void OnGray(lv_event_t *);
 
 void OnPattern(lv_event_t *e)
 {
-    // A one-pixel checkerboard of levels 0 and 3 — the dither — then the same area plain, to show ghosting after
-    // partials (STICKY_DESIGN_TOKENS §4).
+    // A one-pixel checkerboard of levels 0 and 3 — a 50% ghosting fixture, not the UI's one-in-four and three-in-four
+    // dithers — then the same area plain, to show ghosting after partials (STICKY_EPAPER_WAVEFORMS §2).
     lv_obj_t *box = static_cast<lv_obj_t *>(lv_event_get_user_data(e));
     static bool dithered = false;
     dithered = !dithered;
@@ -295,7 +295,7 @@ void ShowDisplay()
         SetTuningLabel();
     }
 
-    // The ghosting box: a plain outline, filled with the dither each time Pattern is pressed.
+    // The ghosting box: a plain outline, filled with the checkerboard each time Pattern is pressed.
     lv_obj_t *checker = lv_obj_create(content);
     lv_obj_remove_style_all(checker);
     lv_obj_set_size(checker, lv_pct(100), 96);
@@ -329,7 +329,7 @@ void OnGray(lv_event_t *)
         lv_obj_t *band = lv_obj_create(content);
         lv_obj_remove_style_all(band);
         lv_obj_set_size(band, lv_pct(100), 112);
-        lv_obj_set_style_bg_color(band, ui::Level(level), 0);
+        lv_obj_set_style_bg_color(band, ui::Fill(level), 0);
         lv_obj_set_style_bg_opa(band, LV_OPA_COVER, 0);
         lv_obj_set_style_border_width(band, dt::kSpacingStrokeHairline, 0);
         lv_obj_set_style_border_color(band, ui::Level(dt::kColorOutline), 0);

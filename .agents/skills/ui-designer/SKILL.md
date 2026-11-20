@@ -195,6 +195,9 @@ python3 .agents/skills/touch-and-gesture/scripts/touch_check.py <files>   # touc
   `<screen>_mock<n>.md`; a layout that must differ is a new draft and a new yes, never a quiet change at gate 2.
 - **The yes came after the code** → the build started before the draft was approved (in the kit, `V finish` says the
   yes came after the first run that built it) → draft, take the yes, and rebuild from the draft's values.
+- **A look that only the target can show skips the draft** → the person picked an approach (a dither, a refresh
+  mode) and it went straight into the build → the first specimen on the target is the draft: show it, take the yes
+  naming it, and only then build past it.
 - **The draft passes contrast but the screen fails** → the draft measured the token, the screen paints a translucent
   fill over a photo or another colour → measure against what is painted (the `accessibility` skill).
 - **Text fits in the draft and wraps on the target** → the draft used another font, size or line height → draw it in

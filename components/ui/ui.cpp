@@ -168,6 +168,15 @@ lv_color_t Level(uint8_t level)
     return lv_color_make(v, v, v);
 }
 
+lv_color_t Fill(uint8_t level)
+{
+    if (level != 1 && level != 2) {
+        return Level(level);
+    }
+    const uint8_t v = level == 1 ? lvgl_display::kDitherDark : lvgl_display::kDitherLight;
+    return lv_color_make(v, v, v);
+}
+
 lv_obj_t *NewScreen()
 {
     lv_obj_t *screen = lv_obj_create(nullptr);

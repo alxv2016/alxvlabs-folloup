@@ -8,8 +8,8 @@ colors:
   scale:
     primary:  # the panel's four greys — the system's one palette
       0: "#000000"  # level 0 — black on every refresh
-      1: "#555555"  # level 1 — dark grey; black after a partial refresh
-      2: "#AAAAAA"  # level 2 — light grey; white after a partial refresh
+      1: "#555555"  # level 1 — dark grey; a UI fill is its dither, text and lines draw black
+      2: "#AAAAAA"  # level 2 — light grey; a UI fill is its dither, text and lines draw white
       3: "#FFFFFF"  # level 3 — white, the glass
   background: "{colors.white}"  # the glass behind everything
   surface-action: "{colors.black}"  # the one action a screen is for
@@ -22,7 +22,7 @@ colors:
   divider: "{colors.scale.primary.1}"  # the rule between rows; black after a partial refresh
   focus-ring: "{colors.black}"  # where the buttons' focus is
   focus-ring-on-fill: "{colors.white}"  # the focus ring on a chosen, black row or chip
-  band: "{colors.scale.primary.2}"  # decoration on a full-refresh frame only; white after a partial refresh
+  band: "{colors.scale.primary.2}"  # a light-dither fill: decoration, a disabled control; black words only
 typography:
   hero:
     fontFamily: Inter
@@ -235,7 +235,7 @@ When two pull against each other, the earlier wins — between options that both
    panel.
 2. **Black and white first.** Every screen reads in pure black and white, and grey only adds to it. The panel shows
    four levels only on a greyscale full refresh; every other refresh is one bit a pixel, which turns dark grey black
-   and light grey white.
+   and light grey white — except a grey fill, which is drawn as its dither.
 3. **Still, and changed sparingly.** The glass changes only when something changed, in as few refreshes and
    over as small an area as the change needs. A full refresh flashes the whole glass for 1 s on a V2.0 and 1.6 s on a
    V1.0; partial refreshes leave traces that build up, and every refresh costs battery.
@@ -250,11 +250,15 @@ When two pull against each other, the earlier wins — between options that both
 ### The four levels
 
 - **The glass has four greys and no colour**: `scale.primary` 0 to 3, black to white — the system's one palette.
-  Black and white carry the system; the two greys between are seasoning.
+  Black and white carry the system; the two greys between are dithers on the UI and true greys in images.
 - **Only a greyscale full refresh draws all four; every other refresh draws two** — levels 0 and 1 become black, 2
-  and 3 white. Most frames are partial, so a screen is designed in its partial-refresh form first.
-- **A grey that must survive a partial refresh is a dither** — a one-pixel checkerboard of black and white, never
-  `scale.primary.1` or `scale.primary.2`.
+  and 3 white, except a grey fill, which is its dither. Most frames are partial, so a screen is designed in its
+  partial-refresh form first.
+- **The two greys are for images only** — a photo, an illustration or artwork, drawn with a greyscale full refresh on
+  a screen left still; never a UI element, which the next partial refresh would collapse.
+- **Every grey on a UI element is a dither** — a fixed black-and-white pattern locked to the glass's pixels, which
+  every refresh keeps: `scale.primary.1` as one white pixel in four, `scale.primary.2` as three in four.
+- **Text and lines are never dithered** — a grey text or line role draws solid: level 1 black, level 2 white.
 
 ### Roles
 
@@ -268,8 +272,8 @@ When two pull against each other, the earlier wins — between options that both
 - **`text-on-fill`** — white: words on any black surface.
 - **`text-secondary`, `divider`** — dark grey: supporting words, timestamps, the rule between rows. Black after a
   partial refresh, so never the only difference between two things.
-- **`band`** — light grey: decoration on a full-refresh frame only. White after a partial refresh, so never under
-  words, never an edge, never a state.
+- **`band`** — light grey as a dither fill: decoration and a disabled control's inside, on every refresh. Words on it
+  are `text-primary`, black, only; never an edge, never the only sign of a state.
 
 ### Contrast floors
 
@@ -278,7 +282,7 @@ When two pull against each other, the earlier wins — between options that both
 | Pair | Full refresh | Partial refresh |
 | --- | --- | --- |
 | Black on white — text, outlines, the focus ring | 21 : 1 | 21 : 1 |
-| Dark grey on white — supporting text, dividers | 7.5 : 1 | 21 : 1 |
+| Dark grey on white — supporting text, dividers, on a greyscale frame only | 7.5 : 1 | 21 : 1 |
 | White on black — words on a chosen row or the action button, the ring on a chosen row | 21 : 1 | 21 : 1 |
 | Dark grey on black | 2.8 : 1 — never painted | 1 : 1 |
 
@@ -359,9 +363,12 @@ At 235 ppi a pixel is 0.108 mm and a point is 3.26 px.
 
 ### Dither
 
-- **A one-pixel checkerboard is the only grey that survives a partial refresh** — a progress bar's empty part, inside
-  a black outline and with its step in words, and a disabled control's outline, with the reason in words; how it reads
-  on the glass is open.
+- **A dither is the only grey a UI element shows** — a band, a progress bar's empty part inside a black outline with
+  its step in words, a disabled control's inside within its solid outline with the reason in words. Both patterns
+  read as two distinct greys on the V1.0's glass, close to the true greys.
+- **Words sit only on the light dither, in black** — 16 : 1 against its average; never on the dark dither, where
+  white words average 3.5 : 1 and their edges break up.
+- **Fills are square and opaque** — a rounded corner or a translucent fill blends to other greys and draws solid.
 
 ## Shapes
 
@@ -387,9 +394,8 @@ At 235 ppi a pixel is 0.108 mm and a point is 3.26 px.
   on the V2.0; on the V1.0 a change of screen is two, through white, 1 to 1.25 s, so the old page leaves no ghost. A full
   refresh — the whole glass flashing — is kept for the first frame after waking, the update after twenty partial
   refreshes, closing a large overlay, and the frame left on the glass before sleep.
-- **When grey shows is open** — whether grey roles are drawn on screens that take input, collapsing to black or white
-  on each partial refresh, or kept to screens drawn with a greyscale full refresh, is decided with the driver and the
-  first screens.
+- **Grey on screens that take input is a dither** — the true greys of a greyscale full refresh are for images on a
+  still screen, and collapse to black or white at the next partial refresh (Colors → The four levels).
 - **A refresh that must wait, waits** — it is never dropped, and it shows the latest state when it runs.
 
 ### Press
@@ -466,7 +472,8 @@ At 235 ppi a pixel is 0.108 mm and a point is 3.26 px.
   in from its edge.
 - **Chosen** — inverted: `surface-chosen` with `text-on-fill`. A focused, chosen row or chip is inverted with the ring
   in `focus-ring-on-fill`.
-- **Disabled** — a dither outline with the label kept and the reason in words; prefer explaining over disabling.
+- **Disabled** — the light dither inside the control's solid outline, its label in black and the reason in words;
+  prefer explaining over disabling.
 - **Busy** — the label says what it is doing.
 - **Done** — in words ("Done"), never a grey.
 
@@ -477,7 +484,7 @@ At 235 ppi a pixel is 0.108 mm and a point is 3.26 px.
 - Do give every touch target 64 px, and every action a path by the buttons.
 - Do let the buzzer answer a press before the glass does.
 - Don't animate anything — no slides, fades, spinners or blinking cursors.
-- Don't put words on light grey, or rely on a 1 px line.
+- Don't put words on the dark dither, or white words on any dither; don't rely on a 1 px line.
 - Don't use a weight under 600, or a size under `caption`.
 - Don't time anything to leave.
 - Don't trigger two full refreshes back to back.
@@ -535,12 +542,10 @@ A value off these tokens is argued here — what, where and why — before a scr
 
 - **The frame left on the glass while the device sleeps** — the stickies, the lock screen or a blank glass — decided
   with the designs.
-- **When grey shows** — on screens that take input or only on greyscale full refreshes — decided with the driver and
-  the first screens.
 - **The viewing distance** the sizes are set for — `display` reads at about 35 cm, `hero` at about 1 m.
 - **The AI button** — its name on the glass (AI or OK), a hold's length, and how a hold, a wake and power-off differ.
 - **The keyboard's layout** — six 64 px keys a row.
-- **The dither on the glass** — whether a one-pixel checkerboard reads, or ghosts.
+- **The dither on the V2.0's matte glass, and over many partials** — whether it reads there, and whether it ghosts.
 - **The clock's cost** — a minute tick makes a full refresh every twenty minutes on a still screen — and whether the
   lock screen's clock is 24-hour or shows AM and PM in the status bar.
 - **A spoken mode** — none is possible on this hardware; who that leaves out, and what would serve them.

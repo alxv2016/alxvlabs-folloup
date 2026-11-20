@@ -52,7 +52,8 @@ heading path for why. Do not renumber; add new material under the next free numb
 
 ### Never
 
-- **Paint `scale.primary.1` or `scale.primary.2` where a partial refresh must keep it** — use the dither (§4).
+- **Paint `scale.primary.1` or `scale.primary.2` solid on a UI element** — fill it with `ui::Fill`, the dither (§4);
+  the solid greys are for images drawn with a greyscale refresh (DESIGN → Colors → The four levels).
 - **Animate** — no timer drives a redraw faster than §5's limits.
 - **Draw a stroke under 2 px, a weight under 600, or words under 22 px.**
 - **Use a value the header does not have** — decide it in DESIGN.md first.
@@ -79,7 +80,7 @@ their value on each refresh — the design check reads them (§7).
 | non-text | Edges, dividers, the focus ring | On every surface, floor 3 |
 | fill | A solid background for a control or a state | As the background for every on-fill role |
 | on-fill | Words on a fill | On every fill, floor 4.5 |
-| exempt | Decoration only — never under words, never an edge, never a state | Not paired |
+| exempt | Decoration, and a disabled control's inside — black words only, never an edge, never the only sign of a state | Not paired |
 
 | Token | Kind | Full refresh | Partial refresh | Use |
 | --- | --- | --- | --- | --- |
@@ -94,7 +95,7 @@ their value on each refresh — the design check reads them (§7).
 | `colors.surface-on` | fill | `#000000` | `#000000` | A toggle that is on |
 | `colors.text-on-fill` | on-fill | `#FFFFFF` | `#FFFFFF` | Words on any fill |
 | `colors.focus-ring-on-fill` | on-fill | `#FFFFFF` | `#FFFFFF` | The focus ring on a chosen row or chip |
-| `colors.band` | exempt | `#AAAAAA` | `#FFFFFF` | Decoration on a full-refresh frame |
+| `colors.band` | exempt | `#AAAAAA` | `#FFFFFF` | A light-dither fill on every refresh (§4) — the partial column is its solid value, which a fill never draws: decoration, a disabled control's inside |
 
 ### 2.2 Contrast pairs
 
@@ -114,6 +115,10 @@ their value on each refresh — the design check reads them (§7).
 
 - **The ratios are the levels', computed from their hex values** — the glass's own white and black sit closer, so each
   ratio is an upper bound on the device `[?]`.
+- **A grey fill draws as a dither, not the partial-refresh column** — the tables give the solid value a text or line
+  role draws; a fill of level 1 or 2 is its pattern (§4), averaging `#898989` and `#E0E0E0` in linear light `[D]`.
+  Black words on the light dither average 16 : 1; white words on the dark dither 3.5 : 1, under the floor — so words
+  sit only on the light dither, in black (DESIGN → Elevation & Depth → Dither) `[D]`.
 - **`colors.text-secondary` on a fill has no pair** — 2.82 : 1 on black; words on a fill are `colors.text-on-fill`.
 
 ## 3. Type
@@ -134,8 +139,13 @@ their value on each refresh — the design check reads them (§7).
 - **Every spacing, stroke and radius is a whole number of panel pixels**, as DESIGN.md's front matter gives it — no
   scaling at run time.
 - **`spacing.target`, 64 px, is a hit area**: a control drawn smaller pads its touch box to it.
-- **The dither is a one-pixel checkerboard of levels 0 and 3**, aligned to the panel's pixel grid, so it is the same
-  pattern on every frame and survives a partial refresh `[D]`.
+- **A grey fill is a dither** — `ui::Fill(level)` gives levels 1 and 2 their fill codes in LVGL's L8 frame,
+  `lvgl_display::kDitherDark` (`0x56`) and `kDitherLight` (`0xAB`), one step above the plain greys, and the one-bit
+  packing (`PackMono`) draws them as fixed patterns locked to the panel's pixel grid: level 1 one white pixel in four,
+  level 2 three in four. Every refresh keeps them; a greyscale refresh reads the codes as the true greys. Text and
+  lines take `ui::Level`, so their greys threshold to solid black or white; an anti-aliased edge pixel thresholds
+  too, unless its blend lands exactly on a code, when it draws as the dither — rare, and why words sit only on the
+  light dither. Both patterns read as distinct greys on the V1.0's glass `[SEEN]`.
 - **The overlay's offset is `spacing.overlay-offset`, a solid 6 px of level 0,** on the right and bottom edges,
   drawn as two rectangles, never a blur.
 - **A list row's padding is two values** — `spacing.sm` above and below, `spacing.md` either side; DESIGN.md's
@@ -159,8 +169,9 @@ their value on each refresh — the design check reads them (§7).
   refresh; on the V1.0, the pause of 2 s after 150 frames by scans; and, as a recovery, a partial that fails — drawn
   again in full at once — and the next frame after a failed refresh, settle or standby, since the glass is then
   unknown. In order, with the code that sets each:
-  [STICKY_EPAPER_WAVEFORMS §3.4](STICKY_EPAPER_WAVEFORMS.md#34-which-refresh-a-frame-gets). When a greyscale full
-  refresh is drawn is open (§8).
+  [STICKY_EPAPER_WAVEFORMS §3.4](STICKY_EPAPER_WAVEFORMS.md#34-which-refresh-a-frame-gets). A greyscale full refresh is
+  for a still screen showing an image (DESIGN → Colors → The four levels); no product screen has one yet, and the
+  hardware-test Four greys screen draws one as a fixture.
 - **DESIGN.md also keeps a full refresh for closing a large overlay and for the frame left before sleep** (DESIGN →
   Motion → Nothing animates) — no screen in the firmware has an overlay or that last frame yet, so no code sets them.
 - **A new screen on the V1.0 is two partials, through white**, not a full one — 1.0 to 1.25 s against a full's 1.6 s,
@@ -212,7 +223,7 @@ their value on each refresh — the design check reads them (§7).
 | Inter's optical sizes per role, and the glyph ranges every string needs | Open | The first strings in the firmware, compiled and drawn on the glass |
 | The glass's real white and black, against the levels' nominal 21 : 1 | Open | A reading with a light meter on a V1.0 and a V2.0 board |
 | Whether the SSD2677 holds the 20-partials rule without ghosting, and its refresh times | Open | STICKY_HARDWARE_SPECS's open items, settled on a V2.0 board |
-| When a greyscale full refresh is drawn, and whether grey roles show on screens that take input | Open | The person, with the driver and the first screens |
+| The dither on the V2.0's matte glass, and over many partials — whether it reads there and whether it ghosts | Open | The Four greys bands on a V2.0, and a long page walk |
 | Each type role drawn at its line box — `ui::LineBox()` is not applied, so Tiny TTF's 1.21 em draws body at about 38 px, not 42 `[?]` | Open | The person's choice, after the hardware-test screens are checked for fit on the glass |
 | The first button press showing the focus ring and moving nothing (DESIGN → Focus and input) — `input.cpp` has no state for a ring not yet shown | Open | The person's choice, with the focus walk on the glass |
 | A guard against two full refreshes back to back (DESIGN → Do's and Don'ts) — `Send` has no minimum interval between them | Open | The person's choice, with how often Full, Speed and Four greys flash on the glass |

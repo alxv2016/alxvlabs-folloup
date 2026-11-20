@@ -22,6 +22,9 @@ int16_t LineBox(Type role);
 
 // A colour token's level as LVGL's colour: 0 → #000000 … 3 → #FFFFFF.
 lv_color_t Level(uint8_t level);
+// A fill's colour from its level: levels 1 and 2 as their dither codes, so a grey surface survives partial refreshes
+// as a pattern (lvgl_display::kDitherDark, kDitherLight); text and lines take Level (STICKY_DESIGN_TOKENS §4).
+lv_color_t Fill(uint8_t level);
 
 // The components, built from DESIGN.md's tokens. Each returns the object to place; a control is added to lvgl_display::Group().
 lv_obj_t *NewScreen();                                         // the glass, no scrolling

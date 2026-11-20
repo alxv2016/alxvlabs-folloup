@@ -299,7 +299,8 @@ inline void ToNative(int x, int y, int *nx, int *ny)
 }
 
 // Folds one changed area into the one-bit frame. A level under 2 is black, 2 or more white: L8 under 128
-// (STICKY_DESIGN_TOKENS §2.1).
+// (STICKY_DESIGN_TOKENS §2.1); the two fill codes, kDitherDark and kDitherLight, draw as their dithers, locked to the
+// panel's pixels (STICKY_DESIGN_TOKENS §4).
 void PackMono(const uint8_t *screen, const lv_area_t &a)
 {
     for (int y = a.y1; y <= a.y2; ++y) {
@@ -310,8 +311,20 @@ void PackMono(const uint8_t *screen, const lv_area_t &a)
         const uint8_t bit = static_cast<uint8_t>(0x80U >> (nx & 7));
         const int step = kTurned ? -1 : 1;  // the frame's row follows x, backwards when turned
         uint8_t *cell = s_mono + static_cast<size_t>(ny) * epaper::kMonoStride + column;
-        for (int x = a.x1; x <= a.x2; ++x, cell += step * static_cast<int>(epaper::kMonoStride)) {
-            *cell = row[x] < 128 ? static_cast<uint8_t>(*cell & ~bit) : static_cast<uint8_t>(*cell | bit);
+        // The glass's own pixel, for the dither: x along the frame's row is ny, the column's bit is nx.
+        const int column_parity = nx & 1;
+        int frame_row = ny;
+        for (int x = a.x1; x <= a.x2; ++x, cell += step * static_cast<int>(epaper::kMonoStride), frame_row += step) {
+            const uint8_t v = row[x];
+            bool white;
+            if (v == kDitherDark) {
+                white = column_parity == 1 && (frame_row & 1) == 1;  // one in four
+            } else if (v == kDitherLight) {
+                white = !(column_parity == 0 && (frame_row & 1) == 0);  // three in four
+            } else {
+                white = v >= 128;
+            }
+            *cell = white ? static_cast<uint8_t>(*cell | bit) : static_cast<uint8_t>(*cell & ~bit);
         }
     }
 }

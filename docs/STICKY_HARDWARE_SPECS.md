@@ -511,7 +511,7 @@ the card before the panel, then the rest.**
 - **On a V2.0 board, every refresh times out or returns at once** → the BUSY wait uses the SSD1677's polarity → set
   BUSY's level from the detected controller (§4.5) `[SRC]`.
 - **Light grey turns white** → a partial or monochrome full refresh converts 4-level grey to black and white → use a
-  greyscale full refresh for grey content `[DOC]`.
+  greyscale full refresh for an image's greys, and a dither for a UI grey (STICKY_DESIGN_TOKENS §4) `[DOC]`.
 - **A standby after an SSD1677 greyscale refresh times out** → the greyscale update (`0xD7`) already turned off the
   analog block and clock → skip that standby (§4.5) `[SRC]`.
 - **The sensors work until the display starts, then fail** → an unused data pin in `spi_bus_config_t` was left at 0,
