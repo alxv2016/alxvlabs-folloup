@@ -41,8 +41,8 @@ flashed through [`build-run-test`](../build-run-test/SKILL.md), and every change
    keep it mounted** — an SD transaction inside a refresh ghosts the panel (STICKY_HARDWARE_SPECS §1.2, §7).
 6. **Send the SSD1677 the whole frame on every image refresh, the SSD2677 a partial's changed box through its partial
    window, and force a full refresh after 20 partials** — the SSD1677 drives whatever its RAM holds, the SSD2677's
-   partial mode drives the box alone; the 20-partials rule is proven on the SSD1677 and unseen on the SSD2677
-   (STICKY_HARDWARE_SPECS §1.2, §4.2, §10; STICKY_EPAPER_WAVEFORMS §3.1).
+   partial mode drives the box alone; the 20-partials rule is proven on the SSD1677, and no ghost was seen before it on
+   the SSD2677 (STICKY_HARDWARE_SPECS §1.2, §4.2; STICKY_EPAPER_WAVEFORMS §3.1, §3.4).
 7. **Hold the power latch first in bring-up, and pulse it with `gpio_set_level()` on pins configured once** — GPIO45
    and GPIO46 are strapping pins (STICKY_HARDWARE_SPECS §5.2, §7).
 8. **Clear and disable the PCF8563's alarm and timer interrupts before releasing the latch** — `RTC_INTn` is

@@ -86,6 +86,10 @@ std::atomic<bool> s_page_changed{false};
 uint8_t *s_page_white = nullptr;  // an all-white one-bit frame, the first pass's target
 Stats s_stats;
 std::atomic<int64_t> s_last_refresh_us{0};  // when the last refresh or scan ended; read by the input task too
+// The last full or greyscale refresh: when it ended and how long it took. The next one waits until as long again has
+// passed — two never run back to back (STICKY_DESIGN_TOKENS §5).
+int64_t s_flash_end_us = 0;
+uint32_t s_flash_ms = 0;
 bool s_standby = false;
 
 // --- Scans ------------------------------------------------------------------------------------------------------
@@ -391,6 +395,22 @@ void SendByScans()
              static_cast<unsigned long>(s_stats.scan_pixels));
 }
 
+// Waits out the rest of the last full refresh's own time after its end, so the glass never flashes twice back to back;
+// the frame is held, never dropped (DESIGN → Do's and Don'ts; STICKY_DESIGN_TOKENS §5).
+void WaitAfterFlash()
+{
+    if (s_flash_end_us == 0) {
+        return;
+    }
+    const int64_t since_ms = (esp_timer_get_time() - s_flash_end_us) / 1000;
+    if (since_ms >= static_cast<int64_t>(s_flash_ms)) {
+        return;
+    }
+    const uint32_t wait_ms = s_flash_ms - static_cast<uint32_t>(since_ms);
+    ESP_LOGI(kTag, "full refresh held %lu ms: never two back to back", static_cast<unsigned long>(wait_ms));
+    vTaskDelay(pdMS_TO_TICKS(wait_ms));
+}
+
 void Send(lv_display_t *display, const uint8_t *screen)
 {
     // A page change on the SSD1677 is two partials, so it needs room for both under the limit, or is drawn full.
@@ -412,6 +432,9 @@ void Send(lv_display_t *display, const uint8_t *screen)
     s_stats.render_ms = s_stats.render_ms > s_stats.pack_ms ? s_stats.render_ms - s_stats.pack_ms : 0;
 
     const bool page_pass = page && mode == Refresh::kPartial;
+    if (mode != Refresh::kPartial) {
+        WaitAfterFlash();
+    }
 
     // A partial frame identical to the glass is not sent: focus moving on a tap redraws with nothing visible changed.
     if (mode == Refresh::kPartial && s_sent_valid && std::memcmp(s_mono, s_sent, epaper::kMonoBytes) == 0) {
@@ -461,14 +484,20 @@ void Send(lv_display_t *display, const uint8_t *screen)
     } else {
         err = s_panel->Refresh(ToMode(mode), mode == Refresh::kGray ? s_gray : s_mono);
     }
+    int64_t flash_start = start;
     if (err != ESP_OK && mode == Refresh::kPartial) {
         mode = Refresh::kFull;  // a failed partial is drawn again in full, from a reset
+        flash_start = esp_timer_get_time();
         err = s_panel->Refresh(epaper::Mode::kFull, s_mono);
     }
     board::UnlockSharedBus();
     ClearScans();
     std::memcpy(s_target, s_mono, epaper::kMonoBytes);
     const int64_t end = esp_timer_get_time();
+    if (mode != Refresh::kPartial && err == ESP_OK) {  // a failed refresh flashed nothing to space out
+        s_flash_end_us = end;
+        s_flash_ms = static_cast<uint32_t>((end - flash_start) / 1000);
+    }
 
     TakeTiming();
     s_last_refresh_us = end;

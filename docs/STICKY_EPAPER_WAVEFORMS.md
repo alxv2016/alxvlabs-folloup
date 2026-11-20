@@ -202,8 +202,9 @@ a partial only, so a full or grey refresh is drawn even when the frame is the gl
 | --- | --- | --- |
 | A partial whose frame is the glass already | None — skipped | `Send` |
 | Grey asked for | Grey, by the OTP | `RequestGray` |
-| The first frame, a full asked for, or 20 partials by the OTP since the last full | Full, by the OTP | `kRefreshPartialLimit` (`design_tokens.h`) |
-| A partial, or a new screen's first pass, that fails — a recovery, after the attempt | Full, by the OTP, from a reset, in the same frame; after a failed full or grey, the next frame is full | `Send` |
+| The first frame, a full asked for, or 20 partials by the OTP since the last full | Full, by the OTP — no ghost seen before it on either board, the SSD2677's over a day of page changes, drags and scrolls on a V2.0 `[SEEN]` | `kRefreshPartialLimit` (`design_tokens.h`) |
+| A full or grey asked for sooner after the last full or grey ended than that one took | The same refresh, after waiting out the rest of that time — never two back to back, never dropped | `WaitAfterFlash` in `Send` |
+| A partial, or a new screen's first pass, that fails — a recovery, after the attempt | Full, by the OTP, from a reset, in the same frame, without the back-to-back wait; after a failed full or grey, the next frame is full | `Send` |
 | A new screen on the SSD1677 | Two partials by the OTP — every pixel to white, then the screen — counted as two, so one that would pass 20 is drawn full instead; never scans. One partial left the old page's ghost on the glass `[SEEN]` | `s_page_changed`, set by LVGL's `LV_EVENT_SCREEN_LOADED` |
 | SSD1677, a scan preset, 15–35 °C, at most 15 % of the pixels changed | Scans | `kScanMaxChanged` |
 | Anything else | Partial, by the OTP — after scans, the changed pixels and any still part-way driven the whole way (`Settle`) | `Send` |
@@ -250,7 +251,7 @@ growing and shrinking by 36 px a frame on a white track** `[MEAS]`.
 | Partial, 85 Hz | 381 ms | 369 ms | 408 ms, 2.45 fps | `[MEAS]` |
 | Partial, 65 Hz | — | 462 ms | 677 ms | `[?]` — measured on Seeed's driver |
 | Partial, a forced 35 °C or 50 °C slot | — | 404 ms | 621 ms — no change | `[?]` — measured on Seeed's driver |
-| Grey | 1759 ms | — | — | `[?]` — measured on Seeed's driver |
+| Grey | 1237–1253 ms | 1036–1052 ms | — | `[MEAS]` on 2026-11-20 (commit `e44bcc8` and the working tree, ESP-IDF v6.1.1, LVGL 9.6.0) — Seeed's driver took 1759 ms |
 
 - **The measured rows, and the table below, are on ESP-IDF v6.1.1 and LVGL 9.6.0, the partials through the partial
   window**; the `[?]` rows are Seeed's driver. With the whole frame streamed, the animation gave 489, 488 and 440 ms a
@@ -338,10 +339,10 @@ growing and shrinking by 36 px a frame on a white track** `[MEAS]`.
 | Item | Status | Unblocked by |
 | --- | --- | --- |
 | Whether one short pulse a frame, with the polarity now known, clears as well as the scans — the single-pulse and kick-and-drive presets were tried with the polarity reversed | Open | A single-pulse preset at the corrected polarity, judged on a V1.0 board's glass |
-| The SSD1677 grey refresh's time, and the SSD2677's on our driver | Open | The Display screen's Four greys, timed on a V1.0 and a V2.0 board |
+| The SSD1677 grey refresh's time | Open | The Display screen's Four greys, timed on a V1.0 board |
 | Whether the SSD2677's glass needs `0x62`, `0xE7`, `0xE9` and `0xE0`'s bit 4 — none changes a refresh's time (§4.1) | Open | A build without each on a V2.0 board, the full and partial refreshes judged on the glass |
 | What each of the SSD2677's OTP temperature bands holds — `0x92` (ROTP) reads its 6144 bytes, the same twice over, in a layout no public document gives `[MEAS]` | Open | The module's spec from Seeed, to read the dump by |
-| The SSD2677's idle current with its supply left on between refreshes, against a standby — the battery cost of keeping black from fading (§3.1) | Open | The fuel gauge's current read on battery, idle on a V2.0, powered and in standby |
+| The SSD2677's idle current with its supply left on between refreshes, against a standby — the battery cost of keeping black from fading (§3.1) | Deferred — until the application is complete (the person's choice) | The fuel gauge's current read on battery, idle on a V2.0 running the application, powered and in standby |
 | The SSD2677 at 65 Hz on our driver — measured slower than its own rate on Seeed's driver (§4.1) | Open | The benchmark with a 65 Hz preset on a V2.0 board |
 | Whether a forced hotter slot changes the SSD2677's partial on our driver — no change on Seeed's driver (§4.1) | Open | The benchmark with a forced 35 °C and 50 °C partial slot on a V2.0 board |
 | Ghosting after many scan frames before the full refresh at 150 | Open | A long animation on a V1.0 board, then the glass checked before the full refresh |

@@ -400,12 +400,13 @@ At 235 ppi a pixel is 0.108 mm and a point is 3.26 px.
 
 ### Press
 
-- **The buzzer answers first** — a short tick within 100 ms of every accepted press, before the glass can change; a
+- **The buzzer answers first** — a short tick within 100 ms of every press, before the glass can change; a
   press with no tick reads as missed.
-- **A press is answered by its result**, never by a pressed state: the tick, then the next frame. Only a hold in
-  progress — the AI button recording — is drawn while it lasts.
-- **Every accepted press ticks, even during a refresh.** UP and DOWN move focus to the latest place; an OK pressed
-  before the frame lands waits and acts on the frame the person saw, and a second OK in that time is ignored.
+- **A press is answered by its result**, never by a pressed state: the tick, then the next frame; an ignored press
+  gets the tick alone. Only a hold in progress — the AI button recording — is drawn while it lasts.
+- **Every press ticks, even during a refresh.** UP and DOWN move focus to the latest place; an OK pressed before the
+  frame lands waits and acts where the presses before it left focus, and a second OK in that time ticks but is
+  ignored. On touch, a double tap during a refresh is two taps.
 
 ### Waits and things that update on their own
 
@@ -487,7 +488,7 @@ At 235 ppi a pixel is 0.108 mm and a point is 3.26 px.
 - Don't put words on the dark dither, or white words on any dither; don't rely on a 1 px line.
 - Don't use a weight under 600, or a size under `caption`.
 - Don't time anything to leave.
-- Don't trigger two full refreshes back to back.
+- Don't trigger two full refreshes back to back — one full refresh's own time apart at the least.
 
 ## Focus and input
 
@@ -545,7 +546,7 @@ A value off these tokens is argued here — what, where and why — before a scr
 - **The viewing distance** the sizes are set for — `display` reads at about 35 cm, `hero` at about 1 m.
 - **The AI button** — its name on the glass (AI or OK), a hold's length, and how a hold, a wake and power-off differ.
 - **The keyboard's layout** — six 64 px keys a row.
-- **The dither on the V2.0's matte glass, and over many partials** — whether it reads there, and whether it ghosts.
+- **The dither over many partials** — whether it ghosts before the full refresh clears it.
 - **The clock's cost** — a minute tick makes a full refresh every twenty minutes on a still screen — and whether the
   lock screen's clock is 24-hour or shows AM and PM in the status bar.
 - **A spoken mode** — none is possible on this hardware; who that leaves out, and what would serve them.
@@ -557,4 +558,4 @@ A value off these tokens is argued here — what, where and why — before a scr
 - **How many times a full refresh flashes**, against WCAG's three a second.
 - **Press-to-start and press-to-stop recording** beside the hold.
 - **A larger text setting**, and the glyph ranges every string needs.
-- **The buzzer's tones** for a tick, a success, a failure, a wait, and a recording's start and stop.
+- **The buzzer's tones** for a tick, an ignored press, a success, a failure, a wait, and a recording's start and stop.

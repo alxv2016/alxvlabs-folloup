@@ -248,7 +248,7 @@ else.**
 
 | Device | Part | Bus | Address | Settings | Source |
 | --- | --- | --- | --- | --- | --- |
-| E-paper controller | SSD1677 (V1.0), SSD2677 (V2.0) | Shared SPI | CS GPIO15 | Each controller's commands and timing in §4.5; a full refresh after 20 partials — proven on the SSD1677, applied to the SSD2677 by Seeed and unseen by us (§10) | `[TEAM]` `[FW]` `[DOC]` `[?]` |
+| E-paper controller | SSD1677 (V1.0), SSD2677 (V2.0) | Shared SPI | CS GPIO15 | Each controller's commands and timing in §4.5; a full refresh after 20 partials — proven on the SSD1677, and on the SSD2677 no ghost seen before it ([STICKY_EPAPER_WAVEFORMS §3.4](STICKY_EPAPER_WAVEFORMS.md#34-which-refresh-a-frame-gets)) | `[TEAM]` `[FW]` `[DOC]` |
 | MicroSD socket | ST-TF-003J | Shared SPI | CS GPIO8 | SPI mode; FAT32 with an MBR partition table recommended | `[SCH]` `[DOC]` |
 | Touch controller | GT911 | Touch I2C | `0x14`, or `0x5D` | Answers at `0x14`; Seeed probes `0x14` first | `[DOC]` `[MEAS]` `[SRC]` |
 | Fuel gauge | BQ27220 | Sensor I2C | `0x55` | 100 mΩ sense resistor (R46); a 10 kΩ NTC on the board at `BIN` (R19); `GPOUT` to GPIO7; stock profile read at a tenth (§1) | `[SCH]` `[SRC]` |
@@ -587,7 +587,6 @@ pinhole and openings on the bottom** `[DOC]`.
 | Whether releasing the latch on battery (§5.2) cuts the rail on our board — Seeed's reference power-off is the same release, and Seeed documents it cutting power (§5.3) | Open — documented by Seeed, not yet seen on our board | The person: shut down on battery alone and see whether the board goes dark or falls back to deep sleep |
 | Whether an RTC alarm (`RTC_INTn` low) powers the board on from off, as the schematic's power-on node (§5.2) implies — Seeed's demos never set the alarm | Open — traced on the schematic, unseen on the board | An RTC alarm set before a battery power-off |
 | The IMU on a V2.0 board — every unit carries it and V1.0 is confirmed (§4.2), though the schematic's block diagram draws it with a dashed border | Open | `WHO_AM_I` reading `0x6A` on a V2.0 board once the IMU driver runs |
-| The SSD2677's ghosting under the 20-partials rule | Open | A long run of partials on a V2.0 board, the glass checked before the full refresh |
 | Whether `EP_PWR_EN` stays high or goes low in deep sleep (§6) | Open | A deep-sleep wake checked on a V1.0 and a V2.0 board |
 | Whether V2.0 changes anything off the pin map — Seeed's demos drive both controllers with one pin map, but the schematic in `STICKY_assets/` is Rev 01 and names no controller | Open | Seeed's schematic for V2.0, or the team |
 | Whether the CH343P's Q4 on GPIO0 disturbs the sensor I2C bus when a serial monitor toggles DTR or RTS | Open | A logic analyser on GPIO0 while a monitor opens the port |

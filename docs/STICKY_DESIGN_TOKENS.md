@@ -145,7 +145,7 @@ their value on each refresh — the design check reads them (§7).
   level 2 three in four. Every refresh keeps them; a greyscale refresh reads the codes as the true greys. Text and
   lines take `ui::Level`, so their greys threshold to solid black or white; an anti-aliased edge pixel thresholds
   too, unless its blend lands exactly on a code, when it draws as the dither — rare, and why words sit only on the
-  light dither. Both patterns read as distinct greys on the V1.0's glass `[SEEN]`.
+  light dither. Both patterns read as distinct greys, and alike, on the V1.0's and the V2.0's glass `[SEEN]`.
 - **The overlay's offset is `spacing.overlay-offset`, a solid 6 px of level 0,** on the right and bottom edges,
   drawn as two rectangles, never a blur.
 - **A list row's padding is two values** — `spacing.sm` above and below, `spacing.md` either side; DESIGN.md's
@@ -158,7 +158,7 @@ their value on each refresh — the design check reads them (§7).
 
 | Token | Value | What the code does |
 | --- | --- | --- |
-| `kRefreshPartialLimit` | 20 | Counts partial refreshes; the next update after 20 is drawn full, and a full one resets the count — proven on the SSD1677, Seeed's practice on the SSD2677 `[HW]` `[?]` |
+| `kRefreshPartialLimit` | 20 | Counts partial refreshes; the next update after 20 is drawn full, and a full one resets the count — proven on the SSD1677, and on the SSD2677 no ghost seen before it `[HW]` `[SEEN]` |
 | `kFeedbackTickMs` | 100 ms | The buzzer tick sounds as the input watcher reads a press — one poll, 10 ms (`kWatchMs`), after it — even during a refresh |
 | `kWaitIndicatorDelayMs` | 1000 ms | Declared for DESIGN.md's rule — a wait's indicator drawn only once the wait has run this long, `motion.wait-indicator`; no screen has a wait indicator yet |
 | `kSelfUpdateMinMs` | 5000 ms | The period of the hardware-test screens' self-updates (Sensors, Battery and power) — DESIGN.md's floor between two self-driven redraws of an area, `motion.self-update`, which no code enforces |
@@ -177,14 +177,22 @@ their value on each refresh — the design check reads them (§7).
 - **A new screen on the V1.0 is two partials, through white**, not a full one — 1.0 to 1.25 s against a full's 1.6 s,
   and counted as two toward `kRefreshPartialLimit`, so one that would pass it is drawn full. Ten page changes, then a
   full refresh, left no trace on the glass over a run of 80 `[SEEN]`.
-- **Two full refreshes back to back are DESIGN.md's to forbid, and not yet enforced** — DESIGN → Do's and Don'ts asks
-  that a second request within one full refresh's time waits, never dropped, and the frame before sleep waits its
-  turn; `Send` has no minimum interval between full refreshes yet (§8).
+- **Two full refreshes never run back to back** (DESIGN → Do's and Don'ts) — a full or greyscale refresh asked for
+  sooner after the last one ended than that one took waits out the rest in `Send` (`WaitAfterFlash`), then runs with
+  the frame LVGL drew; it is never dropped (DESIGN → Motion → Nothing animates). The gap is the last full or grey
+  refresh's own measured time — after a full, about 1 s on a V2.0 and 1.6 s on a V1.0; after a grey, the grey's
+  time, 1.25 s on a V2.0 (STICKY_EPAPER_WAVEFORMS §4) — so it follows each controller and the temperature without a
+  constant. Leaving Four greys straight after it lands held the full 546–607 ms on a V2.0 `[SEEN]`. A press during the
+  wait still ticks and is replayed after it, in the frame after the held one. A failed refresh sets no
+  gap, since it flashed nothing, so a retry never waits on a busy timeout; the full that redraws a failed partial runs
+  at once, a recovery, rare, and the one exception.
 - **Input during a refresh is kept** (DESIGN → Motion → Press) — a task of its own, above LVGL's, reads UP, DOWN, OK
   and the touch panel every 10 ms, ticks on each press, and queues each press and release; LVGL replays the queue when
   the refresh ends, so a short press inside a refresh is never lost and moves focus once. An OK pressed before the frame
-  the last OK caused has been drawn is dropped; how a queued OK lands after queued moves is open (§8). A press or a
-  move is queued only with room left for its release, so a release is never lost; holding OK for 1 s goes back,
+  the last OK caused has been drawn is ignored, though it ticks; a queued OK acts where the moves queued before it
+  left focus, and a double tap is replayed as two taps (the person's choice, from the glass); a held UP or DOWN
+  repeats its move after LVGL's long-press time, `LV_INDEV_DEF_LONG_PRESS_TIME` (400 ms), each repeat a frame. A press
+  or a move is queued only with room left for its release, so a release is never lost; holding OK for 1 s goes back,
   whether or not LVGL saw the hold begin. The tick sounded at once during a full refresh `[SEEN]`.
 - **An open overlay holds the screen under it, by DESIGN.md's rule** — what changes underneath is kept in state and
   drawn when the overlay closes, so the overlay's own refresh is never queued behind the page's; no overlay exists in
@@ -222,9 +230,6 @@ their value on each refresh — the design check reads them (§7).
 | A script that compares DESIGN.md's front matter with §2's tables | Open | The token header, which a third copy would make worth checking |
 | Inter's optical sizes per role, and the glyph ranges every string needs | Open | The first strings in the firmware, compiled and drawn on the glass |
 | The glass's real white and black, against the levels' nominal 21 : 1 | Open | A reading with a light meter on a V1.0 and a V2.0 board |
-| Whether the SSD2677 holds the 20-partials rule without ghosting, and its refresh times | Open | STICKY_HARDWARE_SPECS's open items, settled on a V2.0 board |
-| The dither on the V2.0's matte glass, and over many partials — whether it reads there and whether it ghosts | Open | The Four greys bands on a V2.0, and a long page walk |
+| The dither over many partials — whether it ghosts before the full refresh clears it | Open | A long page walk over a dithered fill |
 | Each type role drawn at its line box — `ui::LineBox()` is not applied, so Tiny TTF's 1.21 em draws body at about 38 px, not 42 `[?]` | Open | The person's choice, after the hardware-test screens are checked for fit on the glass |
 | The first button press showing the focus ring and moving nothing (DESIGN → Focus and input) — `input.cpp` has no state for a ring not yet shown | Open | The person's choice, with the focus walk on the glass |
-| A guard against two full refreshes back to back (DESIGN → Do's and Don'ts) — `Send` has no minimum interval between them | Open | The person's choice, with how often Full, Speed and Four greys flash on the glass |
-| How input replayed after a refresh should act — today an OK acts on the focus as the queued moves leave it, where DESIGN → Motion → Press says the frame the person saw; an ignored second OK still ticks; a double tap is replayed twice; a held UP or DOWN repeats after LVGL's long-press time. Proposed: DESIGN.md's Press lines say what the code does, or the code keeps the focus a press began on | Open | The person's choice, before a screen with a destructive action or a long list |
