@@ -204,10 +204,7 @@ lv_color_t Level(uint8_t level)
 
 lv_color_t Fill(uint8_t level)
 {
-    if (level != 1 && level != 2) {
-        return Level(level);
-    }
-    const uint8_t v = level == 1 ? lvgl_display::kDitherDark : lvgl_display::kDitherLight;
+    const uint8_t v = lvgl_display::FillCode(level);  // levels 1 and 2 as their dithers (STICKY_DESIGN_TOKENS §4)
     return lv_color_make(v, v, v);
 }
 

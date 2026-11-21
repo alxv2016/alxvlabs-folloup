@@ -64,7 +64,12 @@ python3 .agents/skills/verify-change/scripts/verify.py doctor
 python3 .agents/skills/build-run-test/scripts/quiet.py -- python "$IDF_PATH/tools/idf.py" build
 python3 .agents/skills/esp-idf-setup/scripts/esp_idf.py check       # the layering, E1–E5
 python3 .agents/skills/sticky-hardware/scripts/sticky_check.py      # pins and the shared bus
+bash tests/host/run.sh                                              # the host tests, a second or two, no board
 ```
+
+The host tests check the firmware's pure logic with the computer's own compiler: logic that needs no hardware goes in
+a header with no ESP-IDF or LVGL include (`components/lvgl_display/include/glass_rules.h`), the firmware calls it,
+and a `tests/host/<name>_test.cpp` checks it. Each test file is one program, built into `build/host/`.
 
 After a change to `sdkconfig.defaults`: `rm sdkconfig && idf.py reconfigure`, then build.
 
@@ -104,6 +109,7 @@ watches the glass before each full refresh.
 
 - [ ] (script) The build passes through `quiet.py` with no new warning in the project's own sources
 - [ ] (script) `esp_idf.py check` and `sticky_check.py` report 0 hits
+- [ ] (script) `bash tests/host/run.sh` exits 0 — every check of every host test passes
 - [ ] No `DEBUG-TEMP` line left — `verify.py finish` shows none
 
 ## Traps

@@ -51,7 +51,7 @@ PROJECT_WIDE_DOCS = ("docs/AGENT_HARNESS.md", ".agents/skills/docs-authoring-and
 #   Mobile:  ("ios/", "android/", "lib/", "pubspec.yaml")
 #   Python:  ("src/", "tests/", "pyproject.toml")
 #   ESP-IDF: ("main/", "components/", "CMakeLists.txt", "sdkconfig.defaults", "partitions.csv")
-CODE_PATHS = ("main/", "components/", "CMakeLists.txt", "sdkconfig.defaults", "partitions.csv")
+CODE_PATHS = ("main/", "components/", "tests/", "CMakeLists.txt", "sdkconfig.defaults", "partitions.csv")
 
 # The files that change what a person sees: screens, components, styles, copy, icons. Empty: no UI gates and no
 # ui-designer judge. Fill it in for any project with an interface.
@@ -286,6 +286,10 @@ CHECKS = {
               "counts": True},
     "sticky-selftest": {"run": ["python3", ".agents/skills/sticky-hardware/scripts/sticky_check.py", "--test"],
                         "when": (".agents/skills/sticky-hardware/",)},
+    # The host tests: the firmware's pure logic (glass_rules.h) built and run with the computer's own compiler, no
+    # board and no ESP-IDF — the build-run-test skill.
+    "host": {"run": ["bash", "tests/host/run.sh"],
+             "when": ("components/lvgl_display/", "components/ui/", "tests/host/"), "counts": True},
 }
 
 # The project's own judges, beyond the kit's (doc-reviewer, code-reviewer, ui-designer): agent name → the paths

@@ -154,7 +154,8 @@ their value on each refresh — the design check reads them (§7).
 - **Every spacing, stroke and radius is a whole number of panel pixels**, as DESIGN.md's front matter gives it — no
   scaling at run time.
 - **`spacing.target`, 64 px, is a hit area**: a control drawn smaller pads its touch box to it.
-- **A grey fill is a dither** — `ui::Fill(level)` gives levels 1 and 2 their fill codes in LVGL's L8 frame,
+- **A grey fill is a dither** — `ui::Fill(level)` gives levels 1 and 2 their fill codes (`FillCode`, in
+  `glass_rules.h`, with `OneBitWhite`, the pattern each draws; `tests/host` checks both) in LVGL's L8 frame,
   `lvgl_display::kDitherDark` (`0x56`) and `kDitherLight` (`0xAB`), one step above the plain greys, and the one-bit
   packing (`PackMono`) draws them as fixed patterns locked to the panel's pixel grid: level 1 one white pixel in four,
   level 2 three in four. Every refresh keeps them; a greyscale refresh reads the codes as the true greys. Text and
@@ -197,15 +198,15 @@ their value on each refresh — the design check reads them (§7).
   and counted as two toward `kRefreshPartialLimit`, so one that would pass it is drawn full. Ten page changes, then a
   full refresh, left no trace on the glass over a run of 80 `[SEEN]`.
 - **Two full refreshes never run back to back** (DESIGN → Do's and Don'ts) — a full or greyscale refresh asked for
-  sooner after the last one ended than that one took waits out the rest in `Send` (`WaitAfterFlash`), then runs with
-  the frame LVGL drew; it is never dropped (DESIGN → Motion → Nothing animates). The gap is the last full or grey
-  refresh's own measured time — after a full, about 1 s on a V2.0 and 1.6 s on a V1.0; after a grey, the grey's time,
-  1.25 s on a V2.0 and 1.31 s on a V1.0 (STICKY_EPAPER_WAVEFORMS §4) — so it follows each controller and the
-  temperature without a constant. Leaving Four greys straight after it lands held the full 546–607 ms on a V2.0 and
-  587–852 ms on a V1.0, and two Full presses held the second 1443–1523 ms on a V1.0 `[SEEN]`. A press during the wait
-  still ticks and is replayed after it, in the frame after the held one. A failed refresh sets no gap, since it
-  flashed nothing, so a retry never waits on a busy timeout; the full that redraws a failed partial runs at once, a
-  recovery, rare, and the one exception.
+  sooner after the last one ended than that one took waits out the rest in `Send` (`WaitAfterFlash`; its arithmetic is
+  `FlashWaitMs` in `glass_rules.h`, which `tests/host` checks), then runs with the frame LVGL drew; it is never
+  dropped (DESIGN → Motion → Nothing animates). The gap is the last full or grey refresh's own measured time — after a
+  full, about 1 s on a V2.0 and 1.6 s on a V1.0; after a grey, the grey's time, 1.25 s on a V2.0 and 1.31 s on a V1.0
+  (STICKY_EPAPER_WAVEFORMS §4) — so it follows each controller and the temperature without a constant. Leaving Four
+  greys straight after it lands held the full 546–607 ms on a V2.0 and 587–852 ms on a V1.0, and two Full presses held
+  the second 1443–1523 ms on a V1.0 `[SEEN]`. A press during the wait still ticks and is replayed after it, in the
+  frame after the held one. A failed refresh sets no gap, since it flashed nothing, so a retry never waits on a busy
+  timeout; the full that redraws a failed partial runs at once, a recovery, rare, and the one exception.
 - **Input during a refresh is kept** (DESIGN → Motion → Press) — a task of its own, above LVGL's, reads UP, DOWN, OK
   and the touch panel every 10 ms, ticks on each press, and queues each press and release; LVGL replays the queue when
   the refresh ends, so a short press inside a refresh is never lost and moves focus once. An OK pressed before the frame

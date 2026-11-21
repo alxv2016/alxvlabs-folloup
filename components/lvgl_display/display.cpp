@@ -319,15 +319,7 @@ void PackMono(const uint8_t *screen, const lv_area_t &a)
         const int column_parity = nx & 1;
         int frame_row = ny;
         for (int x = a.x1; x <= a.x2; ++x, cell += step * static_cast<int>(epaper::kMonoStride), frame_row += step) {
-            const uint8_t v = row[x];
-            bool white;
-            if (v == kDitherDark) {
-                white = column_parity == 1 && (frame_row & 1) == 1;  // one in four
-            } else if (v == kDitherLight) {
-                white = !(column_parity == 0 && (frame_row & 1) == 0);  // three in four
-            } else {
-                white = v >= 128;
-            }
+            const bool white = OneBitWhite(row[x], column_parity, frame_row & 1);
             *cell = white ? static_cast<uint8_t>(*cell | bit) : static_cast<uint8_t>(*cell & ~bit);
         }
     }
@@ -399,14 +391,11 @@ void SendByScans()
 // the frame is held, never dropped (DESIGN → Do's and Don'ts; STICKY_DESIGN_TOKENS §5).
 void WaitAfterFlash()
 {
-    if (s_flash_end_us == 0) {
-        return;
-    }
     const int64_t since_ms = (esp_timer_get_time() - s_flash_end_us) / 1000;
-    if (since_ms >= static_cast<int64_t>(s_flash_ms)) {
+    const uint32_t wait_ms = FlashWaitMs(s_flash_end_us != 0, since_ms, s_flash_ms);
+    if (wait_ms == 0) {
         return;
     }
-    const uint32_t wait_ms = s_flash_ms - static_cast<uint32_t>(since_ms);
     ESP_LOGI(kTag, "full refresh held %lu ms: never two back to back", static_cast<unsigned long>(wait_ms));
     vTaskDelay(pdMS_TO_TICKS(wait_ms));
 }
