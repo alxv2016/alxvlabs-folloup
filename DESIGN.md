@@ -24,38 +24,138 @@ colors:
   focus-ring-on-fill: "{colors.white}"  # the focus ring on a chosen, black row or chip
   band: "{colors.scale.primary.2}"  # a light-dither fill: decoration, a disabled control; black words only
 typography:
-  hero:
-    fontFamily: Inter
-    fontSize: 165px
-    fontWeight: 700
-    lineHeight: 168px
-    letterSpacing: -0.04em
-  display:
-    fontFamily: Inter
-    fontSize: 55px
-    fontWeight: 700
-    lineHeight: 64px
-    letterSpacing: -0.01em
-  headline:
-    fontFamily: Inter
-    fontSize: 46px
-    fontWeight: 700
-    lineHeight: 54px
-  body:
-    fontFamily: Inter
-    fontSize: 32px
+  # The primitives: Bitcount Single at one bit a pixel, each size a multiple of 10 px, its line 1.2 em.
+  scale-20-semibold:
+    fontFamily: Bitcount Single
+    fontSize: 20px
     fontWeight: 600
-    lineHeight: 42px
-  label:
-    fontFamily: Inter
-    fontSize: 26px
+    lineHeight: 24px
+  scale-20-bold:
+    fontFamily: Bitcount Single
+    fontSize: 20px
     fontWeight: 700
-    lineHeight: 34px
-  caption:
-    fontFamily: Inter
-    fontSize: 22px
+    lineHeight: 24px
+  scale-30-semibold:
+    fontFamily: Bitcount Single
+    fontSize: 30px
     fontWeight: 600
-    lineHeight: 30px
+    lineHeight: 36px
+  scale-30-bold:
+    fontFamily: Bitcount Single
+    fontSize: 30px
+    fontWeight: 700
+    lineHeight: 36px
+  scale-40-semibold:
+    fontFamily: Bitcount Single
+    fontSize: 40px
+    fontWeight: 600
+    lineHeight: 48px
+  scale-40-bold:
+    fontFamily: Bitcount Single
+    fontSize: 40px
+    fontWeight: 700
+    lineHeight: 48px
+  scale-50-semibold:
+    fontFamily: Bitcount Single
+    fontSize: 50px
+    fontWeight: 600
+    lineHeight: 60px
+  scale-50-bold:
+    fontFamily: Bitcount Single
+    fontSize: 50px
+    fontWeight: 700
+    lineHeight: 60px
+  scale-60-semibold:
+    fontFamily: Bitcount Single
+    fontSize: 60px
+    fontWeight: 600
+    lineHeight: 72px
+  scale-60-bold:
+    fontFamily: Bitcount Single
+    fontSize: 60px
+    fontWeight: 700
+    lineHeight: 72px
+  scale-70-semibold:
+    fontFamily: Bitcount Single
+    fontSize: 70px
+    fontWeight: 600
+    lineHeight: 84px
+  scale-70-bold:
+    fontFamily: Bitcount Single
+    fontSize: 70px
+    fontWeight: 700
+    lineHeight: 84px
+  scale-80-semibold:
+    fontFamily: Bitcount Single
+    fontSize: 80px
+    fontWeight: 600
+    lineHeight: 96px
+  scale-80-bold:
+    fontFamily: Bitcount Single
+    fontSize: 80px
+    fontWeight: 700
+    lineHeight: 96px
+  scale-100-semibold:  # figures only
+    fontFamily: Bitcount Single
+    fontSize: 100px
+    fontWeight: 600
+    lineHeight: 120px
+  scale-100-bold:  # figures only
+    fontFamily: Bitcount Single
+    fontSize: 100px
+    fontWeight: 700
+    lineHeight: 120px
+  scale-120-semibold:  # figures only
+    fontFamily: Bitcount Single
+    fontSize: 120px
+    fontWeight: 600
+    lineHeight: 144px
+  scale-120-bold:  # figures only
+    fontFamily: Bitcount Single
+    fontSize: 120px
+    fontWeight: 700
+    lineHeight: 144px
+  scale-160-semibold:  # figures only
+    fontFamily: Bitcount Single
+    fontSize: 160px
+    fontWeight: 600
+    lineHeight: 192px
+  scale-160-bold:  # figures only
+    fontFamily: Bitcount Single
+    fontSize: 160px
+    fontWeight: 700
+    lineHeight: 192px
+  # The roles: each is one primitive, named beside it.
+  hero:  # = typography.scale-60-bold
+    fontFamily: Bitcount Single
+    fontSize: 60px
+    fontWeight: 700
+    lineHeight: 72px
+  display:  # = typography.scale-50-bold
+    fontFamily: Bitcount Single
+    fontSize: 50px
+    fontWeight: 700
+    lineHeight: 60px
+  headline:  # = typography.scale-40-bold
+    fontFamily: Bitcount Single
+    fontSize: 40px
+    fontWeight: 700
+    lineHeight: 48px
+  body:  # = typography.scale-30-semibold
+    fontFamily: Bitcount Single
+    fontSize: 30px
+    fontWeight: 600
+    lineHeight: 36px
+  label:  # = typography.scale-30-bold
+    fontFamily: Bitcount Single
+    fontSize: 30px
+    fontWeight: 700
+    lineHeight: 36px
+  caption:  # = typography.scale-20-semibold
+    fontFamily: Bitcount Single
+    fontSize: 20px
+    fontWeight: 600
+    lineHeight: 24px
 rounded:
   none: 0px
   sm: 4px
@@ -199,7 +299,7 @@ components:
   band:
     backgroundColor: "{colors.band}"
     height: "{spacing.sm}"
-  lock-clock:
+  lock-clock:  # its own type size is open; hero until it is chosen
     backgroundColor: "{colors.background}"
     textColor: "{colors.text-primary}"
     typography: "{typography.hero}"
@@ -294,32 +394,39 @@ When two pull against each other, the earlier wins — between options that both
 
 ### Face
 
-- **Inter, compiled into the firmware** — open shapes and clear figures, under the SIL Open Font License.
-- **Weights 600 and 700 only.** A regular weight breaks up at one bit a pixel; hierarchy comes from size and weight,
-  never from grey alone.
-- **Glyphs are drawn at one bit a pixel** for anything a partial refresh draws, so a stroke is solid black, never a
-  grey edge that thresholds into a ragged one.
+- **Bitcount Single, compiled into the firmware** — a pixel font, each letter built from square cells, under the SIL
+  Open Font License; at one bit a pixel its strokes are the glass's own pixels.
+- **Weights 600 and 700 only.** A lighter weight breaks up at one bit a pixel; hierarchy comes from size and weight,
+  never from grey alone. Below 50 px the two weights look alike, so size carries the hierarchy there.
+- **Every size is a multiple of 10 px** — the font's cell is a tenth of the em, so each cell is whole pixels.
+- **Glyphs are drawn at one bit a pixel** on every refresh, so a stroke is solid black, never a grey edge that
+  thresholds into a ragged one.
 
-### Roles
+### Scale and roles
 
 At 235 ppi a pixel is 0.108 mm and a point is 3.26 px.
 
-| Role | Size | Use |
-| --- | --- | --- |
-| `hero` | 165 px, 50.6 pt | The lock screen's clock — digits only; its weekday is `headline` |
-| `display` | 55 px, 16.9 pt | One per screen at most: a sticky's words |
-| `headline` | 46 px, 14.1 pt | A screen's title |
-| `body` | 32 px, 9.8 pt | Everything people read: a transcript, a summary, a note |
-| `label` | 26 px, 8.0 pt | Buttons, hints, tags, a row's title |
-| `caption` | 22 px, 6.7 pt | The status bar and timestamps — the smallest words on the glass |
+- **The scale is the primitives** — 20 to 80 px in steps of 10, and 100, 120 and 160 px for figures, each at 600 and
+  700, its lines 1.2 em apart (`typography.scale-30-semibold` and its siblings). A screen takes a role, never a
+  primitive; only the hardware test's type scale page shows the primitives themselves (DESIGN → Exceptions).
+- **A role is one primitive:**
+
+| Role | Primitive | Size | Use |
+| --- | --- | --- | --- |
+| `hero` | `scale-60-bold` | 60 px, 18.4 pt | A figure or a word taken in at a glance — never the clock, which has a size of its own |
+| `display` | `scale-50-bold` | 50 px, 15.3 pt | One per screen at most: a sticky's words |
+| `headline` | `scale-40-bold` | 40 px, 12.3 pt | A screen's title |
+| `body` | `scale-30-semibold` | 30 px, 9.2 pt | Everything people read: a transcript, a summary, a note |
+| `label` | `scale-30-bold` | 30 px, 9.2 pt | Buttons, hints, tags, a row's title — `body`'s size, in bold |
+| `caption` | `scale-20-semibold` | 20 px, 6.1 pt | The status bar and timestamps — the smallest words on the glass |
 
 ### Reading
 
-- **About 26 characters of `body` a line** across the content width — wrap, never truncate, words people read.
+- **24 characters of `body` a line** across the content width — wrap, never truncate, words people read.
 - **Truncate only a label whose full words are one press away.**
-- **`headline`, `display` and `hero` are large text** for contrast — WCAG's 18 pt regular or 14 pt bold.
-- **Figures that change use Inter's tabular figures** — the clock, the battery, a recording's timer, "3 of 5" — so a
-  number keeps its width and the area a refresh redraws stays the same.
+- **`hero` and `display` are large text** for contrast — WCAG's 14 pt bold.
+- **Figures keep their width** — every character is the same width — so a changing number, the clock, the battery, a
+  recording's timer, "3 of 5", redraws the same area.
 
 ## Layout
 
@@ -433,6 +540,8 @@ At 235 ppi a pixel is 0.108 mm and a point is 3.26 px.
 
 - **A button names what happens** — "Save", "Keep it", "Let it go", "Record" — never "OK" or "Submit". OK is the
   button's name, never its label.
+- **A button's words fit it on one line** — at `label`'s 18 px a character, a full-width button holds 22, a half
+  button 10 and a third 6; a longer name is shortened, never cut off or wrapped.
 - **An empty screen says what goes there and how to add it** — "No follow-ups yet. Hold AI or press Record to add
   one."
 - **An error says what happened and what to do next** — "Couldn't reach Wi-Fi. Check the network in Settings."
@@ -532,10 +641,13 @@ A value off these tokens is argued here — what, where and why — before a scr
     scale, the benchmark's track and its step, the footer's Back), a test's absolute grey levels (the checker's dots,
     the words on each grey band), its timers and lengths (stats shown after a refresh, the benchmark's frames, a
     second of recording, leaving a screen, the page walk's 3 s on each page), the refresh benchmark's bar, which
-    animates as fast as the glass allows, and the page walk, which changes screen by itself from the console.
+    animates as fast as the glass allows, the page walk, which changes screen by itself from the console, and the type
+    scale page, which draws every primitive rather than a role, scrolls by pixel — no animation, momentum or
+    overscroll — and makes each sample a focus stop so UP and DOWN reach it.
   - **Why:** each measures the glass, the touch or a sensor — a fixture sized to the test, not to reading — the
-    benchmark exists to drive the glass as fast as it goes, and the page walk to change screen many times over for a
-    ghosting run, so Nothing animates and Nothing leaves on a timer cannot hold there.
+    benchmark exists to drive the glass as fast as it goes, the page walk to change screen many times over for a
+    ghosting run, and the type scale page to show the whole scale for choosing the roles, more than one page holds, so
+    Nothing animates, Nothing leaves on a timer, A screen takes a role and Content turns by page cannot hold there.
   - **Where it stops:** a size that matches a token uses the token; text, colours by role, focus and hit areas follow
     this file; nothing outside `components/hw_test` uses the exception.
 
@@ -543,7 +655,10 @@ A value off these tokens is argued here — what, where and why — before a scr
 
 - **The frame left on the glass while the device sleeps** — the stickies, the lock screen or a blank glass — decided
   with the designs.
-- **The viewing distance** the sizes are set for — `display` reads at about 35 cm, `hero` at about 1 m.
+- **The viewing distance** the sizes are set for — `hero`'s 60 px figures read at about 35 cm and `display` at about
+  29 cm.
+- **The clock's own size** — the lock screen's clock takes a type size of its own, likely one of the 100, 120 and
+  160 px figure sizes; `lock-clock` takes `hero` until it is chosen.
 - **The AI button** — its name on the glass (AI or OK), a hold's length, and how a hold, a wake and power-off differ.
 - **The keyboard's layout** — six 64 px keys a row.
 - **The dither over many partials** — whether it ghosts before the full refresh clears it.
@@ -553,8 +668,7 @@ A value off these tokens is argued here — what, where and why — before a scr
 - **A press answered without sound** — how a muted device, or a person who cannot hear the tick, knows a press landed
   before the next frame does.
 - **The glass's real contrast** — its white and black measured against the nominal 21 : 1.
-- **Whether a 2 px hairline, Inter 600 at one bit and `caption` at 22 px read from a metre away** — on a V1.0 and a
-  V2.0 board.
+- **Whether a 2 px hairline and `caption` at 20 px read from a metre away** — on a V1.0 and a V2.0 board.
 - **How many times a full refresh flashes**, against WCAG's three a second.
 - **Press-to-start and press-to-stop recording** beside the hold.
 - **A larger text setting**, and the glyph ranges every string needs.

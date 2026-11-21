@@ -28,13 +28,13 @@ CONFIG_ESP_CONSOLE_SECONDARY_NONE=y
 CONFIG_FREERTOS_HZ=1000
 CONFIG_ESP_MAIN_TASK_STACK_SIZE=8192
 
-# LVGL on the glass (STICKY_DESIGN_TOKENS §5, §6): 8-bit grey, rendered by the C library's malloc into PSRAM; Inter
-# through Tiny TTF; no theme, so nothing carries a pressed tint or a transition the glass cannot show.
+# LVGL on the glass (STICKY_DESIGN_TOKENS §5, §6): 8-bit grey, rendered by the C library's malloc into PSRAM; fonts
+# compiled at one bit a pixel, so no font engine; no theme, so nothing carries a pressed tint or a transition the glass
+# cannot show.
 CONFIG_LV_COLOR_DEPTH_8=y
 CONFIG_LV_USE_CLIB_MALLOC=y
 CONFIG_LV_USE_CLIB_STRING=y
 CONFIG_LV_USE_CLIB_SPRINTF=y
-CONFIG_LV_USE_TINY_TTF=y
 CONFIG_LV_USE_THEME_DEFAULT=n
 CONFIG_LV_USE_THEME_SIMPLE=n
 CONFIG_LV_USE_THEME_MONO=n

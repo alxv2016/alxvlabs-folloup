@@ -29,7 +29,7 @@ heading path for why. Do not renumber; add new material under the next free numb
 | --- | --- | --- |
 | 1 | [Rules](#1-rules) | The code's side of DESIGN.md's rules: which value, which refresh, which check |
 | 2 | [Colour](#2-colour) | The levels in the framebuffer; each role's kind and its value on both refreshes; the contrast proof |
-| 3 | [Type](#3-type) | The Inter files, each role compiled at one bit, glyph ranges |
+| 3 | [Type](#3-type) | Bitcount Single at one bit, the scale's primitives, the roles, line boxes, glyph ranges |
 | 4 | [Space, strokes and shapes](#4-space-strokes-and-shapes) | The scales as code values; the dither; the hard offset |
 | 5 | [Refresh and feedback](#5-refresh-and-feedback) | The refresh policy, the partial counter, the rate limits, the buzzer tick |
 | 6 | [The token header](#6-the-token-header) | Where the header lives, how a token's name becomes a symbol |
@@ -55,7 +55,7 @@ heading path for why. Do not renumber; add new material under the next free numb
 - **Paint `scale.primary.1` or `scale.primary.2` solid on a UI element** — fill it with `ui::Fill`, the dither (§4);
   the solid greys are for images drawn with a greyscale refresh (DESIGN → Colors → The four levels).
 - **Animate** — no timer drives a redraw faster than §5's limits.
-- **Draw a stroke under 2 px, a weight under 600, or words under 22 px.**
+- **Draw a stroke under 2 px, a weight under 600, or words under `caption`, 20 px.**
 - **Use a value the header does not have** — decide it in DESIGN.md first.
 
 ## 2. Colour
@@ -123,16 +123,31 @@ their value on each refresh — the design check reads them (§7).
 
 ## 3. Type
 
-- **The face is Inter**, the SemiBold (600) and Bold (700) cuts, in the optical sizes nearest each role `[?]`.
-- **Each role is compiled once per size at one bit a pixel** — `hero` 165, `display` 55, `headline` 46, `body` 32,
-  `label` 26, `caption` 22 px — and a two-bit copy only for a role drawn on a full-refresh frame alone.
-- **A role's line height is its line box** — 168, 64, 54, 42, 34 and 30 px; a block of text is its line count times
-  the line box, so the layout reserves its height before the words arrive.
-- **The glyph ranges** cover every character FolloUp's strings use; which ranges is open (§8).
-- **Changing figures are compiled tabular** — Inter's `tnum` — for the clock, the battery, a recording's timer and a
-  count.
-- **Letter spacing rounds to whole panel pixels at each size** — `display`'s −0.01 em is −1 px, `hero`'s −0.04 em is
-  −7 px `[D]`.
+- **The face is Bitcount Single**, a pixel font, at weights 600 and 700 — the upright SemiBold and Bold
+  instances of its variable font (`wght` 600 and 700, `ELXP` 0, `ELSH` 0, `slnt` 0, `CRSV` 0) from
+  petrvanblokland/TYPETR-Bitcount, under the SIL Open Font License (`components/ui/fonts/bitcount/OFL.txt`).
+- **Every size is compiled at one bit a pixel** by `lv_font_conv` 1.5.3 (`components/ui/fonts/bitcount/make_fonts.sh`),
+  so a stroke is solid black on every refresh; no font engine runs on the device.
+- **Bitcount draws on a 100-unit cell, a tenth of the em, so every size is a multiple of 10 px** — each cell then falls
+  on whole panel pixels, 2 px at 20 px and 6 px at 60 px; a size between draws its cells unevenly. Weight widens each
+  cell's square by 20 units at 600 and 30 at 700, so the two weights look alike below about 50 px `[D]`.
+- **The scale is the primitives, `typography.scale-<size>-<semibold|bold>`** — 20, 30, 40, 50, 60, 70 and 80 px with
+  every character the strings use, and 100, 120 and 160 px with figures only, each at both weights, its line pitch
+  1.2 em (the font's ascent and descent) — `kTypographyScale30Semibold` and its siblings in `design_tokens.h`.
+- **A role is one primitive** — `hero` `scale-60-bold`, `display`
+  `scale-50-bold`, `headline` `scale-40-bold`, `body` `scale-30-semibold`, `label` `scale-30-bold`, `caption`
+  `scale-20-semibold`; in the header, `kTypographyBody = kTypographyScale30Semibold`. Google's linter allows no group
+  under `typography`, so DESIGN.md writes each role's values out with its primitive named beside it.
+- **A role's line height is its line pitch** — 72, 60, 48, 36, 36 and 24 px. `ui::NewLabel` and the screen's style
+  set LVGL's line space to the pitch less the compiled font's height, so the lines of a block step by the pitch; a
+  single line is the compiled font's height, about 0.9 em — 19 px for `caption` at 20 px, 26 for `body` and `label` at 30,
+  52 at 60 — and a block of n lines is n − 1 pitches and one font height `[D]`.
+- **The glyph ranges** are ASCII and · ° × – — ’ • … at 20 to 80 px, and the space, the figures and the colon at
+  100 px and up; Bitcount has no arrows, so no string uses one. What a character outside them draws on the glass is
+  open (§8).
+- **Every character is 0.6 em wide** — the face is monospaced — so changing figures keep their width without a
+  tabular setting, and `body` fits 24 characters across `spacing.content` `[D]`.
+- **No letter spacing** — it would break the cells off the pixel grid.
 
 ## 4. Space, strokes and shapes
 
@@ -149,10 +164,14 @@ their value on each refresh — the design check reads them (§7).
 - **The overlay's offset is `spacing.overlay-offset`, a solid 6 px of level 0,** on the right and bottom edges,
   drawn as two rectangles, never a blur.
 - **A list row's padding is two values** — `spacing.sm` above and below, `spacing.md` either side; DESIGN.md's
-  front matter carries the vertical one, since a component takes one padding token: 8 + 34 + 30 + 8 = 80 px `[D]`.
+  front matter carries the vertical one, since a component takes one padding token. Its title and supporting line
+  are one line each, 26 px of `label` and 19 of `caption`, so 8 + 26 + 19 + 8 = 61 px, centred in the 80 px row `[D]`.
 - **The ring inside a control** sits on the edge of one with no outline, and `spacing.focus-offset` inside an outlined
-  one — 3 + 4 + 4 = 11 px in from each edge `[D]`; a 64 px button keeps 42 px inside the ring for a 34 px line box, and
-  a footer button `(432 − 2 × 8) / 3` = 138 px wide keeps 116 px for its label `[D]`.
+  one — 3 + 4 + 4 = 11 px in from each edge `[D]`; a 64 px button keeps 42 px inside the ring for a 26 px line, and
+  a footer button `(432 − 2 × 8) / 3` = 138 px wide keeps 116 px for its label, 6 characters of `label` at 18 px a
+  character, and a half-width button 212 px wide keeps 190 px, 10 characters `[D]`. The budget is the room clear of the
+  ring: a 10-character label runs 3 px into the button's `spacing.md` padding on each side, inside its edge and clear
+  of the ring (DESIGN → Voice & Content Strategy → Labels and states).
 
 ## 5. Refresh and feedback
 
@@ -208,9 +227,8 @@ their value on each refresh — the design check reads them (§7).
 - **A token's path becomes its symbol**: `colors.text-primary` → `kColorTextPrimary`, `spacing.target` →
   `kSpacingTarget`, `spacing.stroke.focus` → `kSpacingStrokeFocus`, `rounded.sm` → `kRoundedSm`.
 - **A colour is stored as its level, 0 to 3**, with the hex in a comment — `kColorTextSecondary = 1;  // #555555`.
-- **A type role is a struct of its size, its line box and its weight**; `ui::Font(role)` gives the font LVGL
-  draws it in. The firmware renders Inter through LVGL's Tiny TTF at each size for now, and the flush thresholds it
-  to one bit on a partial refresh; compiling each role at one bit (§3) is open (§8).
+- **A type token is a struct of its size, its line box and its weight**, a role being one primitive by name;
+  `ui::Font(role)` gives the compiled font LVGL draws it in, and `ui::Bitcount(size, weight)` any primitive's (§3).
 
 ## 7. Enforcement
 
@@ -226,10 +244,8 @@ their value on each refresh — the design check reads them (§7).
 | Item | Status | Unblocked by |
 | --- | --- | --- |
 | Generating the token header's symbols from DESIGN.md's front matter, instead of by hand | Open | A second change to the tokens, which makes a generator worth it |
-| Compiling each type role at one bit a pixel, in place of Tiny TTF's anti-aliased glyphs | Open | The glyph ranges below, and how the Tiny TTF text reads on the glass |
 | A script that compares DESIGN.md's front matter with §2's tables | Open | The token header, which a third copy would make worth checking |
-| Inter's optical sizes per role, and the glyph ranges every string needs | Open | The first strings in the firmware, compiled and drawn on the glass |
+| The glyph ranges beyond ASCII and · ° × – — ’ • … — a name with an accent, a currency — and what a character outside them draws: LVGL's placeholder box is on (`CONFIG_LV_USE_FONT_PLACEHOLDER`) | Open | An out-of-range character drawn on the glass; the first strings that need more |
 | The glass's real white and black, against the levels' nominal 21 : 1 | Open | A reading with a light meter on a V1.0 and a V2.0 board |
 | The dither over many partials — whether it ghosts before the full refresh clears it | Open | A long page walk over a dithered fill |
-| Each type role drawn at its line box — `ui::LineBox()` is not applied, so Tiny TTF's 1.21 em draws body at about 38 px, not 42 `[?]` | Open | The person's choice, after the hardware-test screens are checked for fit on the glass |
 | The first button press showing the focus ring and moving nothing (DESIGN → Focus and input) — `input.cpp` has no state for a ring not yet shown | Open | The person's choice, with the focus walk on the glass |

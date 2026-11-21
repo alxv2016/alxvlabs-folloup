@@ -12,3 +12,4 @@ or the agent.
 
 | Item | Since | From the person | Looks for |
 | --- | --- | --- | --- |
+| L1 | 2026-11-20 | The ui-designer, before the glass: the type scale page stepped every size by body's line space while printing each size's own | A specimen or swatch page: every property it labels — size, line height, weight, colour — set on the sample itself, never inherited from the screen's style |

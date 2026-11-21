@@ -1,6 +1,6 @@
-// DESIGN.md's components in LVGL: Inter at each type role, and one style per component, from the token header. No
-// theme is compiled in, so nothing carries a pressed tint, a transition or a shadow the glass cannot show; focus is the
-// ring, chosen is the inversion (DESIGN → Focus and input).
+// DESIGN.md's components in LVGL: Bitcount Single at each type role, compiled at one bit a pixel, and one style per
+// component, from the token header. No theme is compiled in, so nothing carries a pressed tint, a transition or a
+// shadow the glass cannot show; focus is the ring, chosen is the inversion (DESIGN → Focus and input).
 
 #include <cstddef>
 
@@ -9,12 +9,19 @@
 #include "ui.h"
 #include "esp_check.h"
 #include "esp_log.h"
-#include "lvgl.h"  // with LV_USE_TINY_TTF, it declares lv_tiny_ttf_create_data
+#include "lvgl.h"
 
-extern const uint8_t inter_600_start[] asm("_binary_inter_600_ttf_start");
-extern const uint8_t inter_600_end[] asm("_binary_inter_600_ttf_end");
-extern const uint8_t inter_700_start[] asm("_binary_inter_700_ttf_start");
-extern const uint8_t inter_700_end[] asm("_binary_inter_700_ttf_end");
+// Bitcount Single at one bit a pixel (fonts/bitcount/make_fonts.sh): C objects, declared outside any namespace.
+extern "C" {
+LV_FONT_DECLARE(bitcount_600_20) LV_FONT_DECLARE(bitcount_600_30) LV_FONT_DECLARE(bitcount_600_40)
+LV_FONT_DECLARE(bitcount_600_50) LV_FONT_DECLARE(bitcount_600_60) LV_FONT_DECLARE(bitcount_600_70)
+LV_FONT_DECLARE(bitcount_600_80) LV_FONT_DECLARE(bitcount_600_100) LV_FONT_DECLARE(bitcount_600_120)
+LV_FONT_DECLARE(bitcount_600_160)
+LV_FONT_DECLARE(bitcount_700_20) LV_FONT_DECLARE(bitcount_700_30) LV_FONT_DECLARE(bitcount_700_40)
+LV_FONT_DECLARE(bitcount_700_50) LV_FONT_DECLARE(bitcount_700_60) LV_FONT_DECLARE(bitcount_700_70)
+LV_FONT_DECLARE(bitcount_700_80) LV_FONT_DECLARE(bitcount_700_100) LV_FONT_DECLARE(bitcount_700_120)
+LV_FONT_DECLARE(bitcount_700_160)
+}
 
 namespace ui {
 namespace {
@@ -24,7 +31,7 @@ constexpr const char *kTag = "ui";
 
 struct Role {
     dt::TypeRole tokens;
-    lv_font_t *font;
+    const lv_font_t *font;
 };
 Role s_roles[] = {
     {dt::kTypographyHero, nullptr},  {dt::kTypographyDisplay, nullptr}, {dt::kTypographyHeadline, nullptr},
@@ -34,17 +41,32 @@ Role s_roles[] = {
 lv_style_t s_screen, s_status_bar, s_row, s_button_outline, s_button_action, s_divider, s_focus, s_focus_on_fill,
     s_chosen;
 
-lv_font_t *LoadInter(const dt::TypeRole &role)
+struct BitcountFont {
+    int16_t size_px;
+    int16_t weight;
+    const lv_font_t *font;
+};
+constexpr BitcountFont kBitcount[] = {
+    {20, 600, &bitcount_600_20},   {30, 600, &bitcount_600_30},   {40, 600, &bitcount_600_40},
+    {50, 600, &bitcount_600_50},   {60, 600, &bitcount_600_60},   {70, 600, &bitcount_600_70},
+    {80, 600, &bitcount_600_80},   {100, 600, &bitcount_600_100}, {120, 600, &bitcount_600_120},
+    {160, 600, &bitcount_600_160}, {20, 700, &bitcount_700_20},   {30, 700, &bitcount_700_30},
+    {40, 700, &bitcount_700_40},   {50, 700, &bitcount_700_50},   {60, 700, &bitcount_700_60},
+    {70, 700, &bitcount_700_70},   {80, 700, &bitcount_700_80},   {100, 700, &bitcount_700_100},
+    {120, 700, &bitcount_700_120}, {160, 700, &bitcount_700_160},
+};
+
+// The space LVGL adds between a role's lines, so a block of text steps by the role's line box: the line height token
+// less the font's own height (STICKY_DESIGN_TOKENS §3).
+int32_t LineSpace(Type role)
 {
-    const bool bold = role.weight >= 700;
-    const uint8_t *start = bold ? inter_700_start : inter_600_start;
-    const uint8_t *end = bold ? inter_700_end : inter_600_end;
-    return lv_tiny_ttf_create_data(start, static_cast<size_t>(end - start), role.size_px);
+    const int32_t space = LineBox(role) - lv_font_get_line_height(Font(role));
+    return space > 0 ? space : 0;
 }
 
 void NoScroll(lv_obj_t *obj)
 {
-    lv_obj_set_scrollable(obj, false);  // every screen fits the glass: nothing scrolls
+    lv_obj_set_scrollable(obj, false);  // a component never scrolls; a page that must, says so itself
 }
 
 void BuildStyles()
@@ -54,6 +76,7 @@ void BuildStyles()
     lv_style_set_bg_opa(&s_screen, LV_OPA_COVER);
     lv_style_set_text_color(&s_screen, Level(dt::kColorTextPrimary));
     lv_style_set_text_font(&s_screen, Font(Type::kBody));
+    lv_style_set_text_line_space(&s_screen, LineSpace(Type::kBody));
     lv_style_set_pad_all(&s_screen, 0);
     lv_style_set_border_width(&s_screen, 0);
 
@@ -144,11 +167,22 @@ void AddFocusRing(lv_obj_t *obj, bool on_fill, int16_t inset)
 esp_err_t Start()
 {
     for (Role &role : s_roles) {
-        role.font = LoadInter(role.tokens);
-        ESP_RETURN_ON_FALSE(role.font != nullptr, ESP_ERR_NO_MEM, kTag, "Inter at %d px", role.tokens.size_px);
+        role.font = Bitcount(role.tokens.size_px, role.tokens.weight);
+        ESP_RETURN_ON_FALSE(role.font != nullptr, ESP_ERR_NOT_FOUND, kTag, "no Bitcount at %d px, weight %d",
+                            role.tokens.size_px, role.tokens.weight);
     }
     BuildStyles();
     return ESP_OK;
+}
+
+const lv_font_t *Bitcount(int16_t size_px, int16_t weight)
+{
+    for (const BitcountFont &f : kBitcount) {
+        if (f.size_px == size_px && f.weight == weight) {
+            return f.font;
+        }
+    }
+    return nullptr;
 }
 
 const lv_font_t *Font(Type role)
@@ -202,6 +236,7 @@ lv_obj_t *NewLabel(lv_obj_t *parent, Type role, const char *text, bool secondary
     lv_obj_t *label = lv_label_create(parent);
     lv_label_set_text(label, text);
     lv_obj_set_style_text_font(label, Font(role), 0);
+    lv_obj_set_style_text_line_space(label, LineSpace(role), 0);
     lv_obj_set_style_text_color(label, Level(secondary ? dt::kColorTextSecondary : dt::kColorTextPrimary), 0);
     lv_label_set_long_mode(label, LV_LABEL_LONG_MODE_WRAP);
     lv_obj_set_width(label, lv_pct(100));
@@ -273,6 +308,11 @@ void SetChosen(lv_obj_t *control, bool chosen)
     } else {
         lv_obj_remove_state(control, LV_STATE_CHECKED);
     }
+}
+
+void RingOnFocus(lv_obj_t *obj)
+{
+    AddFocusRing(obj, false, 0);
 }
 
 }  // namespace ui

@@ -43,3 +43,4 @@ A result without evidence counts as unsure.
 | --- | --- | --- | --- |
 | L1 | 2026-11-19 | The V1.0 froze 8 s at a time on a page | A driver step that changes a device's power state (standby, power off, sleep) sent without checking the power state the driver tracks |
 | L2 | 2026-11-19 | The same freeze, repeated every 8 s | A wait on a busy line or a timeout, on the UI's task, retried on its own failure in a loop |
+| L3 | 2026-11-20 | The code reviewer, before the glass: compiled fonts dropped the → and … the run-time font drew | A change to a compiled font's glyph range, or a new drawn string: every character of every string the UI draws, checked against the range the font was compiled with |

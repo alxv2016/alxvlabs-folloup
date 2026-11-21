@@ -1,7 +1,8 @@
 // The hardware test: a row on home for each part of the board, and a screen that exercises it — the glass on either
 // controller, touch, the buttons and buzzer, the sensors, the battery and power, the card, the microphone. It is a
-// bench tool for V1.0 and V2.0 boards, drawn from DESIGN.md's components. Its fixtures' sizes, its timers and the
-// refresh benchmark's animation are DESIGN.md's one registered exception (DESIGN → Exceptions).
+// bench tool for V1.0 and V2.0 boards, drawn from DESIGN.md's components. Its fixtures' sizes, its timers, the
+// refresh benchmark's animation, the page walk and the type scale page are DESIGN.md's one registered exception
+// (DESIGN → Exceptions).
 
 #include <algorithm>
 #include <atomic>
@@ -176,6 +177,8 @@ const char *ModeName(lvgl_display::Refresh mode)
     }
 }
 
+uint32_t s_partial_presses = 0;  // Partial's presses: each changes the stats, so each press is a small update
+
 void FillStats()
 {
     const lvgl_display::Stats s = lvgl_display::GetStats();
@@ -186,9 +189,9 @@ void FillStats()
     lv_label_set_text_fmt(s_display_stats,
                           "Last: %s, %" PRIu32 " ms\nLatch %" PRIu32 " · send %" PRIu32 " · power %" PRIu32
                           " · drive %" PRIu32 "\nPartials since full: %" PRIu32 " of %d · skipped %" PRIu32 "\n"
-                          "Waveform temperature: %s",
+                          "Waveform temperature: %s · Partial pressed %" PRIu32,
                           ModeName(s.last), s.last_ms, s.latch_ms, s.stream_ms, s.power_on_ms, s.drive_ms, s.partials,
-                          dt::kRefreshPartialLimit, s.skipped, temp);
+                          dt::kRefreshPartialLimit, s.skipped, temp, s_partial_presses);
 }
 
 // After a refresh the person asked for, show its time: once, so the stats' own redraw does not ask for another.
@@ -207,12 +210,11 @@ void OnFull(lv_event_t *)
     lv_obj_invalidate(lv_screen_active());
 }
 
-// A small change, as a real update is: the button counts its own presses. An unchanged frame is never sent.
-void OnPartial(lv_event_t *e)
+// A small change, as a real update is: the stats count Partial's presses. An unchanged frame is never sent.
+void OnPartial(lv_event_t *)
 {
-    static uint32_t presses = 0;
-    lv_obj_t *button = lv_event_get_target_obj(e);
-    lv_label_set_text_fmt(lv_obj_get_child(button, 0), "Partial · %" PRIu32, ++presses);
+    ++s_partial_presses;
+    FillStats();
     s_stats_pending = true;
 }
 
@@ -238,6 +240,7 @@ void OnTuning(lv_event_t *)
 }
 
 void OnGray(lv_event_t *);
+void OnTypeScale(lv_event_t *);
 
 void OnPattern(lv_event_t *e)
 {
@@ -284,9 +287,10 @@ void ShowDisplay()
     FillStats();
 
     lv_obj_t *row = ButtonRow(content);
-    HalfButton(row, "Full refresh", true, OnFull);
-    HalfButton(row, "Partial refresh", false, OnPartial);
+    HalfButton(row, "Full", true, OnFull);  // a half button holds 10 characters of label (STICKY_DESIGN_TOKENS §4)
+    HalfButton(row, "Partial", false, OnPartial);
     HalfButton(row, "Four greys", false, OnGray);
+    HalfButton(row, "Type scale", false, OnTypeScale);
     lv_obj_t *pattern_button = HalfButton(row, "Pattern", false, nullptr);  // in the row, before Speed below it
 
     if (lvgl_display::TuningCount() > 1) {
@@ -343,6 +347,109 @@ void OnGray(lv_event_t *)
     lv_obj_t *row = ButtonRow(content);
     HalfButton(row, "Display", false, OnGrayBack);
     lvgl_display::RequestGray();
+    EndScreen(screen);
+}
+
+// A sample on the type scale page: a column that takes focus for UP and DOWN, ringed, and brought into view at once —
+// LVGL's scroll on focus animates, which the glass would draw frame by frame (DESIGN → Exceptions).
+void OnSpecimenFocused(lv_event_t *e)
+{
+    lv_obj_scroll_to_view(lv_event_get_target_obj(e), LV_ANIM_OFF);
+}
+
+lv_obj_t *NewSpecimen(lv_obj_t *parent)
+{
+    lv_obj_t *box = lv_obj_create(parent);
+    lv_obj_remove_style_all(box);
+    lv_obj_set_scrollable(box, false);
+    lv_obj_set_size(box, lv_pct(100), LV_SIZE_CONTENT);
+    lv_obj_set_flex_flow(box, LV_FLEX_FLOW_COLUMN);
+    lv_obj_set_style_pad_all(box, dt::kSpacingSm + dt::kSpacingStrokeFocus, 0);  // the ring never covers the sample
+    lv_obj_set_style_pad_row(box, dt::kSpacingXs, 0);
+    lv_obj_add_event_cb(box, OnSpecimenFocused, LV_EVENT_FOCUSED, nullptr);
+    ui::RingOnFocus(box);
+    lv_group_add_obj(lvgl_display::Group(), box);
+    return box;
+}
+
+// The type scale: every primitive type token — Bitcount Single at one bit — with its values and the roles that use it
+// (STICKY_DESIGN_TOKENS §3). The page scrolls; UP and DOWN step through the entries.
+void OnTypeScale(lv_event_t *)
+{
+    struct Primitive {
+        const char *name;
+        dt::TypeRole tokens;
+    };
+    static constexpr Primitive kScale[] = {
+        {"scale-20-semibold", dt::kTypographyScale20Semibold},
+        {"scale-20-bold", dt::kTypographyScale20Bold},
+        {"scale-30-semibold", dt::kTypographyScale30Semibold},
+        {"scale-30-bold", dt::kTypographyScale30Bold},
+        {"scale-40-semibold", dt::kTypographyScale40Semibold},
+        {"scale-40-bold", dt::kTypographyScale40Bold},
+        {"scale-50-semibold", dt::kTypographyScale50Semibold},
+        {"scale-50-bold", dt::kTypographyScale50Bold},
+        {"scale-60-semibold", dt::kTypographyScale60Semibold},
+        {"scale-60-bold", dt::kTypographyScale60Bold},
+        {"scale-70-semibold", dt::kTypographyScale70Semibold},
+        {"scale-70-bold", dt::kTypographyScale70Bold},
+        {"scale-80-semibold", dt::kTypographyScale80Semibold},
+        {"scale-80-bold", dt::kTypographyScale80Bold},
+        {"scale-100-semibold", dt::kTypographyScale100Semibold},
+        {"scale-100-bold", dt::kTypographyScale100Bold},
+        {"scale-120-semibold", dt::kTypographyScale120Semibold},
+        {"scale-120-bold", dt::kTypographyScale120Bold},
+        {"scale-160-semibold", dt::kTypographyScale160Semibold},
+        {"scale-160-bold", dt::kTypographyScale160Bold},
+    };
+    struct RoleName {
+        const char *name;
+        dt::TypeRole tokens;
+    };
+    static constexpr RoleName kRoles[] = {
+        {"hero", dt::kTypographyHero},   {"display", dt::kTypographyDisplay}, {"headline", dt::kTypographyHeadline},
+        {"body", dt::kTypographyBody},   {"label", dt::kTypographyLabel},     {"caption", dt::kTypographyCaption},
+    };
+    lv_obj_t *content;
+    lv_obj_t *screen = BeginScreen("Type scale", &content);
+    lv_obj_set_scrollable(content, true);
+    lv_obj_set_scroll_dir(content, LV_DIR_VER);
+    lv_obj_set_scrollbar_mode(content, LV_SCROLLBAR_MODE_OFF);
+    // touch-exception: on e-ink a throw or a bounce is a run of partial refreshes, an animation DESIGN.md forbids;
+    // a drag moves the page and stops when it does (DESIGN → Exceptions).
+    lv_obj_remove_flag(content, LV_OBJ_FLAG_SCROLL_MOMENTUM);  // touch-exception: no throw on the glass
+    lv_obj_remove_flag(content, LV_OBJ_FLAG_SCROLL_ELASTIC);   // touch-exception: no bounce on the glass
+    ui::NewLabel(content, Type::kCaption, "Bitcount Single, one bit a pixel. 100 px and up holds figures only.", true);
+    int16_t last_size = 0;
+    for (const Primitive &p : kScale) {
+        const lv_font_t *font = ui::Bitcount(p.tokens.size_px, p.tokens.weight);
+        if (font == nullptr) {
+            continue;
+        }
+        if (last_size != 0 && p.tokens.size_px != last_size) {
+            ui::NewDivider(content);
+        }
+        last_size = p.tokens.size_px;
+        lv_obj_t *entry = NewSpecimen(content);
+        lv_obj_t *sample = lv_label_create(entry);
+        lv_label_set_text(sample, p.tokens.size_px >= 100 ? "9:41" : "Follow up with Sam");
+        lv_obj_set_style_text_font(sample, font, 0);
+        lv_obj_set_style_text_line_space(sample, std::max<int32_t>(0, p.tokens.line_px - lv_font_get_line_height(font)), 0);
+        lv_obj_set_width(sample, lv_pct(100));
+        char roles[48] = "";
+        for (const RoleName &r : kRoles) {
+            if (r.tokens.size_px == p.tokens.size_px && r.tokens.weight == p.tokens.weight) {
+                std::snprintf(roles + std::strlen(roles), sizeof roles - std::strlen(roles), "%s%s",
+                              roles[0] != '\0' ? ", " : " · ", r.name);
+            }
+        }
+        char tokens[96];
+        std::snprintf(tokens, sizeof tokens, "%s · %d / %d · %d%s", p.name, p.tokens.size_px, p.tokens.line_px,
+                      p.tokens.weight, roles);
+        ui::NewLabel(entry, Type::kCaption, tokens, true);
+    }
+    lv_obj_t *row = ButtonRow(content);
+    HalfButton(row, "Display", false, OnGrayBack);
     EndScreen(screen);
 }
 
@@ -520,7 +627,7 @@ void OnTouch(lv_event_t *)
     const lvgl_display::TouchPoint t = lvgl_display::LastTouch();
     lv_obj_set_pos(s_touch_dot, t.x - dt::kSpacingLg / 2, t.y - dt::kSpacingLg / 2);
     lv_obj_set_hidden(s_touch_dot, false);
-    lv_label_set_text_fmt(s_touch_label, "Raw %d, %d → screen %d, %d", t.raw_x, t.raw_y, t.x, t.y);
+    lv_label_set_text_fmt(s_touch_label, "Raw %d, %d, on screen %d, %d", t.raw_x, t.raw_y, t.x, t.y);
 }
 
 void ShowTouch()
@@ -673,7 +780,7 @@ void OnCharge(lv_event_t *)
 {
     board::SetChargingEnabled(!board::ChargingEnabled());
     lv_label_set_text(lv_obj_get_child(s_charge_button, 0),
-                      board::ChargingEnabled() ? "Stop charging" : "Allow charging");
+                      board::ChargingEnabled() ? "Charge off" : "Charge on");
     FillPower();
 }
 
@@ -732,7 +839,7 @@ void ShowPower()
     s_power_label = Value(content, "");
     FillPower();
     lv_obj_t *row = ButtonRow(content);
-    s_charge_button = HalfButton(row, board::ChargingEnabled() ? "Stop charging" : "Allow charging", false, OnCharge);
+    s_charge_button = HalfButton(row, board::ChargingEnabled() ? "Charge off" : "Charge on", false, OnCharge);
     HalfButton(row, "Deep sleep", false, OnSleep);
     HalfButton(row, "Power off", true, OnPowerOff);
     ui::NewLabel(content, Type::kCaption,

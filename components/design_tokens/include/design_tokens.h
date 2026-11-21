@@ -31,7 +31,7 @@ inline constexpr uint8_t kColorFocusRing = kColorBlack;        // #000000
 inline constexpr uint8_t kColorFocusRingOnFill = kColorWhite;  // #FFFFFF
 inline constexpr uint8_t kColorBand = kColorScalePrimary2;     // #AAAAAA
 
-// --- Type: Inter, each role's size, line box and weight (STICKY_DESIGN_TOKENS §3) ------------------------------------
+// --- Type: Bitcount Single at one bit a pixel (STICKY_DESIGN_TOKENS §3) -----------------------------------------------
 
 struct TypeRole {
     int16_t size_px;
@@ -39,12 +39,36 @@ struct TypeRole {
     int16_t weight;
 };
 
-inline constexpr TypeRole kTypographyHero = {165, 168, 700};
-inline constexpr TypeRole kTypographyDisplay = {55, 64, 700};
-inline constexpr TypeRole kTypographyHeadline = {46, 54, 700};
-inline constexpr TypeRole kTypographyBody = {32, 42, 600};
-inline constexpr TypeRole kTypographyLabel = {26, 34, 700};
-inline constexpr TypeRole kTypographyCaption = {22, 30, 600};
+// The primitives: the scale, each size a multiple of 10 px so the font's cells — a tenth of the em — fall on whole
+// pixels, its line 1.2 em; 100 px and up hold figures only.
+inline constexpr TypeRole kTypographyScale20Semibold = {20, 24, 600};
+inline constexpr TypeRole kTypographyScale20Bold = {20, 24, 700};
+inline constexpr TypeRole kTypographyScale30Semibold = {30, 36, 600};
+inline constexpr TypeRole kTypographyScale30Bold = {30, 36, 700};
+inline constexpr TypeRole kTypographyScale40Semibold = {40, 48, 600};
+inline constexpr TypeRole kTypographyScale40Bold = {40, 48, 700};
+inline constexpr TypeRole kTypographyScale50Semibold = {50, 60, 600};
+inline constexpr TypeRole kTypographyScale50Bold = {50, 60, 700};
+inline constexpr TypeRole kTypographyScale60Semibold = {60, 72, 600};
+inline constexpr TypeRole kTypographyScale60Bold = {60, 72, 700};
+inline constexpr TypeRole kTypographyScale70Semibold = {70, 84, 600};
+inline constexpr TypeRole kTypographyScale70Bold = {70, 84, 700};
+inline constexpr TypeRole kTypographyScale80Semibold = {80, 96, 600};
+inline constexpr TypeRole kTypographyScale80Bold = {80, 96, 700};
+inline constexpr TypeRole kTypographyScale100Semibold = {100, 120, 600};
+inline constexpr TypeRole kTypographyScale100Bold = {100, 120, 700};
+inline constexpr TypeRole kTypographyScale120Semibold = {120, 144, 600};
+inline constexpr TypeRole kTypographyScale120Bold = {120, 144, 700};
+inline constexpr TypeRole kTypographyScale160Semibold = {160, 192, 600};
+inline constexpr TypeRole kTypographyScale160Bold = {160, 192, 700};
+
+// The roles: each one primitive (DESIGN → Typography → Scale and roles).
+inline constexpr TypeRole kTypographyHero = kTypographyScale60Bold;
+inline constexpr TypeRole kTypographyDisplay = kTypographyScale50Bold;
+inline constexpr TypeRole kTypographyHeadline = kTypographyScale40Bold;
+inline constexpr TypeRole kTypographyBody = kTypographyScale30Semibold;
+inline constexpr TypeRole kTypographyLabel = kTypographyScale30Bold;
+inline constexpr TypeRole kTypographyCaption = kTypographyScale20Semibold;
 
 // --- Radius -------------------------------------------------------------------------------------------------------
 
