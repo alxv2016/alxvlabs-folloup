@@ -469,8 +469,8 @@ while the chip is awake, wakes the panel from its own sleep.**
   wake** — Seeed's dashboard (`1a28b2a`) holds `PWR_HOLD`, `PWR_LOCK` and `EP_PWR_EN` high and `TP_PWR_EN`, `TP_RST`,
   `PDM_EN`, `SD_PWR_EN` and `BUZZER_PWM` low; its peripheral demo (`4b7f9a1`) drives `EP_PWR_EN` low as well before
   holding `[SRC]`. Ours holds `EP_PWR_EN` low with them, the panel unpowered: a wake restarts the chip, which powers
-  the panel up again `[FW]`; on a V2.0 board the glass kept its image through deep sleep and the board woke
-  `[MEAS]`, and a V1.0 is open (§10).
+  the panel up again `[FW]`; on a V1.0 and a V2.0 board the glass kept its image through deep sleep and the board
+  woke `[MEAS]`.
 - **Put the panel to sleep only after its refresh finishes, and give it a full refresh on wake** `[FW]`; the image
   stays on the glass with the panel unpowered `[DOC]`.
 - **Poll the IMU every 200 ms rather than take its interrupt**, while GPIO7 has no shared owner (§1); motion counts
@@ -597,7 +597,6 @@ pinhole and openings on the bottom** `[DOC]`.
 | Item | Status | Unblocked by |
 | --- | --- | --- |
 | The IMU on a V2.0 board — every unit carries it and V1.0 is confirmed (§4.2), though the schematic's block diagram draws it with a dashed border | Open | `WHO_AM_I` reading `0x6A` on a V2.0 board once the IMU driver runs |
-| Whether a V1.0 board's glass keeps its image and the board wakes with `EP_PWR_EN` held low in deep sleep (§6) | Open | A deep-sleep wake checked on a V1.0 board |
 | Whether V2.0 changes anything off the pin map — Seeed's demos drive both controllers with one pin map, but the schematic in `STICKY_assets/` is Rev 01 and names no controller | Open | Seeed's schematic for V2.0, or the team |
 | Whether the CH343P's Q4 on GPIO0 disturbs the sensor I2C bus when a serial monitor toggles DTR or RTS | Open | A logic analyser on GPIO0 while a monitor opens the port |
 | A frame's transfer with the card writing (§4.3), with a date and a build | Open | A refresh timed while the card writes |

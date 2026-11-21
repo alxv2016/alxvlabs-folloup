@@ -276,6 +276,7 @@ growing and shrinking by 36 px a frame on a white track** `[MEAS]`.
 | Partial, Seeed | 512–519 ms | 470–471 ms | 543 ms, 1.84 fps | `[MEAS]` |
 | Partial, kept waveform | 508–515 ms | 467 ms | 541 ms, 1.84 fps | `[MEAS]` |
 | A new screen, two partials through white | 1024–1250 ms: median 1026 ms over 15 changes in use, 1248 ms over 73 changes each after a standby (`0xFF` both passes), ESP-IDF v6.1.1 and LVGL 9.6.0 | — | — | `[MEAS]` |
+| Grey | 1312 ms | 1209–1210 ms | — | `[MEAS]` on 2026-11-20 (commit `2b1a32b`, ESP-IDF v6.1.1, LVGL 9.6.0) |
 | Partial, a forced 50 °C or 70 °C (`0x1A`) | — | 467 ms | — | `[MEAS]` |
 | Partial, a forced 90 °C | — | 1505 ms | — | `[MEAS]` |
 | Scans 2 x 12 | 27–39 ms a scan | 19–20 ms | 85 ms, 11.8 fps | `[MEAS]` |
@@ -339,7 +340,6 @@ growing and shrinking by 36 px a frame on a white track** `[MEAS]`.
 | Item | Status | Unblocked by |
 | --- | --- | --- |
 | Whether one short pulse a frame, with the polarity now known, clears as well as the scans — the single-pulse and kick-and-drive presets were tried with the polarity reversed | Open | A single-pulse preset at the corrected polarity, judged on a V1.0 board's glass |
-| The SSD1677 grey refresh's time | Open | The Display screen's Four greys, timed on a V1.0 board |
 | Whether the SSD2677's glass needs `0x62`, `0xE7`, `0xE9` and `0xE0`'s bit 4 — none changes a refresh's time (§4.1) | Open | A build without each on a V2.0 board, the full and partial refreshes judged on the glass |
 | What each of the SSD2677's OTP temperature bands holds — `0x92` (ROTP) reads its 6144 bytes, the same twice over, in a layout no public document gives `[MEAS]` | Open | The module's spec from Seeed, to read the dump by |
 | The SSD2677's idle current with its supply left on between refreshes, against a standby — the battery cost of keeping black from fading (§3.1) | Deferred — until the application is complete (the person's choice) | The fuel gauge's current read on battery, idle on a V2.0 running the application, powered and in standby |

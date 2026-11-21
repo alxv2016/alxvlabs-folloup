@@ -199,12 +199,13 @@ their value on each refresh — the design check reads them (§7).
 - **Two full refreshes never run back to back** (DESIGN → Do's and Don'ts) — a full or greyscale refresh asked for
   sooner after the last one ended than that one took waits out the rest in `Send` (`WaitAfterFlash`), then runs with
   the frame LVGL drew; it is never dropped (DESIGN → Motion → Nothing animates). The gap is the last full or grey
-  refresh's own measured time — after a full, about 1 s on a V2.0 and 1.6 s on a V1.0; after a grey, the grey's
-  time, 1.25 s on a V2.0 (STICKY_EPAPER_WAVEFORMS §4) — so it follows each controller and the temperature without a
-  constant. Leaving Four greys straight after it lands held the full 546–607 ms on a V2.0 `[SEEN]`. A press during the
-  wait still ticks and is replayed after it, in the frame after the held one. A failed refresh sets no
-  gap, since it flashed nothing, so a retry never waits on a busy timeout; the full that redraws a failed partial runs
-  at once, a recovery, rare, and the one exception.
+  refresh's own measured time — after a full, about 1 s on a V2.0 and 1.6 s on a V1.0; after a grey, the grey's time,
+  1.25 s on a V2.0 and 1.31 s on a V1.0 (STICKY_EPAPER_WAVEFORMS §4) — so it follows each controller and the
+  temperature without a constant. Leaving Four greys straight after it lands held the full 546–607 ms on a V2.0 and
+  587–852 ms on a V1.0, and two Full presses held the second 1443–1523 ms on a V1.0 `[SEEN]`. A press during the wait
+  still ticks and is replayed after it, in the frame after the held one. A failed refresh sets no gap, since it
+  flashed nothing, so a retry never waits on a busy timeout; the full that redraws a failed partial runs at once, a
+  recovery, rare, and the one exception.
 - **Input during a refresh is kept** (DESIGN → Motion → Press) — a task of its own, above LVGL's, reads UP, DOWN, OK
   and the touch panel every 10 ms, ticks on each press, and queues each press and release; LVGL replays the queue when
   the refresh ends, so a short press inside a refresh is never lost and moves focus once. An OK pressed before the frame

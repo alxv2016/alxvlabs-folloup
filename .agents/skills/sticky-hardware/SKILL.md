@@ -51,8 +51,8 @@ flashed through [`build-run-test`](../build-run-test/SKILL.md), and every change
 9. **Drive `PWR_HOLD` and `PWR_LOCK` high through light sleep** — the board loses power on battery otherwise
    (STICKY_HARDWARE_SPECS §6).
 10. **Hold every output through deep sleep and release the holds on wake** — Seeed's practice; ours holds `EP_PWR_EN`
-    low, the panel unpowered — the glass keeps its image and the board wakes on a V2.0; a V1.0 is open
-    (STICKY_HARDWARE_SPECS §6, §10).
+    low, the panel unpowered — the glass keeps its image and the board wakes on both boards (STICKY_HARDWARE_SPECS
+    §6).
 11. **Reset the GT911 with the INT sync pulse, and again after light sleep** — without it the controller answers its ID
     but never scans (STICKY_HARDWARE_SPECS §7, §8.2).
 12. **Divide the BQ27220's current and capacity by 10 when `DesignCapacity` reads 7500, and never reprogram the gauge**
