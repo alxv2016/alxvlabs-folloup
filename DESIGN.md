@@ -640,10 +640,10 @@ A value off these tokens is argued here — what, where and why — before a scr
   - **What:** its fixtures' sizes (the checker, the grey bands, the touch marks and dot, the microphone bar and its
     scale, the benchmark's track and its step, the footer's Back), a test's absolute grey levels (the checker's dots,
     the words on each grey band), its timers and lengths (stats shown after a refresh, the benchmark's frames, a
-    second of recording, leaving a screen, the page walk's 3 s on each page), the refresh benchmark's bar, which
-    animates as fast as the glass allows, the page walk, which changes screen by itself from the console, and the type
-    scale page, which draws every primitive rather than a role, scrolls by pixel — no animation, momentum or
-    overscroll — and makes each sample a focus stop so UP and DOWN reach it.
+    second of recording, leaving a screen, the page walk's 3 s on each page, the RTC's 60 s before it turns the board
+    on), the refresh benchmark's bar, which animates as fast as the glass allows, the page walk, which changes screen
+    by itself from the console, and the type scale page, which draws every primitive rather than a role, scrolls by
+    pixel — no animation, momentum or overscroll — and makes each sample a focus stop so UP and DOWN reach it.
   - **Why:** each measures the glass, the touch or a sensor — a fixture sized to the test, not to reading — the
     benchmark exists to drive the glass as fast as it goes, the page walk to change screen many times over for a
     ghosting run, and the type scale page to show the whole scale for choosing the roles, more than one page holds, so

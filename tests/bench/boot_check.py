@@ -4,7 +4,7 @@
     boot_check.py [--port PORT] [--seconds 12] [--no-reset] [--log FILE]
 
 Resets the chip (DTR released, RTS pulsed: tests/bench/boardport.py), reads the log for --seconds and prints what it
-found: the boots, the reset reason, PSRAM, the board up, the display controller and revision, the devices, touch, the
+found: the boots, the reset reason, PSRAM, the board up, what started it, the display controller and revision, the devices, touch, the
 first refresh, the firmware's identity line, the console, and every error line. --no-reset only listens. Lines the
 chip prints while the port is closed are lost, so the port opens before the reset. A line that never arrived is
 "not seen", never a pass. Adapted from claude-agent-deck-3. Needs pyserial (ESP-IDF's Python has it).
@@ -36,6 +36,7 @@ TOUCH = re.compile(r"eink_input: (GT911 at 0x[0-9A-Fa-f]+|GT911 did not answer.*
 FIRST_REFRESH = re.compile(r"eink_display: full refresh: (\d+) ms")
 REFRESH_FAILED = "eink_display: refresh failed"
 CONSOLE = "hw_test: console ready"
+STARTED_BY = re.compile(r"hw_test: started by: (.+)$")  # what started the board (STICKY_HARDWARE_SPECS §5.2)
 PSRAM = re.compile(r"Found (\d+)MB PSRAM device")
 RESET_REASON = re.compile(r"rst:(0x[0-9a-f]+) \(([A-Z0-9_]+)\)")
 NORMAL_RESETS = ("POWERON", "DEEPSLEEP_RESET", "RTC_SW_SYS_RESET", "SW_SYS_RESET")
@@ -90,7 +91,7 @@ def check(port, args):
     log = open(args.log, "w") if args.log else None
 
     boots, apps, psram, board_up, console = 0, [], None, False, False
-    panel, devices, touch, refresh, failed = None, None, None, None, []
+    panel, devices, touch, refresh, failed, started_by = None, None, None, None, [], None
     reasons, panics, errors = [], [], []
     for line in read_lines(port, s, args.seconds, log):
         if ROM_MARK in line:
@@ -101,6 +102,8 @@ def check(port, args):
             psram = int(m.group(1))
         board_up |= BOARD_UP in line
         console |= CONSOLE in line
+        if m := STARTED_BY.search(line):
+            started_by = m.group(1).strip()
         if m := PANEL.search(line):
             panel = "%s (%s), ID %s" % m.groups()
         if m := DEVICES.search(line):
@@ -131,6 +134,7 @@ def check(port, args):
                                               for r in reasons) or "not seen"))
     print("  PSRAM:          %s" % seen(psram, "%d MB"))
     print("  board up:       %s" % ("yes" if board_up else "not seen"))
+    print("  started by:     %s" % seen(started_by))
     print("  panel:          %s" % seen(panel))
     print("  devices:        %s" % seen(devices) + (" — ABSENT: " + ", ".join(absent) if absent else ""))
     print("  touch:          %s" % seen(touch))

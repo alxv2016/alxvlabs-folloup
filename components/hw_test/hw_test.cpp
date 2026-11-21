@@ -16,6 +16,7 @@
 #include "board.h"
 #include "design_tokens.h"
 #include "devices.h"
+#include "esp_system.h"
 #include "lvgl_display.h"
 #include "ui.h"
 #include "esp_app_desc.h"
@@ -761,6 +762,22 @@ void ShowSensors()
 lv_obj_t *s_power_label = nullptr;
 lv_obj_t *s_charge_button = nullptr;
 
+// What started the board, decided once at boot from the RTC's flag, USB and the chip's reset reason, so plugging USB in
+// later never changes it (STICKY_HARDWARE_SPECS §5.2, §6).
+const char *s_started_by = "restart";
+
+void NoteStart()
+{
+    switch (esp_reset_reason()) {
+    case ESP_RST_POWERON:  // the RTC's flag counts only here: a power-on from off is the one start it can cause
+        s_started_by = devices::RtcStartedBoard() ? "RTC timer" : board::UsbPresent() ? "USB" : "OK button";
+        break;
+    case ESP_RST_DEEPSLEEP: s_started_by = "deep-sleep wake"; break;
+    default: s_started_by = "restart"; break;
+    }
+    ESP_LOGI(kTag, "started by: %s", s_started_by);
+}
+
 void FillPower(lv_timer_t * = nullptr)
 {
     char gauge[160] = "Gauge: absent";
@@ -771,9 +788,9 @@ void FillPower(lv_timer_t * = nullptr)
                       b.temperature_c, b.cycles);
     }
     const int vin = board::PowerInputMillivolts();
-    lv_label_set_text_fmt(s_power_label, "%s\nUSB %s (%d mV at the pin)\nCharger %s, STAT %s", gauge,
+    lv_label_set_text_fmt(s_power_label, "%s\nUSB %s (%d mV at the pin)\nCharger %s, STAT %s\nStarted by: %s", gauge,
                           board::UsbPresent() ? "in" : "out", vin, board::ChargingEnabled() ? "on" : "off",
-                          board::ChargeStatusLow() ? "low, charging" : "high");
+                          board::ChargeStatusLow() ? "low, charging" : "high", s_started_by);
 }
 
 void OnCharge(lv_event_t *)
@@ -784,9 +801,23 @@ void OnCharge(lv_event_t *)
     FillPower();
 }
 
+// How the board leaves: deep sleep, power off, or power off with the RTC set to turn it on again.
+enum class LeaveBy : uintptr_t { kSleep, kPowerOff, kPowerOffTimed };
+constexpr uint8_t kRtcWakeS = 60;  // DESIGN → Exceptions: a hardware-test timer; the Off, 60 s button and the
+                                   // Battery page's caption spell it out too, so change all three together
+
 // The frame left on the glass when the board leaves: drawn in full, then the panel sleeps (DESIGN → Motion).
-void Leave(bool power_off)
+void Leave(LeaveBy how)
 {
+    const bool power_off = how != LeaveBy::kSleep;
+    // An RTC interrupt left low would power the board straight back on (STICKY_HARDWARE_SPECS §5.3); set it first, so
+    // the glass promises only what is set. On USB the board restarts, and the start clears the countdown.
+    if (how == LeaveBy::kPowerOffTimed && (board::UsbPresent() || devices::SetRtcWake(kRtcWakeS) != ESP_OK)) {
+        how = LeaveBy::kPowerOff;
+    }
+    if (how != LeaveBy::kPowerOffTimed && devices::ClearRtcWake() != ESP_OK) {
+        ESP_LOGE(kTag, "RTC interrupts not cleared: the board may turn on again");
+    }
     StopTimer();
     lvgl_display::ClearGroup();
     lv_obj_t *screen = ui::NewScreen();
@@ -794,8 +825,12 @@ void Leave(bool power_off)
     lv_obj_set_style_pad_hor(screen, dt::kSpacingEdge, 0);
     lv_obj_t *title = ui::NewLabel(screen, Type::kDisplay, power_off ? "Off" : "Asleep");
     lv_obj_set_style_text_align(title, LV_TEXT_ALIGN_CENTER, 0);
-    lv_obj_t *hint = ui::NewLabel(
-        screen, Type::kBody, power_off ? "Press OK to turn on." : "Press OK, UP or DOWN to wake.");
+    char timed[64];
+    std::snprintf(timed, sizeof timed, "Turns on in %u s. Hold OK to turn on now.", unsigned{kRtcWakeS});
+    lv_obj_t *hint = ui::NewLabel(screen, Type::kBody,
+                                  how == LeaveBy::kPowerOffTimed ? timed
+                                  : power_off                    ? "Hold OK to turn on."
+                                                                 : "Press OK, UP or DOWN to wake.");
     lv_obj_set_style_text_align(hint, LV_TEXT_ALIGN_CENTER, 0);
     lv_obj_t *old = s_current;
     s_current = screen;
@@ -805,31 +840,44 @@ void Leave(bool power_off)
     }
     lvgl_display::RequestFull();
     lvgl_display::Redraw();
-    lvgl_display::SleepPanel();
-    if (power_off) {
-        board::PowerOff();  // returns only when USB keeps the board on and it did not restart
-    } else {
-        board::EnterDeepSleep();
+    const bool panel_asleep = lvgl_display::SleepPanel() == ESP_OK;
+    if (!panel_asleep) {
+        ESP_LOGE(kTag, "the panel did not sleep: its power stays on");
     }
-    ESP_LOGW(kTag, "still running after %s", power_off ? "power off" : "deep sleep");
+    if (power_off) {
+        board::PowerOff();  // returns only on battery when the rail did not fall
+        ESP_LOGW(kTag, "the rail did not fall: deep sleep instead");
+        // Only the buttons wake deep sleep, so a countdown left running would mislead the next start. A timed frame
+        // already on the glass keeps its "Turns on in 60 s" here: the panel is asleep, and this path needs a fault.
+        if (devices::ClearRtcWake() != ESP_OK) {
+            ESP_LOGE(kTag, "RTC interrupts not cleared before deep sleep");
+        }
+    }
+    board::EnterDeepSleep(!panel_asleep);
+    ESP_LOGW(kTag, "still running after deep sleep");
 }
 
 void LeaveSoon(lv_timer_t *timer)
 {
-    const bool power_off = lv_timer_get_user_data(timer) != nullptr;
+    const auto how = static_cast<LeaveBy>(reinterpret_cast<uintptr_t>(lv_timer_get_user_data(timer)));
     lv_timer_delete(timer);
-    Leave(power_off);
+    Leave(how);
 }
 
 void OnSleep(lv_event_t *)
 {
     // From a timer, not this click: the press has to finish before the board waits for the buttons to be released.
-    lv_timer_create(LeaveSoon, 50, nullptr);
+    lv_timer_create(LeaveSoon, 50, reinterpret_cast<void *>(LeaveBy::kSleep));
 }
 
 void OnPowerOff(lv_event_t *)
 {
-    lv_timer_create(LeaveSoon, 50, reinterpret_cast<void *>(1));
+    lv_timer_create(LeaveSoon, 50, reinterpret_cast<void *>(LeaveBy::kPowerOff));
+}
+
+void OnPowerOffTimed(lv_event_t *)
+{
+    lv_timer_create(LeaveSoon, 50, reinterpret_cast<void *>(LeaveBy::kPowerOffTimed));
 }
 
 void ShowPower()
@@ -842,8 +890,11 @@ void ShowPower()
     s_charge_button = HalfButton(row, board::ChargingEnabled() ? "Charge off" : "Charge on", false, OnCharge);
     HalfButton(row, "Deep sleep", false, OnSleep);
     HalfButton(row, "Power off", true, OnPowerOff);
+    HalfButton(row, "Off, 60 s", false, OnPowerOffTimed);
     ui::NewLabel(content, Type::kCaption,
-                        "On USB, power off restarts the board. On battery it turns off; press OK to turn on.", true);
+                 "On USB, power off restarts the board. On battery it turns off; hold OK to turn on. On battery, "
+                 "Off, 60 s turns it on again by itself.",
+                 true);
     s_timer = lv_timer_create(FillPower, dt::kSelfUpdateMinMs, nullptr);
     EndScreen(screen);
 }
@@ -1201,6 +1252,7 @@ void StartPages(const char *arg)
 void Install()
 {
     app_hooks::OnHomeBuilt(BuildHome);
+    app_hooks::OnBoot(app_hooks::Phase::kReady, NoteStart);
     app_hooks::OnBoot(app_hooks::Phase::kReady, StartConsole);
 }
 

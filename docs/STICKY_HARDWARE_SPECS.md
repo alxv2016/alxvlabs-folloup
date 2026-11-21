@@ -379,18 +379,21 @@ flowchart LR
 
 - **`PWR_EN` drives the buck-boost's enable** — the power button (K3, through D1), the latch (Q7) and `RTC_INTn` pull
   the power-on node, Q2's gate, low, and Q2 then raises `PWR_EN` through D5; USB reaches `PWR_EN` through D2 alone
-  `[SCH]`. The RTC path is unseen on the board `[?]` (§10).
+  `[SCH]`; the RTC path powers the board on — the hardware test's Off, 60 s started a V2.0 board on battery by
+  itself `[MEAS]`.
 - **U3 is a D flip-flop: `PWR_HOLD` (GPIO45) is its D input and `PWR_LOCK` (GPIO46) its clock** — it samples
   `PWR_HOLD` on a rising edge of `PWR_LOCK`, so a 0 → 1 → 0 pulse of about 50 µs commits a level; its Q drives Q7's
   gate, with a 100 kΩ pull-down (R6) `[SCH]` `[DS]` `[FW]`.
 - **U3 runs from `VDD_3V3` through D27** (the `VSYS` path, D28, is not fitted), so when the rail falls the latch loses
   its state and every power-up starts with Q low `[SCH]` `[D]`.
 - **Holding power** — the button raises `PWR_EN`; the firmware's first act is `PWR_HOLD` = 1, then a `PWR_LOCK`
-  pulse, which latches Q high so Q7 keeps the power-on node asserted after the button is released `[FW]`.
+  pulse, which latches Q high so Q7 keeps the power-on node asserted after the button is released `[FW]`. So from
+  off, OK is held until the firmware has latched power `[MEAS]` — a short press lets the rail fall before it does
+  `[D]`.
 - **Seeed's examples hold both `PWR_HOLD` and `PWR_LOCK` high** — the latch is edge-triggered, so `PWR_LOCK` left high
   or low after the pulse holds the same state `[DOC]` `[DS]`.
-- **Releasing power** — `PWR_HOLD` = 0, then a `PWR_LOCK` pulse, leaving `PWR_HOLD` low `[SCH]` `[DS]`; whether this cuts
-  the rail on battery is open `[?]` (§10).
+- **Releasing power** — `PWR_HOLD` = 0, then a `PWR_LOCK` pulse, leaving `PWR_HOLD` low `[SCH]` `[DS]`; on battery it
+  cuts the rail (§5.3).
 - **Configure both latch pins as outputs once and drive the pulse with `gpio_set_level()` alone** — reconfiguring a
   pin between edges glitches GPIO45 and GPIO46, which are strapping pins `[FW]`.
 - **Clear any ESP-IDF GPIO hold on GPIO45 and GPIO46 before a latch sequence** — `gpio_deep_sleep_hold_dis()`, then
@@ -399,12 +402,13 @@ flowchart LR
 ### 5.3 Power-off
 
 - **On USB, power cannot be cut** — D2 joins `VIN_5V` to `PWR_EN` with no gate, so the rail stays up whatever the
-  latch holds; power-off on USB is deep sleep, woken by the power button (§6) `[SCH]`.
+  latch holds; our power-off on USB restarts the chip, as Seeed's release does `[SCH]` `[FW]`.
 - **Deep sleep is not power-off** — the rail stays up and the board draws its sleep current `[DOC]`.
-- **On battery, releasing the latch (§5.2) is the way to cut the rail**; if the board is still running 500 ms later,
-  it falls back to deep sleep `[FW]` — whether the rail collapses is open (§10).
+- **On battery, releasing the latch (§5.2) is the way to cut the rail**; if the board is still running 250 ms later,
+  it holds power again and falls back to deep sleep `[FW]`, so UP or DOWN wakes it where a cut rail would not `[D]`.
+  On a V2.0 board on battery, UP and DOWN did not wake it and OK held turned it on `[MEAS]`, so the rail fell `[D]`.
 - **Seeed's reference power-off is the same release, and Seeed documents it cutting power on battery** — on battery
-  the AI/OK button powers the board back on `[SRC]`.
+  the AI/OK button, held, powers the board back on `[SRC]` `[MEAS]`.
 - **Seeed's order before the release** — the peripherals finish and the card unmounts, the final frame is drawn and the
   panel controller put to sleep, every peripheral enable is driven low, and the buttons stay released for 60 ms
   `[SRC]`.
@@ -412,7 +416,12 @@ flowchart LR
   restarts the chip, and a board still running on battery is reported as "Main power did not turn off" `[SRC]`.
 - **The PCF8563 keeps time through power-off** while the battery feeds `RTC_3V3` `[SCH]` `[SRC]`.
 - **`VDD_3V3_ENn` reaches no ESP32-S3 GPIO** — it is the PCF8563's `INT` (`RTC_INTn`), on the always-on RTC rail, so
-  the RTC's alarm and timer interrupts are cleared and disabled before the latch is released `[SCH]`.
+  the RTC's alarm and timer interrupts are cleared and disabled before the latch is released, and again at every
+  start, after the firmware reads whether the RTC started the board (`devices::ClearRtcWake`, `RtcStartedBoard`)
+  `[SCH]` `[FW]`.
+- **The RTC's countdown can power the board on from off** — `devices::SetRtcWake(seconds)` counts at 1 Hz, up to
+  255 s, then holds `RTC_INTn` low until cleared; the hardware test's "Off, 60 s" sets it before a power-off
+  `[DS]` `[FW]`, and it powered a V2.0 board on from off (§5.2) `[MEAS]`.
 
 ### 5.4 Charger and power sensing
 
@@ -445,8 +454,9 @@ while the chip is awake, wakes the panel from its own sleep.**
 
 - **RTC GPIOs are GPIO0–21**, so EXT1 can wake on `PWR_BUTTON` (GPIO4), `BUTTON_UP` (GPIO5), `BUTTON_DOWN` (GPIO6),
   `BFG_INT` (GPIO7) and `TP_INT` (GPIO21), through `esp_sleep_enable_ext1_wakeup_io()` `[DS]`.
-- **Which buttons wake it is the firmware's choice** — our firmware and Seeed's dashboard (`1a28b2a`) arm GPIO4 alone;
-  Seeed's peripheral demo (`4b7f9a1`) arms GPIO4, GPIO5 and GPIO6, any low, with their RTC pull-ups on `[FW]` `[SRC]`.
+- **Which buttons wake it is the firmware's choice** — Seeed's dashboard (`1a28b2a`) arms GPIO4 alone; our firmware
+  and Seeed's peripheral demo (`4b7f9a1`) arm GPIO4, GPIO5 and GPIO6, any low, with their RTC pull-ups on `[FW]`
+  `[SRC]`.
 - **Wait for GPIO4 to read high before arming it** — arming it while the button is still held wakes the board at once
   `[FW]` `[DOC]`.
 - **In light sleep, drive `PWR_HOLD` and `PWR_LOCK` high through `gpio_sleep_sel_en()`** — ESP-IDF's own sleep GPIO
@@ -458,7 +468,9 @@ while the chip is awake, wakes the panel from its own sleep.**
 - **In deep sleep, hold every output with `gpio_hold_en()` and `gpio_deep_sleep_hold_en()`, and release the holds on
   wake** — Seeed's dashboard (`1a28b2a`) holds `PWR_HOLD`, `PWR_LOCK` and `EP_PWR_EN` high and `TP_PWR_EN`, `TP_RST`,
   `PDM_EN`, `SD_PWR_EN` and `BUZZER_PWM` low; its peripheral demo (`4b7f9a1`) drives `EP_PWR_EN` low as well before
-  holding `[SRC]`. Whether ours holds `EP_PWR_EN` high or low is open (§10).
+  holding `[SRC]`. Ours holds `EP_PWR_EN` low with them, the panel unpowered: a wake restarts the chip, which powers
+  the panel up again `[FW]`; on a V2.0 board the glass kept its image through deep sleep and the board woke
+  `[MEAS]`, and a V1.0 is open (§10).
 - **Put the panel to sleep only after its refresh finishes, and give it a full refresh on wake** `[FW]`; the image
   stays on the glass with the panel unpowered `[DOC]`.
 - **Poll the IMU every 200 ms rather than take its interrupt**, while GPIO7 has no shared owner (§1); motion counts
@@ -584,10 +596,8 @@ pinhole and openings on the bottom** `[DOC]`.
 
 | Item | Status | Unblocked by |
 | --- | --- | --- |
-| Whether releasing the latch on battery (§5.2) cuts the rail on our board — Seeed's reference power-off is the same release, and Seeed documents it cutting power (§5.3) | Open — documented by Seeed, not yet seen on our board | The person: shut down on battery alone and see whether the board goes dark or falls back to deep sleep |
-| Whether an RTC alarm (`RTC_INTn` low) powers the board on from off, as the schematic's power-on node (§5.2) implies — Seeed's demos never set the alarm | Open — traced on the schematic, unseen on the board | An RTC alarm set before a battery power-off |
 | The IMU on a V2.0 board — every unit carries it and V1.0 is confirmed (§4.2), though the schematic's block diagram draws it with a dashed border | Open | `WHO_AM_I` reading `0x6A` on a V2.0 board once the IMU driver runs |
-| Whether `EP_PWR_EN` stays high or goes low in deep sleep (§6) | Open | A deep-sleep wake checked on a V1.0 and a V2.0 board |
+| Whether a V1.0 board's glass keeps its image and the board wakes with `EP_PWR_EN` held low in deep sleep (§6) | Open | A deep-sleep wake checked on a V1.0 board |
 | Whether V2.0 changes anything off the pin map — Seeed's demos drive both controllers with one pin map, but the schematic in `STICKY_assets/` is Rev 01 and names no controller | Open | Seeed's schematic for V2.0, or the team |
 | Whether the CH343P's Q4 on GPIO0 disturbs the sensor I2C bus when a serial monitor toggles DTR or RTS | Open | A logic analyser on GPIO0 while a monitor opens the port |
 | A frame's transfer with the card writing (§4.3), with a date and a build | Open | A refresh timed while the card writes |

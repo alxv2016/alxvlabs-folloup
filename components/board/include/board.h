@@ -46,8 +46,9 @@ bool UsbPresent();
 
 // --- Leaving (STICKY_HARDWARE_SPECS §5.3, §6; Seeed's sequences) ---------------------------------------------------
 
-// Deep sleep with every output held, woken by the AI/OK, UP or DOWN button. Returns only on failure.
-esp_err_t EnterDeepSleep();
+// Deep sleep with every output held, woken by the AI/OK, UP or DOWN button; the panel unpowered unless
+// `keep_panel_powered` — for a panel whose own sleep failed. Returns only on failure.
+esp_err_t EnterDeepSleep(bool keep_panel_powered = false);
 
 // Releases the power latch. On battery the rail falls and this never returns; on USB it restarts the chip, and
 // anything else returns ESP_ERR_TIMEOUT with the board still powered.

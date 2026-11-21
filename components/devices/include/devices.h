@@ -59,6 +59,15 @@ esp_err_t ReadBattery(Battery *out);
 
 esp_err_t ReadClock(std::tm *out);
 
+// Whether the RTC's timer or alarm flag was set at boot — RTC_INTn low, which powers the board on from off
+// (STICKY_HARDWARE_SPECS §5.2). Init reads the flags, then clears them, so RTC_INTn rests high.
+bool RtcStartedBoard();
+// Stops the RTC's timer and alarm, clears their flags and disables both interrupts: before any power-off, or an
+// interrupt left low powers the board straight back on (STICKY_HARDWARE_SPECS §5.3).
+esp_err_t ClearRtcWake();
+// Counts down `seconds` (1–255) at 1 Hz, then holds RTC_INTn low until cleared — a power-on from off.
+esp_err_t SetRtcWake(uint8_t seconds);
+
 // --- The buzzer --------------------------------------------------------------------------------------------------
 
 void Tick();                       // the press feedback: a short tone, returns at once

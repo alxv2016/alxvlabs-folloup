@@ -108,12 +108,31 @@ bool ProbeGauge()
     return true;
 }
 
+// PCF8563 registers, from its datasheet: Control_status_2 holds the alarm and timer flags and their interrupt enables;
+// the four alarm registers are off with bit 7 set; the timer counts at 1 Hz with TD = 10.
+constexpr uint8_t kRtcControl2 = 0x01;
+constexpr uint8_t kRtcTimerFlag = 0x04;    // TF
+constexpr uint8_t kRtcAlarmFlag = 0x08;    // AF
+constexpr uint8_t kRtcTimerIrq = 0x01;     // TIE; TI_TP left 0, so RTC_INTn stays low while TF is set
+constexpr uint8_t kRtcAlarmMinute = 0x09;  // to 0x0C: minute, hour, day, weekday
+constexpr uint8_t kRtcAlarmOff = 0x80;     // AE
+constexpr uint8_t kRtcTimerControl = 0x0E;
+constexpr uint8_t kRtcTimerOn1Hz = 0x82;   // TE, TD = 0b10
+constexpr uint8_t kRtcTimerIdle = 0x03;    // TE off, TD = 0b11, 1/60 Hz: the datasheet's low-current setting
+constexpr uint8_t kRtcTimerCount = 0x0F;
+bool s_rtc_started_board = false;
+
 bool ProbeRtc()
 {
     if (AddDevice(bc::kAddrPcf8563, &s_rtc) != ESP_OK || !pcf8563_probe(s_rtc)) {
         return false;
     }
     pcf8563_disable_clkout(s_rtc);  // Seeed's: the clock output is not used
+    uint8_t status = 0;
+    if (ReadRegs(s_rtc, kRtcControl2, &status, 1) == ESP_OK) {
+        s_rtc_started_board = (status & (kRtcTimerFlag | kRtcAlarmFlag)) != 0;
+    }
+    ClearRtcWake();
     return true;
 }
 
@@ -232,6 +251,30 @@ esp_err_t ReadClock(std::tm *out)
 {
     ESP_RETURN_ON_FALSE(s_present.rtc && out != nullptr, ESP_ERR_INVALID_STATE, kTag, "RTC");
     return pcf8563_get_time(s_rtc, *out) ? ESP_OK : ESP_FAIL;
+}
+
+bool RtcStartedBoard()
+{
+    return s_rtc_started_board;
+}
+
+esp_err_t ClearRtcWake()
+{
+    ESP_RETURN_ON_FALSE(s_rtc != nullptr, ESP_ERR_INVALID_STATE, kTag, "no RTC");
+    ESP_RETURN_ON_ERROR(WriteReg(s_rtc, kRtcTimerControl, kRtcTimerIdle), kTag, "RTC timer off");
+    for (uint8_t reg = kRtcAlarmMinute; reg < kRtcAlarmMinute + 4; ++reg) {
+        ESP_RETURN_ON_ERROR(WriteReg(s_rtc, reg, kRtcAlarmOff), kTag, "RTC alarm off");
+    }
+    return WriteReg(s_rtc, kRtcControl2, 0x00);  // flags cleared, interrupts disabled
+}
+
+esp_err_t SetRtcWake(uint8_t seconds)
+{
+    ESP_RETURN_ON_FALSE(seconds > 0, ESP_ERR_INVALID_ARG, kTag, "a wake needs a count");
+    ESP_RETURN_ON_ERROR(ClearRtcWake(), kTag, "RTC clear");
+    ESP_RETURN_ON_ERROR(WriteReg(s_rtc, kRtcTimerCount, seconds), kTag, "RTC count");
+    ESP_RETURN_ON_ERROR(WriteReg(s_rtc, kRtcControl2, kRtcTimerIrq), kTag, "RTC timer interrupt");
+    return WriteReg(s_rtc, kRtcTimerControl, kRtcTimerOn1Hz);
 }
 
 void Tone(uint32_t ms)

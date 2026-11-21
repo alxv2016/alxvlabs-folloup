@@ -268,14 +268,18 @@ bool UsbPresent()
     return PowerInputMillivolts() >= 200;
 }
 
-esp_err_t EnterDeepSleep()
+esp_err_t EnterDeepSleep(bool keep_panel_powered)
 {
     PrepareToLeave();
-    // Seeed's dashboard holds: the latch and the panel's power high; touch, mic, card and buzzer low.
-    for (gpio_num_t pin : {bc::kPwrHold, bc::kPwrLock, bc::kEpPwrEn}) {
+    // The latch held high; the panel's power, touch, mic, card and buzzer low — the panel unpowered, as Seeed's
+    // peripheral demo leaves it, since a wake restarts the chip and powers the panel up again (STICKY_HARDWARE_SPECS §6).
+    // A panel that did not reach its own sleep keeps its power: cutting it mid-command is never safe.
+    for (gpio_num_t pin : {bc::kPwrHold, bc::kPwrLock}) {
         gpio_set_level(pin, 1);
         gpio_hold_en(pin);
     }
+    gpio_set_level(bc::kEpPwrEn, keep_panel_powered ? 1 : 0);
+    gpio_hold_en(bc::kEpPwrEn);
     for (gpio_num_t pin : {bc::kTpPwrEn, bc::kTpRst, bc::kPdmEn, bc::kSdPwrEn, bc::kBuzzerPwm}) {
         gpio_set_level(pin, 0);
         gpio_hold_en(pin);

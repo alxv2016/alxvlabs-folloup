@@ -46,12 +46,13 @@ flashed through [`build-run-test`](../build-run-test/SKILL.md), and every change
 7. **Hold the power latch first in bring-up, and pulse it with `gpio_set_level()` on pins configured once** — GPIO45
    and GPIO46 are strapping pins (STICKY_HARDWARE_SPECS §5.2, §7).
 8. **Clear and disable the PCF8563's alarm and timer interrupts before releasing the latch** — `RTC_INTn` is
-   `VDD_3V3_ENn`, and an asserted interrupt may hold the rail up; the path is traced on the schematic and unseen on the
-   board (STICKY_HARDWARE_SPECS §5.3, §10).
+   `VDD_3V3_ENn`, and an asserted interrupt powers the board on, as the RTC wake shows (STICKY_HARDWARE_SPECS §5.2,
+   §5.3).
 9. **Drive `PWR_HOLD` and `PWR_LOCK` high through light sleep** — the board loses power on battery otherwise
    (STICKY_HARDWARE_SPECS §6).
-10. **Hold every output through deep sleep and release the holds on wake** — Seeed's practice; whether ours holds
-    `EP_PWR_EN` high or low is open (STICKY_HARDWARE_SPECS §6, §10).
+10. **Hold every output through deep sleep and release the holds on wake** — Seeed's practice; ours holds `EP_PWR_EN`
+    low, the panel unpowered — the glass keeps its image and the board wakes on a V2.0; a V1.0 is open
+    (STICKY_HARDWARE_SPECS §6, §10).
 11. **Reset the GT911 with the INT sync pulse, and again after light sleep** — without it the controller answers its ID
     but never scans (STICKY_HARDWARE_SPECS §7, §8.2).
 12. **Divide the BQ27220's current and capacity by 10 when `DesignCapacity` reads 7500, and never reprogram the gauge**
