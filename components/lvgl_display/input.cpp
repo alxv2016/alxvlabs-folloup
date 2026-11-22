@@ -1,7 +1,8 @@
 // The inputs: the GT911 as a pointer, and UP, DOWN and OK as a keypad that moves the focus ring
 // (DESIGN → Focus and input). A task of their own watches them, apart from LVGL's: a refresh holds LVGL's task for up
 // to 1.6 s, and a press made inside it would wait, or be missed. The watcher ticks at the press and queues each press
-// and release; LVGL replays the queue when it next reads (STICKY_DESIGN_TOKENS §5).
+// and release, as PressButton does for the bench console; LVGL replays the queue when it next reads
+// (STICKY_DESIGN_TOKENS §5).
 
 #include <algorithm>
 #include <atomic>
@@ -238,7 +239,15 @@ void ReadKeys(lv_indev_t *, lv_indev_data_t *data)
                 }
             }
         } else {
-            key = e.key;
+            if (e.pressed) {
+                // An open editable control — a range slider, a text view being read — takes UP and DOWN as its own
+                // keys, so they step it rather than move the focus; OK closes it (DESIGN → Components → The kit).
+                const bool editing = lv_group_get_editing(Group());
+                key = !editing                ? e.key
+                      : e.key == LV_KEY_PREV ? LV_KEY_UP
+                      : e.key == LV_KEY_NEXT ? LV_KEY_DOWN
+                                             : e.key;
+            }
             key_down = e.pressed;
         }
         data->continue_reading = true;
@@ -294,12 +303,20 @@ lv_group_t *Group()
 
 void ClearGroup()
 {
+    // A screen that goes while a control is open for editing must not leave the group editing: its next screen's UP and
+    // DOWN would reach the focused control as keys instead of moving the focus (DESIGN → Focus and input).
+    lv_group_set_editing(s_group, false);
     lv_group_remove_all_objs(s_group);
 }
 
 void SetBackHandler(void (*back)())
 {
     s_back = back;
+}
+
+void (*BackHandler())()
+{
+    return s_back;
 }
 
 void SetPressFeedback(void (*tick)())
@@ -310,6 +327,32 @@ void SetPressFeedback(void (*tick)())
 void SetKeyObserver(void (*seen)(uint32_t key))
 {
     s_key_seen = seen;
+}
+
+void PressButton(Button button, bool hold)
+{
+    constexpr int64_t kPressUs = 80 * 1000;      // a quick press, well under the back hold
+    constexpr int64_t kPastHoldUs = 100 * 1000;  // a hold that clearly passes it
+    if (s_key_events == nullptr) {
+        return;
+    }
+    const uint32_t key = button == Button::kUp ? LV_KEY_PREV : button == Button::kDown ? LV_KEY_NEXT : LV_KEY_ENTER;
+    const bool ok = key == LV_KEY_ENTER;
+    const int64_t began = esp_timer_get_time();
+    const KeyEvent down = {key, true, began, began};
+    xQueueSend(s_key_events, &down, portMAX_DELAY);
+    if (ok) {
+        s_ok_since = began;  // as the watcher: the start before held, so a reader that sees held sees this press's start
+        s_ok_held = true;
+    }
+    Tick();
+    const int64_t length = ok && hold ? kBackHoldUs + kPastHoldUs : kPressUs;
+    vTaskDelay(pdMS_TO_TICKS(length / 1000));
+    if (ok) {
+        s_ok_held = false;
+    }
+    const KeyEvent up = {key, false, began, esp_timer_get_time()};
+    xQueueSend(s_key_events, &up, portMAX_DELAY);
 }
 
 TouchPoint LastTouch()

@@ -51,3 +51,5 @@ A result without evidence counts as unsure.
 | Item | Since | From the person | Looks for |
 | --- | --- | --- | --- |
 | L1 | 2026-11-19 | A doc's "never send an undocumented command" passed while the driver sent five | A rule in a doc that bounds what code does — *never*, *only*, *every*, *no … yet* — over a set the code enumerates (commands sent, pins, keys, screens): each member the code uses, test fixtures included, grepped and checked against the rule's source, not the rule's wording alone |
+| L2 | 2026-11-20 | The doc reviewer: DESIGN and STICKY cited a gesture spec kept only in a session's scratch folder | A citation of a draft, spec or picture: the file is in the repo and linked; a rule the build follows from a draft lives in a doc section |
+| L3 | 2026-11-21 | The doc reviewer: DESIGN promised a button's words spacing.md of room and ten characters in a half button, which cannot both hold | A doc that gives a size and what fits in it (room and characters, a column and its rows, a band and its pages): the arithmetic done against the tokens and the font's advance, and both halves true together |

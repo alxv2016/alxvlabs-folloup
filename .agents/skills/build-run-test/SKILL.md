@@ -64,12 +64,17 @@ python3 .agents/skills/verify-change/scripts/verify.py doctor
 python3 .agents/skills/build-run-test/scripts/quiet.py -- python "$IDF_PATH/tools/idf.py" build
 python3 .agents/skills/esp-idf-setup/scripts/esp_idf.py check       # the layering, E1–E5
 python3 .agents/skills/sticky-hardware/scripts/sticky_check.py      # pins and the shared bus
-bash tests/host/run.sh                                              # the host tests, a second or two, no board
+bash tests/host/run.sh                                              # the host tests, a few seconds, no board
 ```
 
 The host tests check the firmware's pure logic with the computer's own compiler: logic that needs no hardware goes in
 a header with no ESP-IDF or LVGL include (`components/lvgl_display/include/glass_rules.h`), the firmware calls it,
-and a `tests/host/<name>_test.cpp` checks it. Each test file is one program, built into `build/host/`.
+and a `tests/host/<name>_test.cpp` checks it. Each test file is one program, built into `build/host/`. A
+`tests/host/<name>_lvgl_test.cpp` also links LVGL's own sources, to drive LVGL's real input and scroll events (the
+swipe, `components/widgets/src/internal/swipe.cpp`; `ui::FitLineBox`, `components/ui/line_box.cpp`): it needs
+`managed_components/lvgl__lvgl`, which a firmware build or `idf.py reconfigure` fetches, and the first run compiles LVGL
+into `build/host/lvgl` once. The firmware sources such a test exercises are named on its `// host-sources:` line: a `.cpp`
+is compiled with the test, a `.c` (a font) once into `build/host/c`.
 
 After a change to `sdkconfig.defaults`: `rm sdkconfig && idf.py reconfigure`, then build.
 
@@ -82,7 +87,8 @@ from the agent deck's bridge for its run — never stop the bridge. The `bench-r
 ```sh
 python tests/bench/flash.py                         # the build in build/, as idf.py flash writes it; no yes needed
 python tests/bench/boot_check.py --log <SP>/boot.log  # resets, reads 12 s: exit 0 clean, 1 a fault, 2 no boot
-python tests/bench/console_word.py help             # the firmware's console: bench, anim, pages [n], stop, speed [n], shot
+python tests/bench/console_word.py help             # the firmware's console: bench, anim, pages [n], stop, speed [n], key up|down|ok|hold [n], shot
+python tests/bench/console_word.py --listen 8 key down 3   # presses a button through the real input path, to reach a screen
 python tests/bench/console_word.py --listen 120 bench  # the refresh benchmark: one `animation` line a preset
 python tests/bench/screenshot.py -o <SP>/home.png   # the one-bit frame on the glass, as a portrait PNG
 ```
@@ -114,6 +120,9 @@ watches the glass before each full refresh.
 
 ## Traps
 
+- **A run is recorded against the wrong board** → `flash.py` and `boot_check.py` take whichever Sticky is attached, and
+  the two boards swap on one cable → take the board and port for `verify.py target` from that run's own output — the
+  port `flash.py` printed and `boot_check.py`'s panel line (SSD1677 V1.0, SSD2677 V2.0) — never from the run before.
 - **A build fails with `empty filename in #include` in `sdkconfig.h` after LVGL's version changed** → `sdkconfig` keeps
   the other version's Kconfig values → build a version experiment in its own folder with its own settings
   (`idf.py -B <folder> -D SDKCONFIG=<folder>/sdkconfig build`), and flash that folder with `flash.py --build-dir`.

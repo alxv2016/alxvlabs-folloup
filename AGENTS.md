@@ -20,7 +20,7 @@ and the code: find out which is intended before changing either
 
 | Path | Holds |
 | --- | --- |
-| [`main/`](main/), [`components/`](components/) | The ESP-IDF firmware: `main` composes, `app_shell` sequences, `board` brings the hardware up, `devices`, `lvgl_display` and `ui` serve it, features such as `hw_test` plug in — [APP_ARCHITECTURE](docs/APP_ARCHITECTURE.md) |
+| [`main/`](main/), [`components/`](components/) | The ESP-IDF firmware: `main` composes, `app_shell` sequences, `board` brings the hardware up, `devices`, `lvgl_display`, `ui` and `widgets` serve it, features such as `hw_test` plug in — [APP_ARCHITECTURE](docs/APP_ARCHITECTURE.md) |
 | [`components/epaper`](components/epaper/), [`ssd1677`](components/ssd1677/), [`ssd2677`](components/ssd2677/) | The display drivers: the panel interface and bus, and each controller — how the glass is refreshed is [STICKY_EPAPER_WAVEFORMS](docs/STICKY_EPAPER_WAVEFORMS.md) |
 | [`DESIGN.md`](DESIGN.md) | FolloUp's design system for e-ink, to Google's DESIGN.md spec: principles, and every token in its front matter — its code side is [STICKY_DESIGN_TOKENS](docs/STICKY_DESIGN_TOKENS.md) |
 | `docs/` | The knowledge: rules, reasons, decisions, open items |

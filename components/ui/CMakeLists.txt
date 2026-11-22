@@ -2,6 +2,7 @@
 # fonts/bitcount/OFL.txt), and the components built from the token header (STICKY_DESIGN_TOKENS §3, §6).
 # Regenerate the Bitcount files with fonts/bitcount/make_fonts.sh.
 idf_component_register(SRCS "ui.cpp"
+                            "line_box.cpp"
                             "fonts/bitcount/bitcount_600_20.c"
                             "fonts/bitcount/bitcount_600_30.c"
                             "fonts/bitcount/bitcount_600_40.c"

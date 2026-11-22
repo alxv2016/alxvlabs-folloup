@@ -33,6 +33,13 @@ void RequestFull();
 // The next frame is drawn in four greys as a full refresh; the frame after it is a full one-bit refresh, since the
 // SSD1677's greyscale write leaves the driver's one-bit copy stale.
 void RequestGray();
+// Which partial refreshes count toward `kRefreshPartialLimit` (glass_rules.h `PartialCounting`): every one, or — while the
+// keyboard is open — only those a typing press or a page switch caused, which the keyboard says with NoteTyping; the rest
+// count toward a ceiling of their own, `kUncountedPartialLimit` (STICKY_DESIGN_TOKENS §5).
+void SetPartialCounting(PartialCounting counting);
+// The press now handled changed the typed text, or switched the keyboard's page: the next frame drawn counts toward the limit
+// even when only typing counts.
+void NoteTyping();
 // Redraws the whole screen now, under the lock the caller holds.
 void Redraw();
 // The partial refresh's tuning, as named presets for the controller fitted — the SSD2677's frame rates, the SSD1677's
@@ -81,6 +88,9 @@ void ClearGroup();
 
 // Holding OK for a second goes back: the handler the screen set runs under the lock. nullptr does nothing.
 void SetBackHandler(void (*back)());
+// The handler set now, so an overlay that takes holding OK for itself — the keyboard, a select sheet — can put it back when it
+// closes. nullptr when none is set.
+void (*BackHandler())();
 
 // Runs within kFeedbackTickMs of every accepted press — touch or button — before its frame is queued, on the input
 // task, so it must be safe to call from any task.
@@ -89,6 +99,12 @@ void SetPressFeedback(void (*tick)());
 // Runs on every button press — LV_KEY_PREV for UP, LV_KEY_NEXT for DOWN, LV_KEY_ENTER for OK — under the lock, before
 // LVGL moves focus. nullptr stops it.
 void SetKeyObserver(void (*seen)(uint32_t key));
+
+enum class Button : uint8_t { kUp, kDown, kOk };
+// Presses a button as a finger would, through the same queue, tick and OK gates as the pins: down, then up after a short
+// press, or, with `hold`, after OK's back hold. For the bench console's key walks; blocks for the press's length, so call
+// it from a task that may wait, never under the lock.
+void PressButton(Button button, bool hold);
 
 struct TouchPoint {
     bool pressed = false;

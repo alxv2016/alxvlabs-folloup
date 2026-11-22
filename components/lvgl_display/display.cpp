@@ -78,6 +78,9 @@ const TuningPreset *s_tunings = kTunings1677;
 int s_tuning_count = 1;
 int s_tuning = 0;
 
+std::atomic<PartialCounting> s_counting{PartialCounting::kEvery};  // which frames count toward the partial limit
+std::atomic<bool> s_typed{false};     // a typing press changed the text since the last frame was drawn
+uint32_t s_uncounted = 0;             // partials since the last full refresh that did not count (a ring move while only typing counts)
 std::atomic<bool> s_want_full{true};  // the first frame after boot is full (STICKY_DESIGN_TOKENS §5)
 std::atomic<bool> s_want_gray{false};
 // A new screen was loaded: on the SSD1677 the frame is drawn in two partials, through white, so the old page leaves
@@ -303,8 +306,8 @@ inline void ToNative(int x, int y, int *nx, int *ny)
 }
 
 // Folds one changed area into the one-bit frame. A level under 2 is black, 2 or more white: L8 under 128
-// (STICKY_DESIGN_TOKENS §2.1); the two fill codes, kDitherDark and kDitherLight, draw as their dithers, locked to the
-// panel's pixels (STICKY_DESIGN_TOKENS §4).
+// (STICKY_DESIGN_TOKENS §2.1); the four fill codes, kDitherDark, kDitherLight and the two sparse ones for a disabled
+// control's words, draw as their dithers, locked to the panel's pixels (STICKY_DESIGN_TOKENS §4).
 void PackMono(const uint8_t *screen, const lv_area_t &a)
 {
     for (int y = a.y1; y <= a.y2; ++y) {
@@ -316,10 +319,9 @@ void PackMono(const uint8_t *screen, const lv_area_t &a)
         const int step = kTurned ? -1 : 1;  // the frame's row follows x, backwards when turned
         uint8_t *cell = s_mono + static_cast<size_t>(ny) * epaper::kMonoStride + column;
         // The glass's own pixel, for the dither: x along the frame's row is ny, the column's bit is nx.
-        const int column_parity = nx & 1;
         int frame_row = ny;
         for (int x = a.x1; x <= a.x2; ++x, cell += step * static_cast<int>(epaper::kMonoStride), frame_row += step) {
-            const bool white = OneBitWhite(row[x], column_parity, frame_row & 1);
+            const bool white = OneBitWhite(row[x], nx, frame_row);
             *cell = white ? static_cast<uint8_t>(*cell | bit) : static_cast<uint8_t>(*cell & ~bit);
         }
     }
@@ -405,11 +407,16 @@ void Send(lv_display_t *display, const uint8_t *screen)
     // A page change on the SSD1677 is two partials, so it needs room for both under the limit, or is drawn full.
     const bool page = s_page_changed.exchange(false) && !s_stats.ssd2677;
     const uint32_t needed = page ? 2 : 1;
+    // While the keyboard is open only a frame a typing press caused counts toward the limit; the flag is read here, once
+    // per frame, whatever the frame turns out to be.
+    const uint32_t counted = PartialsCounted(s_counting, s_typed.exchange(false), needed);
+    const uint32_t uncounted = needed - counted;  // what the frame adds to the ceiling's count
     Refresh mode = Refresh::kPartial;
     if (s_want_gray.exchange(false)) {
         mode = Refresh::kGray;
     } else if (s_want_full.exchange(false) ||
-               s_stats.partials + needed > static_cast<uint32_t>(dt::kRefreshPartialLimit)) {
+               PartialsOverLimit(s_stats.partials, counted, static_cast<uint32_t>(dt::kRefreshPartialLimit)) ||
+               PartialsOverLimit(s_uncounted, uncounted, kUncountedPartialLimit)) {
         mode = Refresh::kFull;
     }
     const int64_t t_send = esp_timer_get_time();
@@ -504,10 +511,12 @@ void Send(lv_display_t *display, const uint8_t *screen)
         s_want_full = true;
         ESP_LOGE(kTag, "refresh failed: %s", esp_err_to_name(err));
     } else if (mode == Refresh::kPartial) {
-        s_stats.partials += needed;
+        s_stats.partials += counted;
+        s_uncounted += uncounted;
         ++s_stats.partial_count;
     } else {
         s_stats.partials = 0;
+        s_uncounted = 0;
         s_scan_frames = 0;
         if (mode == Refresh::kGray) {
             ++s_stats.gray_count;
@@ -712,6 +721,16 @@ esp_err_t SetTuning(int preset)
     s_tuning = preset;
     ESP_LOGI(kTag, "partial tuning: %s", s_tunings[preset].name);
     return ESP_OK;
+}
+
+void SetPartialCounting(PartialCounting counting)
+{
+    s_counting = counting;
+}
+
+void NoteTyping()
+{
+    s_typed = true;
 }
 
 void RequestFull()

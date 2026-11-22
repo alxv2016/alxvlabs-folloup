@@ -191,7 +191,8 @@ instead of searching the chat for where the task stands.
   old yes does not cover it.
 - **`V finish`: "came after the first run that built it"** → the mock was approved once the code was already built →
   the draft comes first: show it, take the yes, and rebuild from its values. Only runs whose gated files differ from
-  what they held at `start` count, so a gated change an earlier task left uncommitted does not trip it.
+  what they held at `start` count, so a gated change an earlier task left uncommitted does not trip it. This holds the
+  task's first draft; a later draft trips "came after its build" when no run after its yes built a change.
 - **`V finish`: "the code changed after the person's yes"** → an edit to a screen after they approved it built → show
   them again.
 - **`V finish`: "no sign-off from the person on the target"** → it ran there and they have not judged it, or the code

@@ -13,3 +13,4 @@ or the agent.
 | Item | Since | From the person | Looks for |
 | --- | --- | --- | --- |
 | L1 | 2026-11-20 | The ui-designer, before the glass: the type scale page stepped every size by body's line space while printing each size's own | A specimen or swatch page: every property it labels — size, line height, weight, colour — set on the sample itself, never inherited from the screen's style |
+| L2 | 2026-11-20 | The ui-designer judge, before the glass: a disabled row's value stayed grey on the dither | A state style on a composite (disabled, chosen, focused): every child that sets its own colour at selector 0 also given the state's colour, or the parent's state trickled to it — a child's own value beats the parent's state style |

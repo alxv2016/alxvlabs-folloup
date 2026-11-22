@@ -58,7 +58,8 @@ CODE_PATHS = ("main/", "components/", "tests/", "CMakeLists.txt", "sdkconfig.def
 #   Web:     ("src/components/", "src/pages/", "src/app/", "*.css", "*.scss", "src/styles/")
 #   Mobile:  ("ios/*/Views/", "android/app/src/main/res/", "lib/widgets/", "lib/screens/")
 #   ESP-IDF with LVGL: ("components/app_shell/screen_*", "components/ui_*/", "components/<feature>/*_screen.cpp")
-UI_PATHS = ("components/app_shell/screen_*", "components/ui/", "components/lvgl_display/", "components/hw_test/")
+UI_PATHS = ("components/app_shell/screen_*", "components/ui/", "components/widgets/", "components/lvgl_display/",
+            "components/hw_test/")
 
 # The design brief at the repo root: the product's principles and every design token by role, with its value per
 # theme (DESIGN.md is the template's demo). The ui-designer and design-system skills read it first; the design check
@@ -286,10 +287,10 @@ CHECKS = {
               "counts": True},
     "sticky-selftest": {"run": ["python3", ".agents/skills/sticky-hardware/scripts/sticky_check.py", "--test"],
                         "when": (".agents/skills/sticky-hardware/",)},
-    # The host tests: the firmware's pure logic (glass_rules.h) built and run with the computer's own compiler, no
-    # board and no ESP-IDF — the build-run-test skill.
+    # The host tests: the firmware's pure logic (glass_rules.h, swipe_rules.h) and the swipe against LVGL's own sources,
+    # built and run with the computer's own compiler, no board and no ESP-IDF — the build-run-test skill.
     "host": {"run": ["bash", "tests/host/run.sh"],
-             "when": ("components/lvgl_display/", "components/ui/", "tests/host/"), "counts": True},
+             "when": ("components/lvgl_display/", "components/ui/", "components/widgets/", "tests/host/"), "counts": True},
 }
 
 # The project's own judges, beyond the kit's (doc-reviewer, code-reviewer, ui-designer): agent name → the paths

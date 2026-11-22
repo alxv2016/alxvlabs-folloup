@@ -36,10 +36,10 @@ struct Role {
 Role s_roles[] = {
     {dt::kTypographyHero, nullptr},  {dt::kTypographyDisplay, nullptr}, {dt::kTypographyHeadline, nullptr},
     {dt::kTypographyBody, nullptr},  {dt::kTypographyLabel, nullptr},   {dt::kTypographyCaption, nullptr},
+    {dt::kTypographyCaptionLoose, nullptr}, {dt::kTypographyCaptionStrong, nullptr},
 };
 
-lv_style_t s_screen, s_status_bar, s_row, s_button_outline, s_button_action, s_divider, s_focus, s_focus_on_fill,
-    s_chosen;
+lv_style_t s_screen, s_status_bar, s_row, s_button_outline, s_button_action, s_divider, s_focus, s_chosen;
 
 struct BitcountFont {
     int16_t size_px;
@@ -91,7 +91,8 @@ void BuildStyles()
     lv_style_set_border_width(&s_status_bar, dt::kSpacingStrokeHairline);
     lv_style_set_border_color(&s_status_bar, Level(dt::kColorDivider));
 
-    // list-row: 80 px, spacing.sm above and below, spacing.md either side, a divider below (STICKY_DESIGN_TOKENS §4).
+    // list-row: 80 px, spacing.sm above and below, spacing.md either side, rounded.lg, no rule below — the ring and the
+    // 16 px between rows separate them (STICKY_DESIGN_TOKENS §4).
     lv_style_init(&s_row);
     lv_style_set_height(&s_row, dt::kSpacingListRowHeight);
     lv_style_set_width(&s_row, lv_pct(100));
@@ -101,16 +102,14 @@ void BuildStyles()
     lv_style_set_bg_opa(&s_row, LV_OPA_COVER);
     lv_style_set_text_color(&s_row, Level(dt::kColorTextPrimary));
     lv_style_set_text_font(&s_row, Font(Type::kLabel));
-    lv_style_set_border_side(&s_row, LV_BORDER_SIDE_BOTTOM);
-    lv_style_set_border_width(&s_row, dt::kSpacingStrokeHairline);
-    lv_style_set_border_color(&s_row, Level(dt::kColorDivider));
-    lv_style_set_radius(&s_row, dt::kRoundedNone);
+    lv_style_set_border_width(&s_row, 0);
+    lv_style_set_radius(&s_row, dt::kRoundedLg);
 
-    // button-outline and button-action: 64 px, rounded.md, spacing.md inside.
+    // button-outline and button-action: 64 px, rounded.lg (the deck's base radius), spacing.md inside.
     lv_style_init(&s_button_outline);
     lv_style_set_height(&s_button_outline, dt::kSpacingTarget);
     lv_style_set_pad_hor(&s_button_outline, dt::kSpacingMd);
-    lv_style_set_radius(&s_button_outline, dt::kRoundedMd);
+    lv_style_set_radius(&s_button_outline, dt::kRoundedLg);
     lv_style_set_bg_color(&s_button_outline, Level(dt::kColorBackground));
     lv_style_set_bg_opa(&s_button_outline, LV_OPA_COVER);
     lv_style_set_border_color(&s_button_outline, Level(dt::kColorOutline));
@@ -121,10 +120,11 @@ void BuildStyles()
     lv_style_init(&s_button_action);
     lv_style_set_height(&s_button_action, dt::kSpacingTarget);
     lv_style_set_pad_hor(&s_button_action, dt::kSpacingMd);
-    lv_style_set_radius(&s_button_action, dt::kRoundedMd);
+    lv_style_set_radius(&s_button_action, dt::kRoundedLg);
     lv_style_set_bg_color(&s_button_action, Level(dt::kColorSurfaceAction));
     lv_style_set_bg_opa(&s_button_action, LV_OPA_COVER);
-    lv_style_set_border_width(&s_button_action, 0);
+    lv_style_set_border_width(&s_button_action, dt::kSpacingStrokeDefault);  // the edge every variant reserves, undrawn here
+    lv_style_set_border_opa(&s_button_action, LV_OPA_TRANSP);
     lv_style_set_text_color(&s_button_action, Level(dt::kColorTextOnFill));
     lv_style_set_text_font(&s_button_action, Font(Type::kLabel));
 
@@ -136,30 +136,17 @@ void BuildStyles()
     lv_style_set_border_width(&s_divider, 0);
     lv_style_set_pad_all(&s_divider, 0);
 
-    // The ring: stroke.focus wide, inside the control — on the edge of one with no outline, focus-offset inside the
-    // outline of one with it (STICKY_DESIGN_TOKENS §4). LVGL draws an outline outward from outline_pad, so a negative
-    // pad of the ring's inner distance puts it inside.
+    // The ring, one for every control: stroke.focus wide, spacing.focus-offset outside the control's outer edge and
+    // following its corners, black on the white glass (STICKY_DESIGN_TOKENS §9).
     lv_style_init(&s_focus);
     lv_style_set_outline_width(&s_focus, dt::kSpacingStrokeFocus);
     lv_style_set_outline_color(&s_focus, Level(dt::kColorFocusRing));
     lv_style_set_outline_opa(&s_focus, LV_OPA_COVER);
-    lv_style_set_outline_pad(&s_focus, -dt::kSpacingStrokeFocus);
-
-    lv_style_init(&s_focus_on_fill);
-    lv_style_set_outline_color(&s_focus_on_fill, Level(dt::kColorFocusRingOnFill));
+    lv_style_set_outline_pad(&s_focus, dt::kSpacingFocusOffset);
 
     lv_style_init(&s_chosen);
     lv_style_set_bg_color(&s_chosen, Level(dt::kColorSurfaceChosen));
     lv_style_set_text_color(&s_chosen, Level(dt::kColorTextOnFill));
-}
-
-void AddFocusRing(lv_obj_t *obj, bool on_fill, int16_t inset)
-{
-    lv_obj_add_style(obj, &s_focus, LV_STATE_FOCUS_KEY);
-    lv_obj_set_style_outline_pad(obj, static_cast<int32_t>(-(inset + dt::kSpacingStrokeFocus)), LV_STATE_FOCUS_KEY);
-    if (on_fill) {
-        lv_obj_add_style(obj, &s_focus_on_fill, LV_STATE_FOCUS_KEY);
-    }
 }
 
 }  // namespace
@@ -240,6 +227,12 @@ lv_obj_t *NewLabel(lv_obj_t *parent, Type role, const char *text, bool secondary
     return label;
 }
 
+// The role's line height token as the line box (STICKY_DESIGN_TOKENS §3, §9).
+void FitLineBox(lv_obj_t *label, Type role)
+{
+    FitLineBox(label, static_cast<int32_t>(LineBox(role)));
+}
+
 lv_obj_t *NewRow(lv_obj_t *parent, const char *label, const char *supporting, lv_event_cb_t on_click,
                  void *user_data)
 {
@@ -254,6 +247,8 @@ lv_obj_t *NewRow(lv_obj_t *parent, const char *label, const char *supporting, lv
     lv_label_set_text(title, label);
     lv_label_set_long_mode(title, LV_LABEL_LONG_MODE_DOTS);
     lv_obj_set_width(title, lv_pct(100));
+    // One line on its line box: the rows keep their pitch and the detail its distance (STICKY_DESIGN_TOKENS §9).
+    FitLineBox(title, Type::kLabel);
     if (supporting != nullptr) {
         lv_obj_t *sub = lv_label_create(row);
         lv_label_set_text(sub, supporting);
@@ -262,9 +257,12 @@ lv_obj_t *NewRow(lv_obj_t *parent, const char *label, const char *supporting, lv
         lv_obj_set_style_text_color(sub, Level(dt::kColorTextOnFill), LV_STATE_CHECKED);
         lv_label_set_long_mode(sub, LV_LABEL_LONG_MODE_DOTS);
         lv_obj_set_width(sub, lv_pct(100));
+        // One line on its line box, ending in LVGL's dots when too long (STICKY_DESIGN_TOKENS §9).
+        FitLineBox(sub, Type::kCaption);
     }
-    AddFocusRing(row, false, 0);
+    RingOutside(row);
     if (on_click != nullptr) {
+        ShowWhenFocused(row);
         lv_obj_set_clickable(row, true);
         lv_obj_add_event_cb(row, on_click, LV_EVENT_CLICKED, user_data);
         lv_group_add_obj(lvgl_display::Group(), row);
@@ -280,8 +278,8 @@ lv_obj_t *NewButton(lv_obj_t *parent, const char *label, bool action, lv_event_c
     lv_obj_t *text = lv_label_create(button);
     lv_label_set_text(text, label);
     lv_obj_center(text);
-    // An outlined button keeps the ring focus-offset inside its outline; an action button's ring sits on its edge.
-    AddFocusRing(button, action, action ? 0 : static_cast<int16_t>(dt::kSpacingStrokeDefault + dt::kSpacingFocusOffset));
+    RingOutside(button);
+    ShowWhenFocused(button);
     if (on_click != nullptr) {
         lv_obj_add_event_cb(button, on_click, LV_EVENT_CLICKED, user_data);
     }
@@ -299,17 +297,135 @@ lv_obj_t *NewDivider(lv_obj_t *parent)
 
 void SetChosen(lv_obj_t *control, bool chosen)
 {
-    if (chosen) {
-        lv_obj_add_state(control, LV_STATE_CHECKED);
-        lv_obj_add_style(control, &s_focus_on_fill, LV_STATE_FOCUS_KEY | LV_STATE_CHECKED);
-    } else {
-        lv_obj_remove_state(control, LV_STATE_CHECKED);
+    lv_obj_set_state(control, LV_STATE_CHECKED, chosen);
+}
+
+void RingOutside(lv_obj_t *obj, int32_t inset)
+{
+    lv_obj_add_style(obj, &s_focus, LV_STATE_FOCUS_KEY);
+    if (inset > 0) {
+        lv_obj_set_style_outline_pad(obj, dt::kSpacingFocusOffset + inset, LV_STATE_FOCUS_KEY);
     }
 }
 
-void RingOnFocus(lv_obj_t *obj)
+namespace {
+void RingReachCb(lv_event_t *e)
 {
-    AddFocusRing(obj, false, 0);
+    lv_event_set_ext_draw_size(e, dt::kSpacingFocusOffset + dt::kSpacingStrokeEdit);
+}
+}  // namespace
+
+void LetRingOut(lv_obj_t *obj)
+{
+    lv_obj_set_overflow_visible(obj, true);
+    lv_obj_add_event_cb(obj, RingReachCb, LV_EVENT_REFR_EXT_DRAW_SIZE, nullptr);
+    lv_obj_refresh_ext_draw_size(obj);
+}
+
+namespace {
+// The scale: each elevation level's tokens, by level — one table, so a change to the scale lands in one place.
+constexpr dt::ElevationLevel kLevels[] = {dt::kElevation0, dt::kElevation1, dt::kElevation2, dt::kElevation3};
+
+// The offset is the box moved `offset_px` away on a side, drawn before the box, which covers all of it but the exposed edge; the
+// keyline is a white rectangle a little larger under it, its radius grown by the same, so a white line rings the offset's outer
+// side. Over white it is invisible; over a dither it keeps the offset an edge.
+void DrawOffsetCb(lv_event_t *e)
+{
+    const uintptr_t packed = reinterpret_cast<uintptr_t>(lv_event_get_user_data(e));
+    const dt::ElevationLevel &level = kLevels[packed & 0xFF];
+    const OffsetSide side = static_cast<OffsetSide>(packed >> 8);
+    if (level.shadow == dt::kNoShadow) {
+        return;
+    }
+    lv_obj_t *box = lv_event_get_target_obj(e);
+    lv_layer_t *layer = lv_event_get_layer(e);
+    lv_area_t area;
+    lv_obj_get_coords(box, &area);
+    if (side == OffsetSide::kTop) {
+        lv_area_move(&area, 0, -level.offset_px);
+    } else {
+        lv_area_move(&area, level.offset_px, level.offset_px);
+    }
+    const int32_t radius = lv_obj_get_style_radius(box, LV_PART_MAIN);
+    lv_draw_rect_dsc_t dsc;
+    lv_draw_rect_dsc_init(&dsc);
+    dsc.bg_opa = LV_OPA_COVER;
+    // The keyline first: the offset's rectangle grown on every side.
+    lv_area_t outer = area;
+    outer.x1 -= level.keyline_px;
+    outer.y1 -= level.keyline_px;
+    outer.x2 += level.keyline_px;
+    outer.y2 += level.keyline_px;
+    dsc.bg_color = Level(dt::kColorKeyline);
+    dsc.radius = radius + level.keyline_px;
+    lv_draw_rect(layer, &dsc, &outer);
+    dsc.bg_color = Fill(level.shadow);
+    dsc.radius = radius;
+    lv_draw_rect(layer, &dsc, &area);
+}
+
+void OffsetReachCb(lv_event_t *e)
+{
+    const uintptr_t packed = reinterpret_cast<uintptr_t>(lv_event_get_user_data(e));
+    const dt::ElevationLevel &level = kLevels[packed & 0xFF];
+    lv_event_set_ext_draw_size(e, level.offset_px + level.keyline_px);
+}
+}  // namespace
+
+void AddOffset(lv_obj_t *box, Elevation level, OffsetSide side)
+{
+    void *packed = reinterpret_cast<void *>(static_cast<uintptr_t>(static_cast<uint8_t>(level)) |
+                                            (static_cast<uintptr_t>(static_cast<uint8_t>(side)) << 8));
+    lv_obj_add_event_cb(box, DrawOffsetCb, LV_EVENT_DRAW_MAIN_BEGIN, packed);
+    lv_obj_add_event_cb(box, OffsetReachCb, LV_EVENT_REFR_EXT_DRAW_SIZE, packed);
+    lv_obj_refresh_ext_draw_size(box);
+}
+
+namespace {
+// The page's scroll on focus, at once. LVGL's own (LV_OBJ_FLAG_SCROLL_ON_FOCUS) animates with LV_ANIM_ON, which the glass
+// would draw frame by frame (DESIGN → Motion → Nothing animates).
+void ShowCb(lv_event_t *e)
+{
+    lv_obj_t *show = static_cast<lv_obj_t *>(lv_event_get_user_data(e));
+    if (show == nullptr) {
+        show = lv_event_get_target_obj(e);
+    }
+    lv_obj_scroll_to_view_recursive(show, LV_ANIM_OFF);
+    // The ring reaches past the control, 6 px weight open for editing: the nearest page that scrolls takes the ring in too.
+    constexpr int32_t kRingReach = dt::kSpacingFocusOffset + dt::kSpacingStrokeEdit;
+    lv_obj_t *page = lv_obj_get_parent(show);
+    while (page != nullptr &&
+           !(lv_obj_has_flag(page, LV_OBJ_FLAG_SCROLLABLE) && (lv_obj_get_scroll_dir(page) & LV_DIR_VER) != 0)) {
+        page = lv_obj_get_parent(page);
+    }
+    if (page == nullptr) {
+        return;
+    }
+    lv_area_t at, view;
+    lv_obj_get_coords(show, &at);
+    lv_obj_get_coords(page, &view);
+    if (at.y2 + kRingReach > view.y2) {
+        lv_obj_scroll_by_bounded(page, 0, view.y2 - (at.y2 + kRingReach), LV_ANIM_OFF);
+    } else if (at.y1 - kRingReach < view.y1) {
+        lv_obj_scroll_by_bounded(page, 0, view.y1 - (at.y1 - kRingReach), LV_ANIM_OFF);
+    }
+}
+}  // namespace
+
+void ShowWhenFocused(lv_obj_t *obj, lv_obj_t *show)
+{
+    lv_obj_remove_flag(obj, LV_OBJ_FLAG_SCROLL_ON_FOCUS);
+    lv_obj_remove_event_cb(obj, ShowCb);
+    lv_obj_add_event_cb(obj, ShowCb, LV_EVENT_FOCUSED, show);
+}
+
+void RingEditing(lv_obj_t *obj, int32_t inset)
+{
+    constexpr lv_style_selector_t kEditing = LV_STATE_FOCUS_KEY | LV_STATE_EDITED;  // outranks the focus ring alone
+    lv_obj_set_style_outline_width(obj, dt::kSpacingStrokeEdit, kEditing);
+    lv_obj_set_style_outline_pad(obj, dt::kSpacingFocusOffset + inset, kEditing);
+    lv_obj_set_style_outline_color(obj, Level(dt::kColorFocusRing), kEditing);
+    lv_obj_set_style_outline_opa(obj, LV_OPA_COVER, kEditing);
 }
 
 }  // namespace ui

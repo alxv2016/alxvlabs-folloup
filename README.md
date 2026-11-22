@@ -137,6 +137,7 @@ Everything is plain files and Python's standard library: no package to install, 
 | [FEEDBACK](.agents/skills/touch-and-gesture/references/feedback.md) | Haptics, sound and a device's status lights as one small vocabulary, when feedback fires, and pending, done and failed. Generic: any project, any stack |
 | [ACCESSIBILITY](.agents/skills/accessibility/references/criteria.md) | The WCAG 2.2 AA floors every screen meets, and how to meet and test each on the web, iOS, Android and an embedded device with an LVGL screen, with closed functionality under EN 301 549. Generic: any project, any stack |
 | [STICKY_EPAPER_WAVEFORMS](docs/STICKY_EPAPER_WAVEFORMS.md) | How the glass is refreshed on V1.0 (SSD1677) and V2.0 (SSD2677): the waveforms, the SSD1677's scans, the speed presets, their measured times, and the panel's safety rules |
+| [STICKY_UI_KIT_PORT](docs/STICKY_UI_KIT_PORT.md) | The plan for porting the agent deck's and BYTE-90's UI to the e-ink kit: each item's source, target, status, dependency and decision, in port order |
 
 The kit's own pages: [.agents/README.md](.agents/README.md) (the skills and agents in plain words) and
 [.agents/HARNESS.md](.agents/HARNESS.md) (this repo's policy, case by case).

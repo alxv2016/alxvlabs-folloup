@@ -49,7 +49,8 @@ change's record by hand (DESIGN_GATES §3), and the same steps apply.
 5. **Build from the approved draft's values, unchanged** — a layout change is a new draft and a new yes, back at gate 1
    (DESIGN_GATES §5).
 6. **Show the built screen beside the draft** — a screenshot at the same size, side by side, read against the draft
-   before showing it; the person's yes on it is gate 2 (DESIGN_GATES §5).
+   before showing it; the person's yes on it is gate 2 (DESIGN_GATES §5). Capture and compare only what is new or changed
+   since the person's last built yes; screens they already said yes to and that did not change are not measured again.
 7. **Take each answer back to the gate that owns it** — look and words to gate 1; a logic, layout or focus fault to
    gate 2; feel, speed and the real device to gate 3 (DESIGN_GATES §1).
 8. **Reuse before making** — an existing component first; a second caller moves a one-off into the shared components
@@ -191,6 +192,9 @@ python3 .agents/skills/touch-and-gesture/scripts/touch_check.py <files>   # touc
 
 ## Traps
 
+- **A widget drawn outside its host never shows** → LVGL clips a child to its parent's area plus the parent's
+  draw-size reach (`LV_EVENT_REFR_EXT_DRAW_SIZE`) → a part that stands outside its host, such as a scroll lane or a
+  ring, widens the host's reach to cover it, and the built screen is checked for it beside the draft.
 - **The built screen drifts from the draft** → it was built from memory or from other values → build from
   `<screen>_mock<n>.md`; a layout that must differ is a new draft and a new yes, never a quiet change at gate 2.
 - **The yes came after the code** → the build started before the draft was approved (in the kit, `V finish` says the

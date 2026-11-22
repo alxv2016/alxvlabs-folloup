@@ -35,7 +35,8 @@ down at the board — never at a feature.**
 | `components/ssd1677`, `components/ssd2677` | Each display controller's driver, in Seeed's command sequences — the refreshes are [STICKY_EPAPER_WAVEFORMS](STICKY_EPAPER_WAVEFORMS.md) | `epaper` |
 | `components/devices` | The SHT40, IMU, fuel gauge, RTC, buzzer, microphone and card, read as Seeed's demos do | `board`, `board_config`, `bq27220`, `pcf8563` |
 | `components/lvgl_display` | LVGL on the glass: the display, its refresh policy and the SSD1677's scans, touch and the buttons | `board`, `board_config`, `design_tokens`, `epaper`, `gt911`, LVGL |
-| `components/ui` | DESIGN.md's look in LVGL: the fonts, the styles and the components | `lvgl_display`, `design_tokens`, LVGL |
+| `components/ui` | DESIGN.md's look in LVGL — the theme: the fonts, the styles, the focus ring, and the first components | `lvgl_display`, `design_tokens`, LVGL |
+| `components/widgets` | DESIGN.md's kit as LVGL objects, one header and source per widget under `include/widgets/` and `src/`, built from `ui`'s theme as [the agent deck's](STICKY_DESIGN_TOKENS.md#9-the-ring-outside-and-the-ported-widgets) widgets are from its theme, with the deck's three status marks, and the choice card's check, at one bit under `marks/`: `MakeX(parent, …)` for a styled widget, `X MakeX(…)` with `SetX` / `UpdateX` for a composite | `ui`, `design_tokens`, `lvgl_display`, LVGL |
 | `components/design_tokens` | DESIGN.md's tokens as one header (STICKY_DESIGN_TOKENS §6) | — |
 | `components/gt911`, `bq27220`, `pcf8563`, `debug_logging` | Seeed's drivers for the touch controller, the fuel gauge and the clock, as Seeed ships them under their MIT licence (`LICENSE` beside each) | ESP-IDF's drivers |
 | `components/<feature>` | One feature: its `Install()` and what it registers — `hw_test`, the bench screens | `app_hooks`, `board`, `board_config`, shared components |

@@ -162,6 +162,19 @@ def first_build(task: dict, paths) -> str | None:
     return None
 
 
+def built_after(task: dict, paths, at: str) -> bool | None:
+    """Whether a run after `at` built a change in these paths: a run whose gated files differ from what the last run
+    at or before `at` held, or from the task's start when none had run. A later draft's yes is followed by its build,
+    so a yes with no such run came once the change was already built. None when the task keeps no gated record."""
+    pick = lambda held: {f: h for f, h in held.items() if project.matches(f, paths)}
+    runs = [r for r in task["runs"] if "gated" in r]
+    before = [r for r in runs if r["at"] <= at]
+    base = before[-1]["gated"] if before else task.get("gated_at_start")
+    if base is None:
+        return None
+    return any(pick(r["gated"]) != pick(base) for r in runs if r["at"] > at)
+
+
 def now() -> str:
     return datetime.now().isoformat(timespec="seconds")
 
@@ -759,8 +772,9 @@ def approval_state(a: dict) -> str:
 
 
 def gate_problems(task: dict, files: list[str]) -> list[str]:
-    """What the approval gates still need: a yes of each kind, on a file unchanged since, a draft's given before the
-    first run that built the change — or the person's recorded word that waives it."""
+    """What the approval gates still need: a yes of each kind, on a file unchanged since; the task's first draft given
+    before the first run that built the change, and a later draft followed by a run that built one — or the person's
+    recorded word that waives it."""
     problems = []
     words = [d["text"].lower() for d in task.get("decisions", [])]
     no_visible = any(w.startswith(NO_VISIBLE_CHANGE) for w in words)
@@ -786,9 +800,12 @@ def gate_problems(task: dict, files: list[str]) -> list[str]:
                 problems.append(f"the approved {kind} {name}{approval_state(a)} — show the person the new file")
             elif kind in KINDS_AFTER and a.get("code") != gated_fingerprint(files):
                 problems.append(f"the code changed after the person's yes on {name} — show them the built thing again")
-            elif kind in KINDS_BEFORE and first and a["at"] > first:
-                problems.append(f"the yes on the {kind} {name} came after the first run that built it — the draft is "
-                                "approved before the build (.agents/HARNESS.md §9)")
+            elif kind in KINDS_BEFORE and first and yes[0]["at"] > first:
+                problems.append(f"the yes on the {kind} {Path(yes[0]['file']).name} came after the first run that built "
+                                "it — the draft is approved before the build (.agents/HARNESS.md §9)")
+            elif kind in KINDS_BEFORE and len(yes) > 1 and built_after(task, paths, a["at"]) is False:
+                problems.append(f"the yes on the {kind} {name} came after its build — no run built a change after it; "
+                                "the draft is approved before the build (.agents/HARNESS.md §9)")
     target = task.get("target")
     if touched and target:
         if target["deployed"] != deployed_fingerprint():
@@ -1045,7 +1062,8 @@ def cmd_doctor(_: argparse.Namespace) -> int:
 
 
 def self_test() -> int:
-    """The gate's own cases: which run first built a gated change (first_build)."""
+    """The gate's own cases: which run first built a gated change (first_build), and whether a run built one after a
+    later draft's yes (built_after)."""
     def run(at, gated, files=("DESIGN.md",)):
         return {"at": at, "files": list(files), "gated": gated}
     cases = [
@@ -1068,6 +1086,25 @@ def self_test() -> int:
         if got != want:
             bad += 1
             print(f"FAIL {name}: want {want}, got {got}")
+    afters = [
+        ("a later draft built after its yes", {"gated_at_start": {}, "runs": [run("1", {"DESIGN.md": "a"}),
+                                                                           run("3", {"DESIGN.md": "b"})]}, "2", True),
+        ("a later draft approved once already built", {"gated_at_start": {}, "runs": [run("1", {"DESIGN.md": "a"}),
+                                                                                    run("3", {"DESIGN.md": "a"})]},
+         "2", False),
+        ("a yes before any run, built after", {"gated_at_start": {"DESIGN.md": "a"},
+                                               "runs": [run("3", {"DESIGN.md": "b"})]}, "2", True),
+        ("other paths changing build nothing here", {"gated_at_start": {}, "runs": [
+            run("1", {"DESIGN.md": "a"}), run("3", {"DESIGN.md": "a", "src/x.css": "z"}, ("DESIGN.md", "src/x.css"))]},
+         "2", False),
+        ("no gated record to tell", {"runs": [{"at": "1", "files": ["DESIGN.md"]}]}, "2", None),
+    ]
+    for name, task, at, want in afters:
+        got = built_after(task, ("DESIGN.md",), at)
+        if got != want:
+            bad += 1
+            print(f"FAIL built_after, {name}: want {want}, got {got}")
+    cases = cases + [(n, t, w) for n, t, _, w in afters]
     scopes = [
         ("a metadata scope", "---\nname: x\ndescription: y\nmetadata:\n  scope: portable\n---\n# X\n", "portable"),
         ("a top-level scope", "---\nname: x\nscope: project\n---\n", "project"),
