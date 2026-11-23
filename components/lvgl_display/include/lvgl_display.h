@@ -98,6 +98,15 @@ void SetBackHandler(void (*back)());
 // task, so it must be safe to call from any task.
 void SetPressFeedback(void (*tick)());
 
+// A sound a control asks for beyond the press's tick, by its word in DESIGN.md's sound tokens: a widget asks PlayCue, and the
+// shell sets the player that sounds it (devices), so no widget reaches the buzzer itself (STICKY_DESIGN_TOKENS §5).
+enum class Cue : uint8_t {
+    kAtEnd,  // a step that can go no further: a page turned past the last or first, a slider stepped past its end
+};
+void SetCuePlayer(void (*play)(Cue cue));
+// From LVGL's task, under the lock — a widget's event; nothing plays until the shell sets the player.
+void PlayCue(Cue cue);
+
 // Runs on every button press — LV_KEY_PREV for UP, LV_KEY_NEXT for DOWN, LV_KEY_ENTER for OK, and each step of a held UP or
 // DOWN — under the lock, before LVGL moves focus. nullptr stops it.
 void SetKeyObserver(void (*seen)(uint32_t key));

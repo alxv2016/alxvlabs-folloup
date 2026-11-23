@@ -252,13 +252,39 @@ their value on each refresh — the design check reads them (§7).
 | Token | Value | What the code does |
 | --- | --- | --- |
 | `kRefreshPartialLimit` | 20 | Counts partial refreshes; the next update after 20 is drawn full, and a full one resets the count — proven on the SSD1677, and on the SSD2677 no ghost seen before it `[HW]` `[SEEN]`; while the keyboard is open only the frames a typing press or a page switch caused count, and `kUncountedPartialLimit` (60) caps the rest (below) |
-| `kFeedbackTickMs` | 100 ms | The buzzer tick sounds as the input watcher reads a press — one poll, 10 ms (`kWatchMs`), after it — even during a refresh |
+| `kFeedbackTickMs` | 100 ms | The buzzer tick sounds as the input watcher reads a press — one poll, 10 ms (`kWatchMs`), after it — even during a refresh: `devices::Tick` plays `sound.tick` (`kSoundTick`), 30 ms of the full square at 4 kHz, through the buzzer's note player, whose task runs above the watcher and cuts whatever sound is playing, so a tick never waits behind another sound ([STICKY_HARDWARE_SPECS §4.2](STICKY_HARDWARE_SPECS.md#42-devices)) |
+| `kSoundTick` | 4 kHz, the full square, 30 ms | `sound.tick`: every press and every repeated step — `devices::Tick`, which `lvgl_display::SetPressFeedback` runs |
+| `kSoundAtEnd` | 2637 Hz twice, 25 ms each, 45 ms apart | `sound.at-end`: a step that can go no further — `lvgl_display::PlayCue(Cue::kAtEnd)` from the list view, the text view, the horizontal pager and the range slider (below) |
+| `kSoundError` | 4186, 3322, then 2794 sliding to 2093 Hz; 600 ms | `sound.error`: that did not work — `devices::Play(sound::Word::kError)` |
+| `kSoundSuccess` | 3136 then 4186 Hz on the 25 % pulse; 260 ms | `sound.success`: only once the action succeeded — `devices::Play(sound::Word::kSuccess)` |
+| `kSoundRecordingStart` | 3520, then 5274 Hz on the 25 % pulse; 235 ms | `sound.recording-start` — before the recording, never in it |
+| `kSoundRecordingStop` | 5274, then 3520 Hz on the 25 % pulse; 235 ms | `sound.recording-stop` |
+| `kSoundBandLowHz`, `kSoundBandHighHz` | 2000, 6000 Hz | `sound.band-low`, `sound.band-high`: every pitch between, round the buzzer's 4 kHz resonance; `tests/host/sound_rules_test.cpp` holds the six to it `[HOST]` |
+| `kSoundTickMaxMs`, `kSoundMaxMs` | 40, 600 ms | `sound.tick-max`, `sound.max`: a tick's longest and any other sound's, held by the same test |
 | `kWaitIndicatorDelayMs` | 1000 ms | Declared for DESIGN.md's rule — a wait's indicator drawn only once the wait has run this long, `motion.wait-indicator`; no screen has a wait indicator yet |
 | `kSelfUpdateMinMs` | 5000 ms | The period of the hardware-test screens' self-updates (Sensors, Battery and power) — DESIGN.md's floor between two self-driven redraws of an area, `motion.self-update`, which no code enforces |
 | `kClockTickMs` | 60000 ms | Declared for DESIGN.md's clock redraw, `motion.clock-tick`; the firmware has no clock yet |
 | `kMotionKeyRepeatDelayMs` | 600 ms | How long UP or DOWN is held before it steps again, `motion.key-repeat-delay` — `kKeyRepeatDelayUs` in `key_rules.h`, which also lets a step that drew nothing be followed this long after it |
 | `kMotionKeyRepeatPeriodMs` | 500 ms | How often a held UP or DOWN steps after that, `motion.key-repeat-period` — `kKeyRepeatPeriodUs` in `key_rules.h` |
 
+- **The six sound words are DESIGN.md's `sound.*` tokens, and `devices` plays them by word** (`sounds.h`: `kSounds`, in
+  `sound::Word`'s order, `devices::Play(Word)`); the hardware test's Buttons and buzzer screen has a row for each, and the
+  console's `sound <name>` plays one by its token's name (`tick`, `at-end`, `error`, `success`, `recording-start`,
+  `recording-stop`). The person chose each by ear on a V1.0 from candidates in the agent deck's style.
+- **A widget asks the at-end sound by cue, never the buzzer** — `lvgl_display::PlayCue(Cue::kAtEnd)`, which the shell
+  sets to `devices::Play(Word::kAtEnd)` (`SetCuePlayer`). The list view and the horizontal pager ask it when a swipe would
+  turn past the last or the first page; the text view, open for reading, when UP or DOWN or a swipe would; the range
+  slider, open for editing, when a step would pass its end — each repeated step of a held key too. A key's tick has
+  sounded already, from the input watcher; the at-end sound follows within one read of the keypad and cuts it, so the
+  person hears the tick's start and then the double tick. A swipe's tick sounded at the contact; its at-end sounds at the
+  lift. UP and DOWN that walk a list's rows leave it at its end for the next control, as the group wraps, and ask nothing.
+  `tests/host/slide_off_lvgl_test.cpp` and `swipe_lvgl_test.cpp` count the cue `[HOST]`.
+- **Outcomes sound where they happen** — the hardware test's Microphone screen plays `sound.recording-start` at the press,
+  lets the microphone settle at least as long as the sound has left, so the recording never holds it, and closes on
+  `sound.recording-stop`, or `sound.error` when the read failed; its Storage screen's Read card plays `sound.success`
+  once the card was read and `sound.error` when there was none or it did not mount. The kit page's keyboard and dialog
+  are samples with no real outcome — Join with too short a password is a disabled action, which gets the tick alone, and
+  a destructive action confirmed gets the press's tick (DESIGN → Motion → Sound) — so they sound none.
 - **A full refresh is drawn for**: the first frame after boot or wake; a full a screen asks for (`RequestFull`, the
   hardware-test screens'); the update after `kRefreshPartialLimit` partials; the one-bit frame after a greyscale
   refresh; on the V1.0, the pause of 2 s after 150 frames by scans; and, as a recovery, a partial that fails — drawn
@@ -374,6 +400,7 @@ their value on each refresh — the design check reads them (§7).
 | Whether the sheet's close on a partial leaves a ghost where its inverted chosen row stood, and whether the keyboard's ring moves, uncounted, leave one (§5) | Open | The kit page's dropdown and keyboard samples walked ten times on a V1.0 |
 | The unlit bars of the signal glyph, 3 to 4 px arcs in a dither, read as faint grey strokes on the glass (DESIGN → Exceptions) | Open | The kit page's network rows seen on both boards; the way out is a 2 px outline |
 | The text field's eye and clear button, square inside the field's `rounded.xl` corner, and its ring's white gap to the outline, read on the glass (§11.4) | Open | The kit page's text and password inputs seen on both boards |
+| Whether the at-end sound cutting a key's tick, and the outcome sounds, read on the board — heard through a refresh in flight | Open | The Buttons and buzzer screen's rows, a list, a slider and the text view walked to their ends on a V1.0 and a V2.0 |
 | The swipe's thresholds, 64 px, and a flick of 24 px with 12 px in the last 100 ms (§10) — proposed, never judged under a finger | Open | A device walk on the glass: a slow long swipe, a flick, a short flick under the limit, a pull-back, a rest before the lift |
 
 ## 9. The ring outside and the ported widgets

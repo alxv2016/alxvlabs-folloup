@@ -101,7 +101,10 @@ void TurnPage(lv_obj_t *band, int32_t dir)
     State *s = Of(band);
     const int page = std::clamp(s->page + static_cast<int>(dir), 0, Pages(band) - 1);
     if (page == s->page) {
-        return;  // at an end: the press's tick answered it, and nothing wraps under a finger
+        // At an end: the contact's tick answered the touch; at the lift, the at-end sound says no page is left, and nothing
+        // wraps under a finger.
+        lvgl_display::PlayCue(lvgl_display::Cue::kAtEnd);
+        return;
     }
     // The rows' own group, the screen's or an overlay's (a select sheet's list).
     lv_obj_t *row = lv_obj_get_child_count(band) > 0 ? lv_obj_get_child(band, 0) : nullptr;

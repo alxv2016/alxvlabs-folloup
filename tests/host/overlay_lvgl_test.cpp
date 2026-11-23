@@ -53,6 +53,7 @@ void SetTouchReadHook(void (*hook)(lv_indev_t *, lv_indev_data_t *)) { s_touch_h
 void SetPartialCounting(PartialCounting) {}
 void NoteTyping() {}
 void RequestFull() { ++s_fulls; }
+void PlayCue(Cue) {}
 }  // namespace lvgl_display
 
 namespace {

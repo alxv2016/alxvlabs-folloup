@@ -9,6 +9,7 @@
 #include <ctime>
 
 #include "esp_err.h"
+#include "sounds.h"
 
 namespace devices {
 
@@ -70,13 +71,26 @@ esp_err_t SetRtcWake(uint8_t seconds);
 
 // --- The buzzer --------------------------------------------------------------------------------------------------
 
-void Tick();                       // the press feedback: a short tone, returns at once
-void Tone(uint32_t ms);            // a tone of this length, returns at once
+// One sound at a time, from a task of the buzzer's own; every call returns at once, from any task but an interrupt, and
+// cuts whatever is playing — a tick never waits. A feature sounds an outcome by its word, DESIGN.md's sound token
+// (sounds.h); a sound of its own is read as it plays, so pass a table that outlives it (a constexpr one). The format and
+// how it maps to LEDC are sound_rules.h's.
+void Play(sound::Word word);
+void Play(const sound::Sound &sound);
+void Silence();
+void Tick();             // the press feedback, sound.tick: 30 ms at 4 kHz
+void Tone(uint32_t ms);  // the full square at 4 kHz for this long, up to 65535 ms
 
 // --- The PDM microphone ------------------------------------------------------------------------------------------
 
-// Powers the microphone, reads `ms` of 16 kHz mono, powers it off, and gives the level as RMS and its peak.
+// Powers the microphone, lets it settle, reads `ms` of 16 kHz mono, powers it off, and gives the level as RMS and its peak.
 esp_err_t ListenLevel(uint32_t ms, float *rms, int *peak);
+// The same in steps, for a run of levels read with one settling (the console's `sound band`): StartListening powers the
+// microphone and drops at least `settle_ms` of samples — its power-up and its filter's start, never in a level — and
+// ReadLevel reads levels until StopListening powers it off. One listener at a time.
+esp_err_t StartListening(uint32_t settle_ms);
+esp_err_t ReadLevel(uint32_t ms, float *rms, int *peak);
+void StopListening();
 
 // --- MicroSD -----------------------------------------------------------------------------------------------------
 

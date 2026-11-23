@@ -4,6 +4,7 @@
 
 #include "design_tokens.h"
 #include "internal/base.h"
+#include "lvgl_display.h"
 #include "router/router.h"
 
 namespace widgets {
@@ -80,14 +81,22 @@ void Set(lv_obj_t *root, int32_t value, bool tell)
     }
 }
 
+// While open for editing, UP and DOWN step the value; a step past an end changes nothing, and the at-end sound says so
+// after the press's tick — each repeated step of a held key too.
 void OnKey(lv_event_t *e)
 {
     lv_obj_t *root = lv_event_get_target_obj(e);
     const uint32_t key = lv_event_get_key(e);
+    const int32_t before = Of(root)->value;
     if (key == LV_KEY_UP || key == LV_KEY_RIGHT) {
-        Set(root, Of(root)->value + Of(root)->step, true);
+        Set(root, before + Of(root)->step, true);
     } else if (key == LV_KEY_DOWN || key == LV_KEY_LEFT) {
-        Set(root, Of(root)->value - Of(root)->step, true);
+        Set(root, before - Of(root)->step, true);
+    } else {
+        return;
+    }
+    if (Of(root)->value == before) {
+        lvgl_display::PlayCue(lvgl_display::Cue::kAtEnd);
     }
 }
 

@@ -282,6 +282,34 @@ motion:
     duration: 0ms
     delay: 500ms
     timingFunction: steps(1, start)
+sound:  # the buzzer's words, each in the agent deck's note format: wave, a start and an end pitch (0 for no slide), a length, on or off; a pitch of 0 is a rest (Motion → Sound)
+  band-low: 2000Hz   # every pitch at or above, round the buzzer's 4 kHz resonance
+  band-high: 6000Hz  # and at or below
+  tick-max: 40ms     # a tick, on every press and every repeated step
+  max: 600ms         # any other sound
+  tick:  # every press, and every repeated step of a held key
+    - {wave: pulse-50, hz: 4000, hzEnd: 0, ms: 30, volume: 255}
+  at-end:  # a step that can go no further: two ticks, lower than the press's
+    - {wave: pulse-50, hz: 2637, hzEnd: 0, ms: 25, volume: 255}
+    - {wave: pulse-50, hz: 0, hzEnd: 0, ms: 45, volume: 0}
+    - {wave: pulse-50, hz: 2637, hzEnd: 0, ms: 25, volume: 255}
+  error:  # that did not work: "womp womp", two notes down and the last sliding lower
+    - {wave: pulse-50, hz: 4186, hzEnd: 0, ms: 150, volume: 255}
+    - {wave: pulse-50, hz: 0, hzEnd: 0, ms: 50, volume: 0}
+    - {wave: pulse-50, hz: 3322, hzEnd: 0, ms: 150, volume: 255}
+    - {wave: pulse-50, hz: 0, hzEnd: 0, ms: 50, volume: 0}
+    - {wave: pulse-50, hz: 2794, hzEnd: 2093, ms: 200, volume: 255}
+  success:  # only once the action succeeded: a rise of a fourth
+    - {wave: pulse-25, hz: 3136, hzEnd: 0, ms: 80, volume: 255}
+    - {wave: pulse-25, hz: 4186, hzEnd: 0, ms: 180, volume: 255}
+  recording-start:  # a bip and a higher bip a fifth up
+    - {wave: pulse-25, hz: 3520, hzEnd: 0, ms: 70, volume: 255}
+    - {wave: pulse-25, hz: 0, hzEnd: 0, ms: 45, volume: 0}
+    - {wave: pulse-25, hz: 5274, hzEnd: 0, ms: 120, volume: 255}
+  recording-stop:  # the same pair falling
+    - {wave: pulse-25, hz: 5274, hzEnd: 0, ms: 70, volume: 255}
+    - {wave: pulse-25, hz: 0, hzEnd: 0, ms: 45, volume: 0}
+    - {wave: pulse-25, hz: 3520, hzEnd: 0, ms: 120, volume: 255}
 components:
   status-bar:
     backgroundColor: "{colors.background}"
@@ -906,6 +934,22 @@ At 235 ppi a pixel is 0.108 mm and a point is 3.26 px.
 - **Nothing leaves on a timer** — a message stays until the next change of screen. One exception: a masked field's last
   typed character (Exceptions → A password's last character, `motion.password-reveal`).
 
+### Sound
+
+- **Six words, in the 8-bit style of a game's pulse voices, and nothing else sounds** — `sound.tick`, `sound.at-end`,
+  `sound.error`, `sound.success`, `sound.recording-start` and `sound.recording-stop`. A new event takes one of them
+  before it gets a sound of its own.
+- **Every sound is short and in the buzzer's band** — a tick at most `sound.tick-max`, any other at most `sound.max`,
+  every pitch from `sound.band-low` to `sound.band-high`.
+- **The tick answers every press first** (Press). A press whose step can go no further — a page turned past the last
+  or the first, a slider stepped past its end — then sounds `sound.at-end`, which cuts the tick: a key's at-end follows
+  its tick within one read of the buttons, a swipe's at the lift.
+- **An outcome sounds as its words are set** — `sound.success` only once the action has succeeded, `sound.error` when it
+  failed, never for a request merely sent; the sound comes as the words are set, so on e-ink it leads them by the
+  refresh that draws them. A destructive action confirmed has the press's tick alone.
+- **A recording opens on `sound.recording-start` and closes on `sound.recording-stop`**, and the start sound is never
+  in the recording; a recording that fails closes on `sound.error`.
+
 ## Voice & Content Strategy
 
 ### Voice
@@ -1206,8 +1250,11 @@ At 235 ppi a pixel is 0.108 mm and a point is 3.26 px.
 
 - **WCAG 2.2 AA where it applies, and EN 301 549's closed functionality where the hardware allows** — the device has
   a buzzer and no speaker, so it cannot speak, and a person who cannot see the glass is not served today.
-- **Every outcome in words and in sound** — a success, a failure, a wait and a recording's start and stop each have
-  words on the glass and a distinct tone.
+- **Every outcome in words, and the ones Motion → Sound lists in sound too** — a success, a failure, a wait and a
+  recording's start and stop each have words on the glass. Sounding today: every press's tick; the end of a list,
+  text view, pager and slider; a recording's start and stop and its failure; and reading the card's success and
+  failure on the bench. A wait's sound is an open item, and the product's own outcomes — a capture saved, a sync — have none
+  until they exist.
 - **Contrast** — DESIGN → Colors → Contrast floors, on both refreshes.
 - **Text size** — nothing under `caption`; a larger text setting that steps every role up one is open.
 - **No time limits** — nothing leaves on a timer, but for a password's last typed character, which is feedback and
@@ -1230,18 +1277,20 @@ A value off these tokens is argued here — what, where and why — before a scr
   scale, the benchmark's track and its step, the footer's Back), a test's absolute grey levels (the checker's dots,
   the words on each grey band), its timers and lengths (stats shown after a refresh, the benchmark's frames, a
   second of recording, leaving a screen, the page walk's 3 s on each page, the RTC's 60 s before it turns the board
-  on), the refresh benchmark's bar, which animates as fast as the glass allows, the page walk, which changes screen
+  on), the buzzer's sounds beyond the six (the Buttons screen's one-second tone, at Seeed's 4 kHz, and the console's
+  `sound band`, held pitches across the band), the refresh benchmark's bar, which animates as fast as the glass allows, the page walk, which changes screen
   by itself from the console, the type scale page, which draws every primitive rather than a role, and the UI kit
   page, which shows every widget of the kit live on one long page — both pages scroll by pixel (no animation, momentum
   or overscroll), the type scale page making each sample a focus stop so UP and DOWN reach it, each focused
   widget on the kit page coming into view at once, as on every screen that scrolls (the theme's
   `ui::ShowWhenFocused`). The list view and the text view on the kit page still turn pages, as they do everywhere; only
   the page that holds them scrolls.
-- **Why:** each measures the glass, the touch or a sensor — a fixture sized to the test, not to reading — the
+- **Why:** each measures the glass, the touch, the buzzer or a sensor — a fixture sized to the test, not to reading — the
   benchmark exists to drive the glass as fast as it goes, the page walk to change screen many times over for a
   ghosting run, the type scale page to show the whole scale for choosing the roles, and the kit page to show every
   widget and its states beside one another for the person to judge on the glass, each more than one page holds, so
-  Nothing animates, Nothing leaves on a timer, A screen takes a role and Content turns by page cannot hold there.
+  Nothing animates, Nothing leaves on a timer, A screen takes a role, Content turns by page and Six words cannot hold
+  there.
 - **Where it stops:** a size that matches a token uses the token; text, colours by role, focus and hit areas follow
   this file; nothing outside `components/hw_test` uses the exception.
 - **Not this exception:** a `touch-exception` marker in `components/widgets` is the touch check being told that a line
@@ -1357,4 +1406,4 @@ The chosen option of a select sheet is marked by the check, without its word.
 - **How many times a full refresh flashes**, against WCAG's three a second.
 - **Press-to-start and press-to-stop recording** beside the hold.
 - **A larger text setting**, and the glyph ranges every string needs.
-- **The buzzer's tones** for a tick, an ignored press, a success, a failure, a wait, and a recording's start and stop.
+- **A wait's sound, and an ignored press's** — whether either gets one of the six words, or stays the tick alone.

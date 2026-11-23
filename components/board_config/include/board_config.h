@@ -87,6 +87,9 @@ inline constexpr int kScreenHeight = 800;
 inline constexpr int kPanelPowerSettleMs = 100;
 inline constexpr int kTouchPowerSettleMs = 250;
 inline constexpr int kMicPowerSettleMs = 20;  // Seeed's
+// A level drops this much of the microphone's first samples: its power-up and the PDM filter's start swing far louder
+// than a room (STICKY_HARDWARE_SPECS §4.2) — a start, to be tuned on the board [?].
+inline constexpr uint32_t kMicLevelSettleMs = 200;
 
 // The buzzer (STICKY_HARDWARE_SPECS §4.2): LEDC, 10-bit, 4 kHz, half duty for the loudest tone.
 inline constexpr uint32_t kBuzzerHz = 4000;

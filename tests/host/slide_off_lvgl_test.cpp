@@ -56,6 +56,9 @@ void SetTouchReadHook(void (*hook)(lv_indev_t *, lv_indev_data_t *)) { s_touch_h
 void SetPartialCounting(PartialCounting) {}
 void NoteTyping() {}
 void RequestFull() {}
+// The at-end cue a widget asks for, counted: a step or a turn past an end asks it, one that moves never.
+int s_at_ends = 0;
+void PlayCue(Cue cue) { s_at_ends += cue == Cue::kAtEnd; }
 }  // namespace lvgl_display
 
 namespace {
@@ -297,6 +300,55 @@ void TestEditCancel()
           "holding OK turns back to the page it opened on, and closes it");
 }
 
+// At an end, a step or a turn that changes nothing asks the at-end cue, after the press's own tick; one that moves never
+// does (STICKY_DESIGN_TOKENS §5).
+void TestAtEnd()
+{
+    widgets::SetRangeSliderValue(s_page.slider, 90);
+    OpenEdit(s_page.slider.root);
+    lvgl_display::s_at_ends = 0;
+    Press(LV_KEY_UP);
+    Check(widgets::RangeSliderValue(s_page.slider) == 100 && lvgl_display::s_at_ends == 0, "a step to the end is a step, not the end");
+    Press(LV_KEY_UP);
+    Press(LV_KEY_UP);
+    Check(widgets::RangeSliderValue(s_page.slider) == 100 && lvgl_display::s_at_ends == 2, "each step past the top asks the at-end sound");
+    Press(LV_KEY_DOWN);
+    Check(widgets::RangeSliderValue(s_page.slider) == 90 && lvgl_display::s_at_ends == 2, "a step back down asks nothing");
+    Press(LV_KEY_ENTER);
+    widgets::SetRangeSliderValue(s_page.slider, 0);
+    OpenEdit(s_page.slider.root);
+    Press(LV_KEY_DOWN);
+    Check(widgets::RangeSliderValue(s_page.slider) == 0 && lvgl_display::s_at_ends == 3, "and a step under the bottom asks it too");
+    Press(LV_KEY_ENTER);
+
+    const int pages = widgets::TextViewPages(s_page.text);
+    OpenEdit(s_page.text.root);
+    lvgl_display::s_at_ends = 0;
+    Press(LV_KEY_UP);
+    Check(widgets::TextViewPage(s_page.text) == 0 && lvgl_display::s_at_ends == 1, "UP on the text view's first page asks the at-end sound");
+    for (int i = 0; i < pages - 1; ++i) {
+        Press(LV_KEY_DOWN);
+    }
+    Check(widgets::TextViewPage(s_page.text) == pages - 1 && lvgl_display::s_at_ends == 1, "the turns to the last page ask nothing");
+    Press(LV_KEY_DOWN);
+    Check(widgets::TextViewPage(s_page.text) == pages - 1 && lvgl_display::s_at_ends == 2, "DOWN on its last page asks it");
+    Press(LV_KEY_ENTER);
+
+    // The list view, by touch: swipes down turn back to its first page, asking nothing; one more has nowhere to turn.
+    lvgl_display::s_at_ends = 0;
+    for (int guard = 0; guard < 8 && widgets::ListViewPage(s_page.list) > 0; ++guard) {
+        const lv_area_t r = Coords(s_page.rows[2 * widgets::ListViewPage(s_page.list)]);  // the page's first row, in view
+        const int32_t x = (r.x1 + r.x2) / 2;
+        Slide({x, r.y1 + 4}, {x, r.y1 + 4 + 10 + dt::kTouchSwipeDistance + 20}, 4);
+    }
+    Check(widgets::ListViewPage(s_page.list) == 0 && lvgl_display::s_at_ends == 0, "swipes down that turn back ask nothing");
+    const lv_area_t r = Coords(s_page.rows[0]);
+    const int32_t x = (r.x1 + r.x2) / 2;
+    Slide({x, r.y1 + 4}, {x, r.y1 + 4 + 10 + dt::kTouchSwipeDistance + 20}, 4);
+    Check(widgets::ListViewPage(s_page.list) == 0 && lvgl_display::s_at_ends == 1,
+          "a swipe down on the list's first page asks the at-end sound");
+}
+
 // The chain's order: an open edit first, then the top overlay, then back one screen.
 void TestChainOrder()
 {
@@ -348,6 +400,7 @@ int main()
     TestSliderSlideOff();
     TestListViewSwipeStays();
     TestEditCancel();
+    TestAtEnd();
     TestChainOrder();
     std::printf("slide-off and edit cancel on LVGL: %d checks, %d failed\n", s_checks, s_failures);
     return s_failures == 0 ? 0 : 1;

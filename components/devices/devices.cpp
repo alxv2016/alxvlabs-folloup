@@ -33,10 +33,8 @@ constexpr const char *kTag = "devices";
 Present s_present;
 i2c_master_dev_handle_t s_sht40 = nullptr, s_imu = nullptr, s_gauge = nullptr, s_rtc = nullptr;
 bool s_gauge_scaled = false;
-esp_timer_handle_t s_buzzer_stop = nullptr;
 
 constexpr int kI2cTimeoutMs = 100;
-constexpr uint32_t kTickMs = 30;
 
 esp_err_t AddDevice(uint8_t address, i2c_master_dev_handle_t *out)
 {
@@ -136,20 +134,100 @@ bool ProbeRtc()
     return true;
 }
 
-void StopTone(void *)
+// --- The sound player ----------------------------------------------------------------------------------------------
+//
+// One task owns the LEDC channel — ESP-IDF's ledc_set_duty and ledc_update_duty are not thread-safe — and plays one sound
+// at a time from sound_rules.h's FrameAt: woken at once by a request, then every kStepMs while a sound plays, asleep
+// while none does. A request replaces the one before it under a spinlock and notifies the task, so Play, Tick and Tone
+// return at once from any task, and a new sound cuts the one playing: a tick never waits behind a melody. Each wake
+// reads the time since the sound began, so a late wake never stretches a sound (STICKY_HARDWARE_SPECS §4.2).
+
+// Above the input watcher (5), which ticks on every press, and LVGL's task (4): the tick reaches the coil within a
+// context switch of the press, even while a frame renders.
+constexpr UBaseType_t kSoundTaskPriority = 6;
+constexpr uint32_t kSoundTaskStack = 2560;
+
+struct SoundRequest {
+    sound::Sound sound = {};
+    sound::Note tone = {};  // Tone's one note, kept by value: the caller's stack is gone by the time it plays
+    bool is_tone = false;
+};
+
+portMUX_TYPE s_sound_lock = portMUX_INITIALIZER_UNLOCKED;
+SoundRequest s_sound_request;
+uint32_t s_sound_requests = 0;  // counts requests, so the task sees a new one even when it is the same sound again
+TaskHandle_t s_sound_task = nullptr;
+
+void SetBuzzer(uint32_t hz, uint32_t duty, uint32_t *hz_now, uint32_t *duty_now)
 {
-    ledc_set_duty(LEDC_LOW_SPEED_MODE, LEDC_CHANNEL_0, 0);
-    ledc_update_duty(LEDC_LOW_SPEED_MODE, LEDC_CHANNEL_0);
+    // A rest leaves the timer where it is (hz 0); a pitch the timer cannot divide to is skipped, and the last one plays on.
+    if (hz != 0 && hz != *hz_now && ledc_set_freq(LEDC_LOW_SPEED_MODE, LEDC_TIMER_0, hz) == ESP_OK) {
+        *hz_now = hz;
+    }
+    if (duty != *duty_now) {
+        ledc_set_duty(LEDC_LOW_SPEED_MODE, LEDC_CHANNEL_0, duty);
+        ledc_update_duty(LEDC_LOW_SPEED_MODE, LEDC_CHANNEL_0);
+        *duty_now = duty;
+    }
+}
+
+void SoundTask(void *)
+{
+    uint32_t seen = 0;
+    sound::Note tone = {};
+    sound::Sound playing = {};
+    int64_t started_us = 0;
+    uint32_t hz_now = bc::kBuzzerHz;
+    uint32_t duty_now = 0;
+    for (;;) {
+        ulTaskNotifyTake(pdTRUE, playing.count > 0 ? pdMS_TO_TICKS(sound::kStepMs) : portMAX_DELAY);
+        taskENTER_CRITICAL(&s_sound_lock);
+        const uint32_t requests = s_sound_requests;
+        const SoundRequest request = s_sound_request;
+        taskEXIT_CRITICAL(&s_sound_lock);
+        if (requests != seen) {
+            seen = requests;
+            if (request.is_tone) {
+                tone = request.tone;
+                playing = {&tone, 1};
+            } else {
+                playing = request.sound;
+            }
+            started_us = esp_timer_get_time();
+        }
+        const uint32_t elapsed_ms = static_cast<uint32_t>((esp_timer_get_time() - started_us) / 1000);
+        const sound::Frame frame = sound::FrameAt(playing, elapsed_ms, bc::kBuzzerDuty);
+        SetBuzzer(frame.hz, frame.duty, &hz_now, &duty_now);
+        if (frame.done) {
+            playing = {};
+        }
+    }
+}
+
+void Ask(const SoundRequest &request)
+{
+    if (s_sound_task == nullptr) {
+        return;
+    }
+    taskENTER_CRITICAL(&s_sound_lock);
+    s_sound_request = request;
+    ++s_sound_requests;
+    taskEXIT_CRITICAL(&s_sound_lock);
+    xTaskNotifyGive(s_sound_task);
 }
 
 bool InitBuzzer()
 {
+    static_assert(sound::kResonanceHz == bc::kBuzzerHz && design_tokens::kSoundTick[0].hz == bc::kBuzzerHz,
+                  "the press tick sounds where Seeed drives the buzzer");
     ledc_timer_config_t timer = {};
     timer.speed_mode = LEDC_LOW_SPEED_MODE;
     timer.duty_resolution = LEDC_TIMER_10_BIT;
     timer.timer_num = LEDC_TIMER_0;
     timer.freq_hz = bc::kBuzzerHz;
-    timer.clk_cfg = LEDC_AUTO_CLK;
+    // The 80 MHz APB clock, named rather than chosen: every pitch from sound::kLowestHz to kHighestHz divides from it at
+    // 10 bits, so ledc_set_freq reaches each note.
+    timer.clk_cfg = LEDC_USE_APB_CLK;
     if (ledc_timer_config(&timer) != ESP_OK) {
         return false;
     }
@@ -162,10 +240,7 @@ bool InitBuzzer()
     if (ledc_channel_config(&channel) != ESP_OK) {
         return false;
     }
-    esp_timer_create_args_t stop = {};
-    stop.callback = StopTone;
-    stop.name = "buzzer";
-    return esp_timer_create(&stop, &s_buzzer_stop) == ESP_OK;
+    return xTaskCreate(SoundTask, "buzzer", kSoundTaskStack, nullptr, kSoundTaskPriority, &s_sound_task) == pdPASS;
 }
 
 }  // namespace
@@ -277,29 +352,45 @@ esp_err_t SetRtcWake(uint8_t seconds)
     return WriteReg(s_rtc, kRtcTimerControl, kRtcTimerOn1Hz);
 }
 
+void Play(const sound::Sound &sound)
+{
+    SoundRequest request;
+    request.sound = sound;
+    Ask(request);
+}
+
+void Silence()
+{
+    Ask(SoundRequest{});
+}
+
 void Tone(uint32_t ms)
 {
-    if (!s_present.buzzer) {
-        return;
-    }
-    esp_timer_stop(s_buzzer_stop);
-    ledc_set_duty(LEDC_LOW_SPEED_MODE, LEDC_CHANNEL_0, bc::kBuzzerDuty);
-    ledc_update_duty(LEDC_LOW_SPEED_MODE, LEDC_CHANNEL_0);
-    esp_timer_start_once(s_buzzer_stop, static_cast<uint64_t>(ms) * 1000);
+    SoundRequest request;
+    request.tone = {sound::Wave::kPulse50, static_cast<uint16_t>(bc::kBuzzerHz), 0,
+                    static_cast<uint16_t>(std::min<uint32_t>(ms, UINT16_MAX)), 255};
+    request.is_tone = true;
+    Ask(request);
+}
+
+void Play(sound::Word word)
+{
+    Play(sound::SoundOf(word));
 }
 
 void Tick()
 {
-    Tone(kTickMs);
+    Play(sound::Word::kTick);
 }
 
-esp_err_t ListenLevel(uint32_t ms, float *rms, int *peak)
+// The microphone's channel while a listener has it open: StartListening to StopListening.
+i2s_chan_handle_t s_mic = nullptr;
+
+esp_err_t StartListening(uint32_t settle_ms)
 {
-    ESP_RETURN_ON_FALSE(rms != nullptr && peak != nullptr, ESP_ERR_INVALID_ARG, kTag, "outputs");
-    gpio_config_t power = {};
-    power.pin_bit_mask = 1ULL << bc::kPdmEn;
-    power.mode = GPIO_MODE_OUTPUT;
-    ESP_RETURN_ON_ERROR(gpio_config(&power), kTag, "mic power pin");
+    ESP_RETURN_ON_FALSE(s_mic == nullptr, ESP_ERR_INVALID_STATE, kTag, "the microphone is open already");
+    // PDM_EN is an output since board::Init drove it low: set its level, never configure it again — gpio_config on a pin
+    // already driven logs "conflict found" each time.
     gpio_set_level(bc::kPdmEn, 1);
     vTaskDelay(pdMS_TO_TICKS(bc::kMicPowerSettleMs));
 
@@ -314,44 +405,80 @@ esp_err_t ListenLevel(uint32_t ms, float *rms, int *peak)
     if (err == ESP_OK) {
         err = i2s_channel_init_pdm_rx_mode(rx, &pdm);
     }
-    bool enabled = false;
     if (err == ESP_OK) {
         err = i2s_channel_enable(rx);
-        enabled = err == ESP_OK;
+        if (err != ESP_OK) {
+            i2s_del_channel(rx);
+        }
+    } else if (rx != nullptr) {
+        i2s_del_channel(rx);
     }
+    if (err != ESP_OK) {
+        gpio_set_level(bc::kPdmEn, 0);
+        ESP_RETURN_ON_ERROR(err, kTag, "PDM open");
+    }
+    s_mic = rx;
+    // The microphone's power-up and the filter's start come out as a slow swing far louder than a room: read and drop
+    // them, so no level holds them (STICKY_HARDWARE_SPECS §4.2).
+    int16_t samples[512];
+    size_t dropped = 0;
+    const size_t settle = 16 * std::max<uint32_t>(settle_ms, bc::kMicLevelSettleMs);  // 16 samples a millisecond
+    while (dropped < settle && err == ESP_OK) {
+        size_t got = 0;
+        err = i2s_channel_read(s_mic, samples, sizeof(samples), &got, 1000);
+        dropped += got / sizeof(int16_t);
+    }
+    if (err != ESP_OK) {
+        StopListening();
+    }
+    return err;
+}
 
+esp_err_t ReadLevel(uint32_t ms, float *rms, int *peak)
+{
+    ESP_RETURN_ON_FALSE(rms != nullptr && peak != nullptr, ESP_ERR_INVALID_ARG, kTag, "outputs");
+    ESP_RETURN_ON_FALSE(s_mic != nullptr, ESP_ERR_INVALID_STATE, kTag, "the microphone is not open");
     double sum = 0, sum_sq = 0;
     size_t count = 0;
     int max_abs = 0;
-    if (err == ESP_OK) {
-        int16_t samples[512];
-        const size_t wanted = 16 * ms;  // 16 samples a millisecond
-        // The first block after power-up holds the filter's settling: read and drop it.
+    esp_err_t err = ESP_OK;
+    int16_t samples[512];
+    const size_t wanted = 16 * ms;  // 16 samples a millisecond
+    while (count < wanted && err == ESP_OK) {
         size_t got = 0;
-        i2s_channel_read(rx, samples, sizeof(samples), &got, 1000);
-        while (count < wanted && err == ESP_OK) {
-            err = i2s_channel_read(rx, samples, sizeof(samples), &got, 1000);
-            for (size_t i = 0; i < got / sizeof(int16_t); ++i) {
-                sum += samples[i];
-                sum_sq += static_cast<double>(samples[i]) * samples[i];
-                max_abs = std::max(max_abs, std::abs(static_cast<int>(samples[i])));
-            }
-            count += got / sizeof(int16_t);
+        err = i2s_channel_read(s_mic, samples, sizeof(samples), &got, 1000);
+        for (size_t i = 0; i < got / sizeof(int16_t); ++i) {
+            sum += samples[i];
+            sum_sq += static_cast<double>(samples[i]) * samples[i];
+            max_abs = std::max(max_abs, std::abs(static_cast<int>(samples[i])));
         }
+        count += got / sizeof(int16_t);
     }
-    if (enabled) {
-        i2s_channel_disable(rx);
-    }
-    if (rx != nullptr) {
-        i2s_del_channel(rx);
-    }
-    gpio_set_level(bc::kPdmEn, 0);
     ESP_RETURN_ON_ERROR(err, kTag, "PDM read");
     ESP_RETURN_ON_FALSE(count > 0, ESP_ERR_INVALID_SIZE, kTag, "no samples");
     const double mean = sum / count;
     *rms = static_cast<float>(std::sqrt(std::fmax(0.0, sum_sq / count - mean * mean)));
     *peak = max_abs;
     return ESP_OK;
+}
+
+void StopListening()
+{
+    if (s_mic != nullptr) {
+        i2s_channel_disable(s_mic);
+        i2s_del_channel(s_mic);
+        s_mic = nullptr;
+    }
+    gpio_set_level(bc::kPdmEn, 0);
+}
+
+esp_err_t ListenLevel(uint32_t ms, float *rms, int *peak)
+{
+    ESP_RETURN_ON_FALSE(rms != nullptr && peak != nullptr, ESP_ERR_INVALID_ARG, kTag, "outputs");
+    ESP_RETURN_ON_ERROR(StartListening(bc::kMicLevelSettleMs), kTag, "microphone");
+    const esp_err_t err = ReadLevel(ms, rms, peak);
+    StopListening();
+    return err;
 }
 
 esp_err_t ProbeCard(Card *out)

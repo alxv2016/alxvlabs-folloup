@@ -184,4 +184,49 @@ inline constexpr uint32_t kWaitIndicatorDelayMs = kMotionWaitIndicatorDelayMs;
 inline constexpr uint32_t kSelfUpdateMinMs = kMotionSelfUpdateDelayMs;
 inline constexpr uint32_t kClockTickMs = kMotionClockTickDelayMs;
 
+// --- Sound: the buzzer's words, in the agent deck's note format (DESIGN → Accessibility; STICKY_DESIGN_TOKENS §5) ------
+// A note is {wave, hz, hz_end, ms, volume}: where it starts (0 a rest), where it slides to by its end (0 for none), its
+// length, and on (255) or off (0) — the buzzer has no level but its duty. devices' note player plays them
+// (STICKY_HARDWARE_SPECS §4.2).
+
+enum class SoundWave : uint8_t {
+    kPulse50,   // a square: the loudest at a pitch
+    kPulse25,   // brighter, about 3 dB quieter
+    kPulse12,   // the thinnest, about 8 dB quieter
+    kTriangle,  // played as kPulse50: a switched coil has no triangle
+    kNoise,     // the pitch hopping at random about `hz`
+};
+
+struct SoundNote {
+    SoundWave wave;
+    uint16_t hz;
+    uint16_t hz_end;
+    uint16_t ms;
+    uint8_t volume;
+};
+
+inline constexpr uint32_t kSoundBandLowHz = 2000;   // sound.band-low: every sound is written at or above it
+inline constexpr uint32_t kSoundBandHighHz = 6000;  // sound.band-high: and at or below it — round the 4 kHz resonance
+inline constexpr uint32_t kSoundTickMaxMs = 40;     // sound.tick-max: a tick, on every press and every repeated step
+inline constexpr uint32_t kSoundMaxMs = 600;        // sound.max: any other sound
+
+// sound.tick: every press, and every repeated step of a held key — the full square at the resonance, 30 ms.
+inline constexpr SoundNote kSoundTick[] = {{SoundWave::kPulse50, 4000, 0, 30, 255}};
+// sound.at-end: a step that can go no further — two ticks, lower than the press's (E7).
+inline constexpr SoundNote kSoundAtEnd[] = {
+    {SoundWave::kPulse50, 2637, 0, 25, 255}, {SoundWave::kPulse50, 0, 0, 45, 0}, {SoundWave::kPulse50, 2637, 0, 25, 255}};
+// sound.error: that did not work — the agent deck's "womp womp" in C (C8, A♭7, F7 sliding to C7).
+inline constexpr SoundNote kSoundError[] = {
+    {SoundWave::kPulse50, 4186, 0, 150, 255}, {SoundWave::kPulse50, 0, 0, 50, 0},
+    {SoundWave::kPulse50, 3322, 0, 150, 255}, {SoundWave::kPulse50, 0, 0, 50, 0},
+    {SoundWave::kPulse50, 2794, 2093, 200, 255}};
+// sound.success: only once the action succeeded — a rise of a fourth (G7, C8).
+inline constexpr SoundNote kSoundSuccess[] = {{SoundWave::kPulse25, 3136, 0, 80, 255}, {SoundWave::kPulse25, 4186, 0, 180, 255}};
+// sound.recording-start: BYTE-90's nudge moved up — a bip and a higher bip a fifth up (A7, E8).
+inline constexpr SoundNote kSoundRecordingStart[] = {
+    {SoundWave::kPulse25, 3520, 0, 70, 255}, {SoundWave::kPulse25, 0, 0, 45, 0}, {SoundWave::kPulse25, 5274, 0, 120, 255}};
+// sound.recording-stop: the same pair falling (E8, A7).
+inline constexpr SoundNote kSoundRecordingStop[] = {
+    {SoundWave::kPulse25, 5274, 0, 70, 255}, {SoundWave::kPulse25, 0, 0, 45, 0}, {SoundWave::kPulse25, 3520, 0, 120, 255}};
+
 }  // namespace design_tokens

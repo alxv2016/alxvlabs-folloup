@@ -255,11 +255,31 @@ else.**
 | RTC | PCF8563, its own 32.768 kHz crystal (X2) | Sensor I2C | `0x51` | Supplied from `VDD_3V3` or `RTC_3V3` through D21 and D22; `INT` to `RTC_INTn`; `CLKOUT` disabled, as it reaches a test point only `[SRC]`; alarm and timer flags cleared before power-off (§5.3) `[SCH]` | `[SCH]` `[SRC]` |
 | IMU | LSM6DS3TR-C, on every unit (confirmed on V1.0) | Sensor I2C | `0x6A` | `SA0` low, `CS` high for I2C; `WHO_AM_I` reads `0x6A`; accel 4 g at 104 Hz, gyro 245 dps at 104 Hz | `[SCH]` `[DS]` `[FW]` `[TEAM]` |
 | Temperature and humidity | SHT40-AD1B | Sensor I2C | `0x44` | Placed in a milled groove away from heat sources | `[SCH]` `[DS]` |
-| Microphone | MSM261DDB020, PDM | I2S PDM RX | — | 16 kHz, 16-bit, mono | `[SCH]` `[FW]` `[DOC]` |
-| Buzzer | FUET-5018, magnetic | LEDC | — | Q8 (CJ2324) switches it low-side from `VDD_3V3` through 4.7 Ω; 10-bit duty at 4 kHz, 50 % duty for the loudest tone | `[SCH]` `[FW]` |
+| Microphone | MSM261DDB020, PDM | I2S PDM RX | — | 16 kHz, 16-bit, mono; `PDM_EN` powers it, 20 ms before the clock starts (Seeed's); a level drops its first 200 ms (`kMicLevelSettleMs`), since a fresh power-up read louder than the room (below) | `[SCH]` `[FW]` `[DOC]` |
+| Buzzer | FUET-5018, magnetic, externally driven | LEDC | — | Q8 (CJ2324) switches it low-side from `VDD_3V3` through 4.7 Ω; 10-bit duty on the 80 MHz APB clock, 50 % duty for the loudest tone; resonant at 4 kHz, where Seeed drives it; a note player sets the pitch and the voice per note (below) | `[SCH]` `[FW]` |
 | Charge LED | LED1, yellow-green and red | — | — | Yellow-green while USB powers the board; red while charging (`STAT`) | `[SCH]` `[DOC]` |
 | USB-UART bridge | CH343P | UART0 | — | Powered from `VIN_5V` alone, I/O at `VDD_3V3`; DTR and RTS drive the auto-download pair Q3 and Q4 | `[SCH]` |
 
+- **The buzzer plays notes, not just a tone** — `devices::Play` takes a sound in the agent deck's chiptune format
+  (`sound_rules.h`): each note's pitch is the LEDC timer's frequency (`ledc_set_freq`, 100 Hz to 10 kHz, which the
+  10-bit timer divides to from 80 MHz), its voice the channel's duty — 50, 25 and 12.5 % of the 10-bit range for the
+  deck's three pulse voices, 50 % for its triangle, which a switched coil cannot shape; a slide steps the frequency
+  every 4 ms; noise hops the pitch at random within 40 % of the note's every 1 ms. The coil has no level but the duty,
+  which is the voice already, so a note's volume is kept only as on or off. One task, above the input watcher, owns the
+  channel — ESP-IDF's duty calls are not thread-safe — and a new sound cuts the one playing, so a press's tick never
+  waits `[D]`. The six sounds it plays by word are DESIGN.md's `sound.*` tokens (STICKY_DESIGN_TOKENS §5); the person
+  heard them on a V1.0 `[FW]`.
+- **The FUET-5018's band, measured on a V1.0: loud near 4 to 4.5 kHz and again near 7 kHz** — the console's `sound
+  band`, with the board's own microphone powered once and settled 500 ms, then read without a break (the room with the
+  buzzer off, then a held 50 % square at each pitch: 64 ms of ring-up dropped, 320 ms read, 128 ms of quiet dropped), on
+  2026-11-22 over 513eef4 and the sound round: the room 27 RMS; against 4 kHz (2155 RMS), 4.5 kHz −4.3 dB and 7 kHz
+  −4.3 dB; 2.5 to 3.5 kHz −11 to −13 dB; 5 kHz −9.5 dB, 5.5 kHz −16.8 dB, 6 kHz −14 dB; 2 kHz −22.4 dB; 1 to 1.5 kHz
+  −9.5 dB, heard by their harmonics `[MEAS]`. One run, one board; the microphone's own response is in every number.
+  LCSC's listing of the part (C391028) gives a 4 kHz resonance, 75 dB, 3 V rated and 100 mA; the maker's datasheet was
+  not read `[?]`. The 25 % pulse is about 3 dB quieter than the 50 % at the same pitch and the 12.5 % about 8 dB `[D]`.
+  FolloUp's sounds are written between 2 and 6 kHz (`sound.band-low`, `sound.band-high`).
+- **`PDM_EN` is driven, never configured again** — `board::Init` makes it an output, low; the microphone's start sets
+  its level only, since `gpio_config` on a pin already driven logs "gpio: conflict found for GPIO[38]" each time `[MEAS]`.
 - **The GT911's address is chosen by `TP_INT`'s level while `TP_RST` is low** — high selects `0x14`, low `0x5D`; the
   10 kΩ pull-up on `TP_INT` makes `0x14` the default `[DS]` `[SCH]`.
 - **The GT911 reports its resolution at `0x8146`; this board's reads `E0 01 20 03`, 480 x 800** `[MEAS]`.
@@ -471,6 +491,10 @@ while the chip is awake, wakes the panel from its own sleep.**
   holding `[SRC]`. Ours holds `EP_PWR_EN` low with them, the panel unpowered: a wake restarts the chip, which powers
   the panel up again `[FW]`; on a V1.0 and a V2.0 board the glass kept its image through deep sleep and the board
   woke `[MEAS]`.
+- **Silence the buzzer before leaving, and let its task step once** — LEDC drives `BUZZER_PWM` through the GPIO
+  matrix, so setting the pin low does not stop a sound still playing (one runs up to 600 ms), and the hold would keep
+  whichever level it caught. The hardware test's leaving path calls `devices::Silence()` as it starts and again before
+  sleep or power-off, then waits 10 ms `[FW]`.
 - **Put the panel to sleep only after its refresh finishes, and give it a full refresh on wake** `[FW]`; the image
   stays on the glass with the panel unpowered `[DOC]`.
 - **Poll the IMU every 200 ms rather than take its interrupt**, while GPIO7 has no shared owner (§1); motion counts
@@ -601,3 +625,4 @@ pinhole and openings on the bottom** `[DOC]`.
 | Whether the CH343P's Q4 on GPIO0 disturbs the sensor I2C bus when a serial monitor toggles DTR or RTS | Open | A logic analyser on GPIO0 while a monitor opens the port |
 | A frame's transfer with the card writing (§4.3), with a date and a build | Open | A refresh timed while the card writes |
 | The IMU motion thresholds in §6, with a date and a build | Open | The motion log on the board, picked up and set down |
+| The buzzer's band on a V2.0, and the maker's datasheet for the FUET-5018 — measured once on a V1.0 (§4.2) | Open | `sound band` on the console of a V2.0, its numbers dated with the build |

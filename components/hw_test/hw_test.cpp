@@ -5,8 +5,10 @@
 // one registered exception (DESIGN → Exceptions); the widgets on the kit page still turn pages.
 
 #include <algorithm>
+#include <array>
 #include <atomic>
 #include <cinttypes>
+#include <cmath>
 #include <cstdio>
 #include <cstdlib>
 #include <cstring>
@@ -18,6 +20,7 @@
 #include "board.h"
 #include "design_tokens.h"
 #include "devices.h"
+#include "sounds.h"
 #include "esp_system.h"
 #include "lvgl_display.h"
 #include "router/router.h"
@@ -1191,11 +1194,19 @@ void OnTone(lv_event_t *)
     devices::Tone(1000);
 }
 
+// The sound words: each a row, the word and its sound's name as the row's words; OK or a tap plays it, cutting the one
+// playing (DESIGN → Accessibility). Four rows a page, the rest a swipe or a step away (DESIGN → Layout → Paging).
+constexpr int32_t kSoundRowsPerPage = 4;
+
+void OnSoundRow(lv_event_t *e)
+{
+    devices::Play(static_cast<const devices::sound::NamedSound *>(lv_event_get_user_data(e))->sound);
+}
+
 void CreateButtons(lv_obj_t *screen, lv_group_t *, void *)
 {
     lv_obj_t *content = BeginScreen(screen, "Buttons and buzzer");
-    ui::NewLabel(content, Type::kBody,
-                        "UP and DOWN move the ring. OK presses. Hold OK for a second to go back. Every press ticks.");
+    ui::NewLabel(content, Type::kBody, "Every press ticks. OK on a sound plays it. Hold OK for a second to go back.");
     s_keys_label = Value(content, "Last: none");
     s_keys_seen = 0;
     lv_obj_t *row = ButtonRow(content);
@@ -1204,6 +1215,12 @@ void CreateButtons(lv_obj_t *screen, lv_group_t *, void *)
     if (!devices::Found().buzzer) {
         Value(content, "The buzzer did not start. Check the log.");
     }
+    const widgets::ListView sounds = widgets::MakeListView(content, kSoundRowsPerPage, dt::kSpacingTarget);
+    for (const devices::sound::NamedSound &named : devices::sound::kSounds) {
+        const widgets::ValueRow r = widgets::MakeValueRow(sounds.root, named.name, named.what);
+        lv_obj_add_event_cb(r.root, OnSoundRow, LV_EVENT_CLICKED, const_cast<devices::sound::NamedSound *>(&named));
+    }
+    widgets::UpdateListView(sounds);
     EndScreen(screen);
 }
 
@@ -1327,8 +1344,13 @@ void CreateLeave(lv_obj_t *screen, lv_group_t *, void *user)
 }
 
 // The frame left on the glass when the board leaves: drawn in full, then the panel sleeps (DESIGN → Motion).
+constexpr uint32_t kSilenceSettleMs = 10;  // many of the buzzer task's 1 ms steps, so its duty 0 is out before sleep
+
 void Leave(LeaveBy how)
 {
+    // A sound still playing would leave the buzzer's pad high under the hold deep sleep puts on it, the coil drawing all
+    // night (STICKY_HARDWARE_SPECS §5.3); this one is cut here and the last press's tick once more below.
+    devices::Silence();
     const bool power_off = how != LeaveBy::kSleep;
     // An RTC interrupt left low would power the board straight back on (STICKY_HARDWARE_SPECS §5.3); set it first, so
     // the glass promises only what is set. On USB the board restarts, and the start clears the countdown.
@@ -1349,6 +1371,8 @@ void Leave(LeaveBy how)
     if (!panel_asleep) {
         ESP_LOGE(kTag, "the panel did not sleep: its power stays on");
     }
+    devices::Silence();  // a press during the full refresh ticked; the buzzer task wakes within a step to stop it
+    vTaskDelay(pdMS_TO_TICKS(kSilenceSettleMs));
     if (power_off) {
         board::PowerOff();  // returns only on battery when the rail did not fall
         ESP_LOGW(kTag, "the rail did not fall: deep sleep instead");
@@ -1417,15 +1441,19 @@ void OnProbeCard(lv_event_t *)
     lv_refr_now(nullptr);  // on the glass before the mount blocks
     devices::Card card;
     const esp_err_t err = devices::ProbeCard(&card);
+    // The outcome in words and in sound (DESIGN → Accessibility): success once the card was read, the error otherwise.
     if (!card.inserted) {
         lv_label_set_text(s_card_label, "No card. Insert one and try again.");
+        devices::Play(devices::sound::Word::kError);
     } else if (err != ESP_OK) {
         lv_label_set_text_fmt(s_card_label, "The card did not mount (%s). Check it is FAT32, then try again.",
                               esp_err_to_name(err));
+        devices::Play(devices::sound::Word::kError);
     } else {
         lv_label_set_text_fmt(s_card_label, "%s · %llu MiB\n%d entries in the root%s", card.name,
                               static_cast<unsigned long long>(card.capacity_mib), card.entries,
                               card.entries >= 99 ? " or more" : "");
+        devices::Play(devices::sound::Word::kSuccess);
     }
 }
 
@@ -1452,19 +1480,33 @@ void CreateStorage(lv_obj_t *screen, lv_group_t *, void *)
 lv_obj_t *s_mic_label = nullptr;
 lv_obj_t *s_mic_bar = nullptr;
 
+// Listen records one second, between sound.recording-start and sound.recording-stop (DESIGN → Motion → Sound). The start
+// sound plays at the press, cutting its tick, while "Listening…" is drawn; the microphone settles for at least as long as the
+// sound has left, dropping what it hears meanwhile, so the recording never holds the buzzer. A recording that fails ends on
+// the error sound instead of the stop.
 void OnListen(lv_event_t *)
 {
+    const int64_t started_us = esp_timer_get_time();
+    devices::Play(devices::sound::Word::kRecordingStart);
     lv_label_set_text(s_mic_label, "Listening…");
     lv_refr_now(nullptr);  // on the glass before the second of recording blocks
+    const uint32_t played_ms = static_cast<uint32_t>((esp_timer_get_time() - started_us) / 1000);
+    const uint32_t start_ms = devices::sound::LengthMs(devices::sound::SoundOf(devices::sound::Word::kRecordingStart));
     float rms = 0;
     int peak = 0;
-    const esp_err_t err = devices::ListenLevel(1000, &rms, &peak);
+    esp_err_t err = devices::StartListening(start_ms > played_ms ? start_ms - played_ms : 0);
+    if (err == ESP_OK) {
+        err = devices::ReadLevel(1000, &rms, &peak);
+        devices::StopListening();
+    }
     if (err != ESP_OK) {
+        devices::Play(devices::sound::Word::kError);
         lv_label_set_text_fmt(s_mic_label, "The microphone did not read (%s). Check the log, then try again.",
                               esp_err_to_name(err));
         lv_obj_set_width(s_mic_bar, dt::kSpacingStrokeDefault);  // no level shown that this press did not hear
         return;
     }
+    devices::Play(devices::sound::Word::kRecordingStop);
     lv_label_set_text_fmt(s_mic_label, "Level %.0f RMS · peak %d", rms, peak);
     const int32_t width = std::min<int32_t>(dt::kSpacingContent, static_cast<int32_t>(rms * dt::kSpacingContent / 4000));
     lv_obj_set_width(s_mic_bar, std::max<int32_t>(dt::kSpacingStrokeDefault, width));
@@ -1513,7 +1555,7 @@ void CreateAbout(lv_obj_t *screen, lv_group_t *, void *)
 // computer (tests/bench/): `bench` opens the refresh benchmark and runs it, its results to the log; `anim` runs its bar
 // without end; `pages [n]` walks the home rows; `stop` ends either; `speed [n]` picks the partial refresh's tuning;
 // `key up|down|ok|hold [n]` presses a button through the real input path; `shot` sends the one-bit frame on the glass;
-// `help` lists them.
+// `sound [name|band]` lists, plays or measures the buzzer's sounds; `help` lists them.
 
 // The glass as base64 lines, each marked so a log line landing between them is told apart:
 //   @shot begin 800 480 mono1   then   @shot <64 base64 characters>   …   then   @shot end <bytes> <crc32>
@@ -1651,6 +1693,100 @@ void PressKeys(const char *arg)
     std::printf("key %s x%d\n", which, count);
 }
 
+// `sound`: lists the sound words; `sound <name>` plays one, as its row on Buttons and buzzer does; `sound band` measures the
+// buzzer's band with the board's own microphone (STICKY_HARDWARE_SPECS §4.2). The microphone is powered once and settles
+// before anything is read — a fresh power-up swings louder than the room, which made every reading but 4 kHz look quieter
+// than silence — then the room with the buzzer off, then each pitch the same way: a held full square, a moment for the coil
+// to ring up, the level, silence, a moment for the room to go still. In dB against the 4 kHz resonance. The microphone sits a
+// few centimetres from the buzzer in the same case, so the numbers are the board's own, its case and the microphone's
+// response with them; the microphone's 16 kHz filter may take some of 7 kHz.
+constexpr uint16_t kBandHz[] = {1000, 1500, 2000, 2500, 3000, 3500, 4000, 4500, 5000, 5500, 6000, 7000};
+constexpr uint32_t kBandListenMs = 300;
+constexpr uint32_t kBandRingUpMs = 50;   // the coil up to its level before the reading
+constexpr uint32_t kBandStillMs = 100;   // the coil and the room still before the next
+constexpr uint32_t kBandSettleMs = 500;  // the microphone's first settling, longer than a level's: one run, every reading
+// Each pitch sounds this long: the ring-up, then the reading, with room over.
+constexpr uint16_t kBandHoldMs = 600;
+static_assert(kBandRingUpMs + kBandListenMs < kBandHoldMs, "each reading ends while its pitch still sounds");
+
+constexpr size_t kBandCount = sizeof(kBandHz) / sizeof(kBandHz[0]);
+
+// One held note per pitch, a table that outlives its playing, as devices::Play asks.
+constexpr std::array<devices::sound::Note, kBandCount> BandNotes()
+{
+    std::array<devices::sound::Note, kBandCount> notes = {};
+    for (size_t i = 0; i < kBandCount; ++i) {
+        notes[i] = {devices::sound::Wave::kPulse50, kBandHz[i], 0, kBandHoldMs, 255};
+    }
+    return notes;
+}
+constexpr std::array<devices::sound::Note, kBandCount> kBandNotes = BandNotes();
+
+void MeasureBand()
+{
+    devices::Silence();
+    if (devices::StartListening(kBandSettleMs) != ESP_OK) {
+        std::printf("sound band: the microphone did not answer\n");
+        return;
+    }
+    float quiet = 0;
+    float rms[kBandCount] = {};
+    int peak = 0;
+    float at_resonance = 0;
+    esp_err_t err = devices::ReadLevel(kBandListenMs, &quiet, &peak);
+    // The microphone is read without a break, so its buffer never overflows and every reading is of its own moment; what
+    // it hears while the coil rings up and while the room goes still is read and dropped.
+    float dropped = 0;
+    for (size_t i = 0; i < kBandCount && err == ESP_OK; ++i) {
+        devices::Play({&kBandNotes[i], 1});
+        err = devices::ReadLevel(kBandRingUpMs, &dropped, &peak);
+        if (err == ESP_OK) {
+            err = devices::ReadLevel(kBandListenMs, &rms[i], &peak);
+        }
+        devices::Silence();
+        if (err == ESP_OK) {
+            err = devices::ReadLevel(kBandStillMs, &dropped, &peak);
+        }
+        if (kBandHz[i] == devices::sound::kResonanceHz) {
+            at_resonance = rms[i];
+        }
+    }
+    devices::StopListening();
+    if (err != ESP_OK) {
+        std::printf("sound band: the microphone stopped (%s)\n", esp_err_to_name(err));
+        return;
+    }
+    std::printf("sound band: room %.1f rms\n", quiet);
+    for (size_t i = 0; i < kBandCount; ++i) {
+        const float db = at_resonance > 0 && rms[i] > 0 ? 20.0f * std::log10(rms[i] / at_resonance) : 0.0f;
+        std::printf("sound band: %5u Hz  %8.1f rms  %+5.1f dB\n", static_cast<unsigned>(kBandHz[i]), rms[i], db);
+    }
+}
+
+void SoundCommand(const char *arg)
+{
+    using devices::sound::kSounds;
+    if (arg[0] == '\0') {
+        for (const devices::sound::NamedSound &n : kSounds) {
+            std::printf("sound %-16s %s, %s, %u ms\n", n.id, n.name, n.what,
+                        static_cast<unsigned>(devices::sound::LengthMs(n.sound)));
+        }
+        return;
+    }
+    if (std::strcmp(arg, "band") == 0) {
+        MeasureBand();
+        return;
+    }
+    for (const devices::sound::NamedSound &n : kSounds) {
+        if (std::strcmp(arg, n.id) == 0) {
+            devices::Play(n.sound);
+            std::printf("sound %s: %s, %s\n", n.id, n.name, n.what);
+            return;
+        }
+    }
+    std::printf("sound: no sound \"%s\" (try: sound)\n", arg);
+}
+
 void StartPages(const char *arg);  // the page walk, below the home rows it opens
 std::atomic<bool> s_pages_stop{false};
 std::atomic<bool> s_pages_running{false};  // one walk at a time
@@ -1692,8 +1828,11 @@ void ConsoleTask(void *)
             }
         } else if (std::strncmp(line, "key ", 4) == 0) {
             PressKeys(line + 4);
+        } else if (std::strcmp(line, "sound") == 0 || std::strncmp(line, "sound ", 6) == 0) {
+            SoundCommand(line[5] == ' ' ? line + 6 : "");
         } else if (std::strcmp(line, "help") == 0) {
-            std::printf("commands: bench, anim, pages [n], stop, speed [n], key up|down|ok|hold [n], shot, help\n");
+            std::printf("commands: bench, anim, pages [n], stop, speed [n], key up|down|ok|hold [n], sound [name|band], shot, "
+                        "help\n");
         } else if (line[0] != '\0') {
             ESP_LOGW(kTag, "console: unknown command \"%s\" (try: help)", line);
         }
@@ -1707,7 +1846,7 @@ void StartConsole()
         return;
     }
     xTaskCreate(ConsoleTask, "hw_test_console", 4096, nullptr, 2, nullptr);
-    ESP_LOGI(kTag, "console ready: bench, anim, pages, stop, speed, key, shot, help");
+    ESP_LOGI(kTag, "console ready: bench, anim, pages, stop, speed, key, sound, shot, help");
 }
 
 // --- Home -----------------------------------------------------------------------------------------------------

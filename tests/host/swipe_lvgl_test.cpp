@@ -60,6 +60,9 @@ void SetTouchReadHook(void (*hook)(lv_indev_t *, lv_indev_data_t *)) { s_touch_h
 void SetPartialCounting(PartialCounting) {}
 void NoteTyping() {}
 void RequestFull() {}
+// The at-end cue a widget asks for, counted: a swipe past the last or the first page asks it, a turn never.
+int s_at_ends = 0;
+void PlayCue(Cue cue) { s_at_ends += cue == Cue::kAtEnd; }
 }  // namespace lvgl_display
 
 namespace {
@@ -417,6 +420,7 @@ void TestHorizontalSwipe()
     Check(widgets::HorizontalPagerPage(p.pager) == 1, "a horizontal drag left on the strip turns exactly one page");
     Check(lv_obj_get_scroll_x(p.pager.root) == kView, "the band is on the new page's start");
     Check(lv_obj_get_scroll_y(p.page) == 0, "and the page behind has not moved");
+    Check(lvgl_display::s_at_ends == 0, "a drag that turns a page plays no at-end sound");
     DragX(x_to, x_from, y, 1);
     Check(widgets::HorizontalPagerPage(p.pager) == 0 && lv_obj_get_scroll_x(p.pager.root) == 0, "a drag right turns back one page");
     {
@@ -424,12 +428,15 @@ void TestHorizontalSwipe()
         std::snprintf(again, sizeof again, "1 of %d", pages);
         Check(std::string(lv_label_get_text(lv_obj_get_child(p.pager.words_row, 0))) == again, "and the words follow it");
     }
+    Check(lvgl_display::s_at_ends == 0, "nor does the turn back");
     DragX(x_to, x_from, y, 1);
     Check(widgets::HorizontalPagerPage(p.pager) == 0, "a drag right on the first page turns nothing: nothing wraps");
+    Check(lvgl_display::s_at_ends == 1, "and plays the at-end sound, once");
     for (int i = 0; i < pages + 1; ++i) {
         DragX(x_from, x_to, y, 1);
     }
     Check(widgets::HorizontalPagerPage(p.pager) == pages - 1, "drags left stop at the last page");
+    Check(lvgl_display::s_at_ends == 3, "the drags past the last page play it once each, the turns before it never");
     lv_obj_delete(p.page);
 }
 

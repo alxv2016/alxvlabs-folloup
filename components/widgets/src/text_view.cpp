@@ -4,6 +4,7 @@
 
 #include "design_tokens.h"
 #include "internal/base.h"
+#include "lvgl_display.h"
 
 namespace widgets {
 namespace dt = design_tokens;
@@ -59,21 +60,33 @@ void Repage(lv_obj_t *band)
     ShowPage(band, 0, false);
 }
 
+// One page on or back; at an end nothing changes, and the at-end sound says so after the press's tick.
+void Turn(lv_obj_t *band, int dir)
+{
+    State *s = Of(band);
+    const int page = s->page + dir;
+    if (page < 0 || page > s->pages - 1) {
+        lvgl_display::PlayCue(lvgl_display::Cue::kAtEnd);
+        return;
+    }
+    ShowPage(band, page, true);
+}
+
 // While open for reading, UP and DOWN arrive as LV_KEY_UP and LV_KEY_DOWN: each turns a page.
 void OnKey(lv_event_t *e)
 {
     lv_obj_t *band = lv_event_get_target_obj(e);
     const uint32_t key = lv_event_get_key(e);
     if (key == LV_KEY_DOWN) {
-        ShowPage(band, Of(band)->page + 1, true);
+        Turn(band, 1);
     } else if (key == LV_KEY_UP) {
-        ShowPage(band, Of(band)->page - 1, true);
+        Turn(band, -1);
     }
 }
 
 void TurnPage(lv_obj_t *band, int32_t dir)
 {
-    ShowPage(band, Of(band)->page + static_cast<int>(dir), true);  // at an end nothing changes: the tick answered it
+    Turn(band, static_cast<int>(dir));
 }
 
 void OnEditOpened(lv_event_t *e)

@@ -58,6 +58,7 @@ using ReadHook = void (*)(lv_indev_t *indev, lv_indev_data_t *data);
 ReadHook s_key_hook = nullptr;
 ReadHook s_touch_hook = nullptr;
 std::atomic<void (*)()> s_tick{nullptr};  // called from the input task: any task may run it
+std::atomic<void (*)(Cue)> s_cue{nullptr};
 void (*s_key_seen)(uint32_t key) = nullptr;
 
 // Every button's press, before LVGL turns UP and DOWN into focus moves that no object sees.
@@ -423,6 +424,19 @@ void SetBackHandler(void (*back)())
 void SetPressFeedback(void (*tick)())
 {
     s_tick = tick;
+}
+
+void SetCuePlayer(void (*play)(Cue cue))
+{
+    s_cue = play;
+}
+
+void PlayCue(Cue cue)
+{
+    void (*play)(Cue) = s_cue;
+    if (play != nullptr) {
+        play(cue);
+    }
 }
 
 void SetKeyObserver(void (*seen)(uint32_t key))

@@ -37,6 +37,15 @@ void FirstScreen()
     ESP_ERROR_CHECK(router::SetRoot(router::MakeScreen(screen_home::Build)));
 }
 
+// A widget's cue, as the buzzer's sound word: the glass's controls ask by event, and only the shell knows the buzzer plays
+// them (STICKY_DESIGN_TOKENS §5).
+void PlayCue(lvgl_display::Cue cue)
+{
+    switch (cue) {
+    case lvgl_display::Cue::kAtEnd: devices::Play(devices::sound::Word::kAtEnd); break;
+    }
+}
+
 bool ReadRoomTemperature(float *celsius)
 {
     devices::Ambient ambient;
@@ -60,6 +69,7 @@ void StartUi()
     bool touch_ok = false;
     ESP_ERROR_CHECK(lvgl_display::Start(display, &touch_ok, FirstScreen));
     lvgl_display::SetPressFeedback(devices::Tick);
+    lvgl_display::SetCuePlayer(PlayCue);
     lvgl_display::SetTemperatureSource(ReadRoomTemperature);
 }
 
