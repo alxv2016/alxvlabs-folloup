@@ -59,6 +59,10 @@ esp_err_t ReadBattery(Battery *out);
 // --- PCF8563 -----------------------------------------------------------------------------------------------------
 
 esp_err_t ReadClock(std::tm *out);
+// Sets the RTC to `when`, its seconds at 0 and its date as given — the date a ReadClock returned, kept (STICKY_HARDWARE_SPECS §4). One
+// block write of the seven time registers, which also clears the oscillator-stop flag a never-set clock reads with. ESP_ERR_INVALID_STATE
+// with no RTC, ESP_FAIL when the write or the date is refused (a date outside 1900 to 2099 or a day the month lacks).
+esp_err_t SetClock(const std::tm &when);
 
 // Whether the RTC's timer or alarm flag was set at boot — RTC_INTn low, which powers the board on from off
 // (STICKY_HARDWARE_SPECS §5.2). Init reads the flags, then clears them, so RTC_INTn rests high.

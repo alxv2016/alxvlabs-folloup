@@ -47,24 +47,6 @@ lv_obj_t *MakeMark(lv_obj_t *parent, bool many)
 }
 }  // namespace detail
 
-namespace {
-// A line in `role`, on the role's line box (`ui::FitLineBox`), so a wrapped answer keeps the role's pitch and a name over its
-// detail stands a line box's spare room further apart (STICKY_DESIGN_TOKENS §9). No colour of its own: the card's states reach it.
-lv_obj_t *Words(lv_obj_t *parent, const char *text, ui::Type role)
-{
-    const lv_font_t *font = ui::Font(role);
-    lv_obj_t *label = lv_label_create(parent);
-    lv_label_set_text(label, text);
-    lv_obj_set_style_text_font(label, font, 0);
-    const int32_t spare = ui::LineBox(role) - lv_font_get_line_height(font);
-    lv_obj_set_style_text_line_space(label, spare > 0 ? spare : 0, 0);
-    lv_label_set_long_mode(label, LV_LABEL_LONG_MODE_WRAP);
-    lv_obj_set_width(label, lv_pct(100));
-    ui::FitLineBox(label, role);
-    return label;
-}
-}  // namespace
-
 lv_obj_t *MakeChoiceCard(lv_obj_t *parent, const char *text, bool many, const char *supporting)
 {
     lv_obj_t *card = lv_button_create(parent);
@@ -88,10 +70,10 @@ lv_obj_t *MakeChoiceCard(lv_obj_t *parent, const char *text, bool many, const ch
     lv_obj_set_flex_grow(words, 1);
     lv_obj_set_size(words, 1, LV_SIZE_CONTENT);  // the grow takes the room the mark leaves; the words wrap inside it
     if (supporting != nullptr && supporting[0] != '\0') {
-        Words(words, text, ui::Type::kCaptionStrong);
-        Words(words, supporting, ui::Type::kCaption);
+        detail::WrapWords(words, text, ui::Type::kCaptionStrong);
+        detail::WrapWords(words, supporting, ui::Type::kCaption);
     } else {
-        Words(words, text, ui::Type::kCaption);
+        detail::WrapWords(words, text, ui::Type::kCaption);
     }
     detail::MakeMark(card, many);
     detail::Focusable(card);

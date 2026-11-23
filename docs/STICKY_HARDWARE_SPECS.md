@@ -260,6 +260,12 @@ else.**
 | Charge LED | LED1, yellow-green and red | — | — | Yellow-green while USB powers the board; red while charging (`STAT`) | `[SCH]` `[DOC]` |
 | USB-UART bridge | CH343P | UART0 | — | Powered from `VIN_5V` alone, I/O at `VDD_3V3`; DTR and RTS drive the auto-download pair Q3 and Q4 | `[SCH]` |
 
+- **The RTC is read with `devices::ReadClock` and set with `devices::SetClock`** — Seeed's `pcf8563_set_time`, kept as shipped, writes
+  the seven time registers from 0x02 in one I2C transaction, so the clock never holds half a time; `SetClock` forces the seconds to 0
+  and keeps the date it is given (the date `ReadClock` returned), and the write clears the oscillator-stop flag (VL, bit 7 of the
+  seconds register), which `pcf8563_get_time` reads as "clock integrity lost" and refuses to return a time for — so a clock never set
+  reads nothing, and the hardware test's Clock screen starts such a set from Thursday 2026-01-01 `[SRC]`. The year is two BCD digits
+  with the century bit: 1900 to 2099 `[SRC]`. Whether the set sticks across a power-off is the person's to see on the board `[?]`.
 - **The buzzer plays notes, not just a tone** — `devices::Play` takes a sound in the agent deck's chiptune format
   (`sound_rules.h`): each note's pitch is the LEDC timer's frequency (`ledc_set_freq`, 100 Hz to 10 kHz, which the
   10-bit timer divides to from 80 MHz), its voice the channel's duty — 50, 25 and 12.5 % of the 10-bit range for the

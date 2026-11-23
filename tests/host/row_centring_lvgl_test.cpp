@@ -220,6 +220,117 @@ void TestHomeRows()
     Measure("choice card, a long name over a detail", widgets::MakeChoiceCard(s_column, "Keep the recording after it is transcribed", true, "Only on your Wi-Fi"));
 }
 
+// A row of an answer's words wraps and is never cut (DESIGN → Components → The kit): a radio row's `spacing.list-row-height` is a floor
+// with `spacing.xs` above and below, so one line and two both stand 80 px and three and four grow it; a detail row's name and value
+// wrap. Every word stays whole — no label is ended with three stops — and the content stays centred on the row's height.
+int LinesOf(lv_obj_t *label, ui::Type role)
+{
+    lv_obj_update_layout(label);
+    return lv_obj_get_height(label) / static_cast<int>(ui::LineBox(role));  // each line stands on the role's line box
+}
+
+// The first label under `obj`, depth first: a row's words.
+lv_obj_t *FirstLabel(lv_obj_t *obj)
+{
+    if (lv_obj_check_type(obj, &lv_label_class)) {
+        return obj;
+    }
+    for (uint32_t i = 0; i < lv_obj_get_child_count(obj); ++i) {
+        if (lv_obj_t *found = FirstLabel(lv_obj_get_child(obj, static_cast<int32_t>(i)))) {
+            return found;
+        }
+    }
+    return nullptr;
+}
+
+void TestWrappingRows()
+{
+    std::printf("wrapping radio rows and detail rows\n");
+    NewPage();
+    struct Case {
+        const char *words;
+        int lines;
+        int height;
+    };
+    static const Case kCases[] = {
+        {"Medium", 1, 80},
+        {"Every two weeks, on a Monday", 2, 80},                       // 28 characters: two lines of 18 fit the 80 floor
+        {"Every weekday except bank holidays", 3, 116},                 // 4 + 3 x 36 + 4
+        {"On the first Monday of next month, in the morning", 4, 152},  // 4 + 4 x 36 + 4
+    };
+    for (const Case &c : kCases) {
+        lv_obj_t *row = widgets::MakeRadioRow(s_column, c.words);
+        Measure(std::string("radio row, ") + std::to_string(c.lines) + " line(s)", row, c.height);
+        lv_obj_t *label = FirstLabel(row);
+        Check(lv_label_get_long_mode(label) == LV_LABEL_LONG_MODE_WRAP, std::string("radio row words wrap, never dotted: ") + c.words);
+        Check(LinesOf(label, ui::Type::kLabel) == c.lines, std::string("radio row takes ") + std::to_string(c.lines) + " line(s): " + c.words);
+        widgets::SetRadioChosen(row, true);
+        Measure(std::string("radio row, ") + std::to_string(c.lines) + " line(s), chosen", row, c.height);
+    }
+    lv_obj_t *disabled = widgets::MakeRadioRow(s_column, "Every two weeks, on a Monday");
+    lv_obj_add_state(disabled, LV_STATE_DISABLED);
+    Measure("radio row, two lines, disabled", disabled, 80);
+
+    NewPage();
+    const widgets::DetailRow one = widgets::MakeDetailRow(s_column, "Serial number", "FU-0001-2026");
+    Measure("detail row, one line each", one.root, 76);  // 8 + 24 + 36 + 8, as it always was
+    const widgets::DetailRow value = widgets::MakeDetailRow(s_column, "Firmware", "folloup 0.1.0-23-g4ae91c2-dirty");
+    Measure("detail row, a two-line value", value.root, 76 + 36);
+    Check(LinesOf(value.value, ui::Type::kLabel) == 2 && lv_label_get_long_mode(value.value) == LV_LABEL_LONG_MODE_WRAP, "detail row: a 31-character value takes two lines, whole");
+    const widgets::DetailRow name = widgets::MakeDetailRow(s_column, "Wi-Fi network joined on the last boot", "Home");
+    Measure("detail row, a two-line name", name.root, 76 + 24);
+    Check(LinesOf(name.label, ui::Type::kCaption) == 2, "detail row: a 37-character name takes two lines, whole");
+    const widgets::DetailRow both = widgets::MakeDetailRow(s_column, "Wi-Fi network joined on the last boot", "On the first Monday of next month, in the morning");
+    Measure("detail row, a two-line name over a three-line value", both.root, 76 + 24 + 2 * 36);
+}
+
+// A list view shows only its own page's rows: its band is cut to the page's last row and the ring's reach under it, so the first row of
+// the next page never shows in the room a tall row left (DESIGN → Layout → Paging).
+void TestListViewPageCut()
+{
+    std::printf("a list view of wrapping radio rows\n");
+    NewPage();
+    constexpr int kReach = dt::kSpacingSm;
+    const widgets::ListView view = widgets::MakeListView(s_column, 6, dt::kSpacingListRowHeight);
+    static const char *const kRows[] = {"Never", "Every day", "Every two weeks, on a Monday", "Every week", "Every month",
+                                        "On the first Monday of next month, in the morning", "Next week", "Only when I am on Wi-Fi"};
+    for (const char *words : kRows) {
+        widgets::MakeRadioRow(view.root, words);
+    }
+    widgets::UpdateListView(view);
+    lv_obj_update_layout(s_screen);
+    // 5 rows of 80, 80, 80, 80, 80 and gaps of 16 are 464; the 152 row would make 632, past the 560 of six nominal rows.
+    Check(widgets::ListViewPages(view) == 2, "eight rows, one of them four lines, are two pages");
+    const int first_rows[] = {0, 5};
+    const int last_rows[] = {4, 7};
+    for (int page = 0; page < 2; ++page) {
+        lv_obj_t *first = lv_obj_get_child(view.root, first_rows[page]);
+        lv_obj_t *last = lv_obj_get_child(view.root, last_rows[page]);
+        if (page == 1) {
+            lv_group_focus_obj(first);  // the focus leaving the page turns it
+        }
+        lv_obj_update_layout(s_screen);
+        Check(widgets::ListViewPage(view) == page, "page " + std::to_string(page) + " is shown");
+        lv_area_t band, a, z;
+        lv_obj_get_coords(view.root, &band);
+        lv_obj_get_coords(first, &a);
+        lv_obj_get_coords(last, &z);
+        const std::string what = "page " + std::to_string(page);
+        Check(a.y1 - band.y1 == kReach, what + ": its first row stands the ring's reach below the band's top");
+        Check(band.y2 - z.y2 == kReach, what + ": the band ends the ring's reach under its last row, no further");
+        for (uint32_t i = 0; i < lv_obj_get_child_count(view.root); ++i) {
+            lv_obj_t *row = lv_obj_get_child(view.root, static_cast<int32_t>(i));
+            if (static_cast<int>(i) >= first_rows[page] && static_cast<int>(i) <= last_rows[page]) {
+                continue;
+            }
+            lv_area_t r;
+            lv_obj_get_coords(row, &r);
+            const bool shows = r.y2 >= band.y1 && r.y1 <= band.y2;  // any of its pixels inside the band's clip
+            Check(!shows, what + ": row " + std::to_string(i) + " of the other page is outside the band");
+        }
+    }
+}
+
 void TestNetworkRows()
 {
     std::printf("Wi-Fi network rows\n");
@@ -328,6 +439,8 @@ int main()
     TestSettingRows();
     TestValueRows();
     TestHomeRows();
+    TestWrappingRows();
+    TestListViewPageCut();
     TestNetworkRows();
     TestListViewValueRows();
     TestSelectSheet();

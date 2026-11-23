@@ -328,6 +328,14 @@ esp_err_t ReadClock(std::tm *out)
     return pcf8563_get_time(s_rtc, *out) ? ESP_OK : ESP_FAIL;
 }
 
+esp_err_t SetClock(const std::tm &when)
+{
+    ESP_RETURN_ON_FALSE(s_present.rtc, ESP_ERR_INVALID_STATE, kTag, "RTC");
+    std::tm value = when;
+    value.tm_sec = 0;  // the clock starts on the minute the person chose
+    return pcf8563_set_time(s_rtc, value) ? ESP_OK : ESP_FAIL;
+}
+
 bool RtcStartedBoard()
 {
     return s_rtc_started_board;

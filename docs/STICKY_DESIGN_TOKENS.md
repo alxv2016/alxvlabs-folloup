@@ -432,7 +432,7 @@ their value on each refresh — the design check reads them (§7).
   control is chosen or not. It reaches 8 px, so stops sit `spacing.md` apart and each container above one lets it out
   (`ui::LetRingOut`, an `ext_draw_size` of the larger reach) or pads it: the list view's band is 8 px wider and taller
   than its rows all round, which is the ring's reach, and the footer's 16 px over and under its buttons keep it 8 px
-  from the glass's edge `[D]`. A control open for editing — a range slider, a text view being read — draws it at
+  from the glass's edge `[D]`. A control open for editing — a range slider, a roller, a text view being read — draws it at
   `spacing.stroke.edit`, 6 px, so it reaches 10 px, 14 px from the glass's edge on a 24 px margin, and a name 16 px
   above a slider leaves 6 px of line box and 9 of glyph clear of it `[D]`. A segment's ring is round the focused item
   inside its track: the track's `spacing.sm` inset is the ring's reach (4 + 4), so the ring ends on the track's edge and
@@ -455,8 +455,10 @@ their value on each refresh — the design check reads them (§7).
 | Page dots | dot 6, current 20 × 6, gap 6 | 8.5, 28 | 8, 28 × 8, gap 8 | `page-dot`, `page-pill`, `sm` |
 | Value row | 36 (48 in a list), words 12 in | 51 / 68, 17 | 64, words 16 in | `target`, `md` |
 | Detail row | name 16 over value 18, 6 pad, 55 | 78 | 76 (8 + 24 + 36 + 8) | `sm`, `caption`, `label` |
-| Radio row | 60 high, words 14 in, mark 30 (edge 3, dot 18) | 85, 20, 42.5 | 80, 20, 42 (edge 4, dot 26) | `list-row-height`, `card-inset`, `mark`, `mark-dot` |
+| Radio row | 60 high, words 14 in, mark 30 (edge 3, dot 18) | 85, 20, 42.5 | 80 at least (4 + 36 n + 4: 80, 80, 116, 152 for one to four lines), 20, 42 (edge 4, dot 26) | `list-row-height`, `card-inset`, `mark`, `mark-dot` |
 | Choice card | min mark + 24, words 14 in, gap 12 | 76, 20, 17 | 74 (`mark` + 2 × `md`; 80 with a name over a detail, 24 + 24 + 2 × `md`), 20, gap 16 | `mark`, `card-inset`, `md` |
+| Roller | — (the person's words: a stepped picker, FolloUp's own) | — | three rows of 64, as wide as its widest value and 24 either side (84 for two figures), outline 2, open band 72 × 64 | `target`, `lg`, `stroke.hairline`, `xs` |
+| Carousel | — (BYTE-90's carousel slid its cards; FolloUp turns them in place) | — | a card 432 wide filling the height, footer slots 133 wide and 16 apart | `content`, `card-inset`, `stroke.default`, `md` |
 | Icon button | tile 54, glyph 30 (56 %) | 76, 42 | 64 (the hit-area floor, drawn and hit alike), glyph art 40 (62 %) | `target`, `icon` |
 | Glyph beside words | icon 24, gap 9 | 34, 13 | art 40 (ink 18 to 33), 16 of white from its ink to the first letter | `icon`, `md` |
 | Checkbox, radio | — (the person's words: like the switch) | — | 44, `rounded.md` or full, edge 3 off, dot 16 | `check-size`, `check-dot`, `stroke.default` |
@@ -468,7 +470,10 @@ their value on each refresh — the design check reads them (§7).
 - **A name over a detail stands on line boxes** (a toggle row's name over its reason, a status block's heading over its line,
   a home row's title, a detail row, a choice card): `ui::FitLineBox` pads a label above and below by its role's pitch less
   the compiled font's height, half each with the odd pixel above, so a one-line `label` is 36 px, a `caption` 24 and a
-  block of n lines n pitches; a dotted label is one line box tall. `widgets::detail::Line` and `Words` and `ui::NewRow`
+  block of n lines n pitches; a dotted label is one line box tall. A detail row's name and value and a radio row's words wrap on
+  the same boxes (`widgets::detail::WrapWords`, shared with the choice card, takes no colour of its own so a disabled row's
+  `text-disabled` reaches it): a radio row is 4 + 36 n + 4 high, at least 80 — 80, 80, 116, 152 for one to four lines — and a detail row
+  8 + 24 a + 36 b + 8; the host render drew every wrapped frame pixel for pixel as the draft did `[HOST]`. `widgets::detail::Line` and `Words` and `ui::NewRow`
   use it, and `tests/host/fit_line_box_lvgl_test.cpp` checks it on LVGL's real label code for `label`, `caption` and
   `caption-loose` — odd and even spare pixels, dotted and wrapped `[D]`. The white between a name and its line is the spare
   room under the name and over the detail, plus any gap: `label` over `caption` 5 + 3 px, a card's bold `caption` over its
@@ -537,18 +542,39 @@ their value on each refresh — the design check reads them (§7).
   (`MakeHorizontalPager`): a band 448 × 80 round a strip of 64 px items, whole items to 432 px a page, the next page a full view
   (448 px) on so no item peeks at the edge, and "1 of 2" alone, in `caption`, `text-secondary`, 20 px, left-aligned at the strip's left edge, 16 px under the chips — no page dots;
   its host test checks the words, their place and that nothing else stands there `[HOST]`. The host renders beside each draft are in the task's scratchpad, not the repo.
+- **The roller is built from the pure rules in `roller_rules.h`** (`widgets::MakeRoller`, `MakeNumberRoller`; its behaviour is DESIGN → Roller):
+  a white face `rounded.lg` 84 × 192 for two figures, three labels each centred in its 64 px row, the hairline outline a floating child
+  over the face so the rows are placed from its top, and the open band, `surface-chosen`, `rounded.md`, 72 × 64 at x 6, behind the middle
+  row while the group edits. A step changes three labels' words and nothing else, 232 px on the host render `[HOST]`. Mechanics that a
+  change must keep: a press does not focus it (`LV_OBJ_FLAG_CLICK_FOCUSABLE` is off — LVGL's click focus ends an edit even on the control
+  already focused, which would close it under a tap on a row), and its arrow scroll is off (`LV_OBJ_FLAG_SCROLL_WITH_ARROW`, which would
+  scroll the rows a quarter of their height on every step); a transparent part wider than the roller gives the swipe's claim somewhere
+  to scroll; the group's `LV_STATE_EDITED` is the one truth that opens it, shows the band and the footer's bar, and closing it reports one
+  change when the value is not the one it opened on. The footer's bar (`MakeRollerFooter`) is bound with `SetRollerFooter`, hides only
+  the footer's parts that were showing and shows those again, and forgets a roller that is deleted while open. `tests/host/roller_rules_test.cpp`
+  and `roller_lvgl_test.cpp` hold the rules and the widget on LVGL's real input, and the Clock screen's set (`hw_test/clock_rules.h`) `[HOST]`.
+- **The carousel is one card turned in place** (`widgets::MakeCarousel`; its behaviour is DESIGN → Carousel): the card is 432 × 588 on the
+  Welcome screen — the content column's width and the rest of its height — its words 20 px in from the card's edge (17 inside the outline);
+  under it "2 of 4" in `caption` and the page dots `spacing.md` after, and the footer's three slots, each 133 wide and `spacing.md` apart, at
+  x 24, 173 and 322 — Back in a slot of its own, so hiding it on the first card leaves it empty. A turn sets the card's two labels, the words,
+  the dots, Next's label and Back's visibility in one LVGL frame, so a V2.0 draws one partial; hiding Back hands the ring to Next
+  (`router::SetHiddenHandingFocus`). The swipe is the pages' horizontal claim on the card, which has an invisible part wider than itself for
+  the drag to go to. Holding OK leaves through `router::AttachEscape`, which the screen's `OnCreate` calls and the router runs after the
+  overlays and before going back, so it works at the root. The host render of the built screen is pixel for pixel the draft redrawn with Skip
+  outlined `[HOST]`. `tests/host/carousel_lvgl_test.cpp` drives it with a scripted finger and the buttons, `carousel_escape_lvgl_test.cpp` holds OK at
+  depth 1 and 2 `[HOST]`. The hardware test's "Welcome" screen shows it with four cards of illustrative copy.
 - **A row's content is centred on its height** — one line or more (DESIGN → Components → The kit). LVGL sizes a flex track to its
   tallest child, so a row's `min_height` alone pads below its content; the pattern that holds is a content column that takes the
   row's height and centres its lines (`setting_row.cpp`, `select_sheet.cpp`), and a row with a fixed height centres its track
   (`value_row.cpp`, `ui::NewRow`). `tests/host/row_centring_lvgl_test.cpp` builds every row kind with one line of content and with
   more on LVGL's real layout and fonts and asserts the content block's centre is within 1 px of the row's: toggle, toggle icon,
   checkbox and radio button rows (one line, two, disabled with a reason), value rows, the dropdown, home rows, radio rows, choice
-  cards, network rows (in a list view too) and the select sheet's options (one line, two, three) `[HOST]`. Every row measured an offset of 0 px on
+  cards, radio rows of one to four lines and detail rows of one to three, a list view's band cut to its page's rows, network rows (in a list view too) and the select sheet's options (one line, two, three) `[HOST]`. Every row measured an offset of 0 px on
   2026-11-21, and an option row whose column lost its minimum height measured −12 px — the test sees it.
 - **The kit page shows every widget on the glass** (`UI kit` on the hardware-test home): buttons, buttons with a glyph,
   icon buttons, toggle rows, toggle icon rows, checkbox rows, radio button rows, rows, chips, segments, progress, step and
   page dots, radio rows, choice cards, sliders, a paged list view and text view, Wi-Fi network rows, the failed-join dialog,
-  dropdowns that open the select sheet (three options, eight with a long one, and a disabled one), a horizontal pager of chips,
+  dropdowns that open the select sheet (three options, eight with a long one, and a disabled one), rollers (Count stops, Hour goes round, with the footer's Cancel while one is open), a horizontal pager of chips (the carousel has its own Welcome screen),
   the keyboard opened from two buttons, status blocks — each with a disabled sample where it can be disabled. `tests/` has no check of the widgets, only of the dither's words (§4) `[D]`; the host render of
   each beside the draft is the gate-2 picture.
 

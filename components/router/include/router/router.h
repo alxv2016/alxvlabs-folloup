@@ -58,9 +58,15 @@ void PopToRoot();
 size_t Depth();
 
 // Holding OK, the escape chain (DESIGN → Focus and input): a control open for editing hears LV_EVENT_CANCEL and closes, putting
-// back what it had when OK opened it; else the top overlay's escape when an overlay is open; else back one screen when there is
-// one to go back to — true each time — and at home with nothing open, nothing — false.
+// back what it had when OK opened it; else the top overlay's escape when an overlay is open; else the top screen's own escape, when
+// it attached one (AttachEscape); else back one screen when there is one to go back to — true each time — and at home with nothing
+// open and no escape attached, nothing — false.
 bool Escape();
+
+// From a screen's OnCreate only (widgets::MakeCarousel): what holding OK does on this screen when nothing is open for editing and no
+// overlay is up, in place of going back — a screen whose leaving is its own, which must work at any depth, the root included.
+// `escape(user)` runs under the lock, from the hold; `user` must live as long as the screen's objects. Ignored outside OnCreate.
+void AttachEscape(void (*escape)(void *user), void *user);
 
 // --- Overlays --------------------------------------------------------------------------------------------------------
 //

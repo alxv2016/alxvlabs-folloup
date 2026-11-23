@@ -5,13 +5,14 @@
 //   X MakeX(…) + UpdateX / SetX(const X &, …)   a composite; keep the struct.
 //
 // Every control joins lvgl_display::Group(): UP and DOWN walk the focus, OK clicks, and a focused control's ring is
-// outside it. An editable control — the range slider, a text view being read — opens on OK, takes UP and DOWN as its own while open, and closes on OK. Nothing
+// outside it. An editable control — the range slider, a roller, a text view being read — opens on OK, takes UP and DOWN as its own while open, and closes on OK. Nothing
 // moves: a change lands in one refresh (DESIGN → Motion). Call ui::Start() first, and everything under
 // lvgl_display::Lock(). This header declares nothing; include the widget's own header where one is needed.
 
 #pragma once
 
 #include "widgets/button.h"            // MakeButton, ButtonVariant
+#include "widgets/carousel.h"          // Carousel, CarouselCard, MakeCarousel, CarouselIndex, ShowCarouselCard
 #include "widgets/checkbox.h"          // MakeCheckbox
 #include "widgets/checkbox_row.h"      // CheckboxRow, MakeCheckboxRow, SetCheckboxRowEnabled
 #include "widgets/chip.h"              // MakeChip
@@ -31,6 +32,7 @@
 #include "widgets/radio_button_row.h"  // RadioButtonRow, MakeRadioButtonRow, ChooseRadioButtonRow, SetRadioButtonRowEnabled
 #include "widgets/radio_row.h"         // MakeRadioRow, SetRadioChosen
 #include "widgets/range_slider.h"      // RangeSlider, MakeRangeSlider, RangeSliderValue, SetRangeSliderValue, SetRangeSliderEnabled
+#include "widgets/roller.h"              // Roller, RollerSpec, MakeRoller, MakeNumberRoller, RollerSelected, RollerValue, SetRoller, SetRollerValue, RollerOpen, MakeRollerFooter, SetRollerFooter
 #include "widgets/scroll_indicator.h"  // ScrollIndicator, MakeScrollIndicator, UpdateScrollIndicator
 #include "widgets/section_heading.h"   // MakeSectionHeading
 #include "widgets/select_sheet.h"      // OpenSelectSheet, CloseSelectSheet, SelectSheetOpen, SelectSheetRowsPerPage

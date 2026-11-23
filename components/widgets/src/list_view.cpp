@@ -12,6 +12,7 @@ namespace dt = design_tokens;
 
 namespace {
 constexpr int32_t kGap = dt::kSpacingMd;
+constexpr int32_t kReach = dt::kSpacingSm;  // the ring's reach: spacing.focus-offset + spacing.stroke.focus
 
 struct State {
     ScrollIndicator indicator;
@@ -73,6 +74,14 @@ void ShowPage(lv_obj_t *band, int page, bool tell)
     lv_obj_update_layout(band);
     lv_obj_t *first = s->first_row.empty() ? nullptr : lv_obj_get_child(band, s->first_row[static_cast<size_t>(page)]);
     if (first != nullptr) {
+        // A page shows only its own rows: the band is cut to the page's last row and the ring's reach under it, so the next
+        // page's first row never peeks into the room a tall row left (DESIGN → Layout → Paging).
+        const size_t next = static_cast<size_t>(page) + 1;
+        lv_obj_t *last = lv_obj_get_child(band, next < s->first_row.size() ? s->first_row[next] - 1
+                                                                            : static_cast<int32_t>(lv_obj_get_child_count(band)) - 1);
+        const int32_t rows = lv_obj_get_y(last) + lv_obj_get_height(last) - lv_obj_get_y(first);
+        lv_obj_set_height(band, std::min(rows, s->view) + 2 * kReach);
+        lv_obj_update_layout(band);
         lv_obj_scroll_to_y(band, lv_obj_get_y(first), LV_ANIM_OFF);
     }
     const int32_t whole = s->view + kGap;
@@ -124,7 +133,6 @@ void OnDelete(lv_event_t *e)
 
 ListView MakeListView(lv_obj_t *parent, int32_t rows_per_page, int32_t row_height, IndicatorCentre centre)
 {
-    constexpr int32_t kReach = dt::kSpacingSm;  // the ring's reach: spacing.focus-offset + spacing.stroke.focus
     ListView view{};
     view.rows_per_page = rows_per_page;
     view.row_height = row_height;

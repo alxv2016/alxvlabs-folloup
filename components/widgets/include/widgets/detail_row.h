@@ -1,4 +1,5 @@
 // A detail row: a fact's name in caption over its value in label; never focused (DESIGN → Components → The kit).
+// Both wrap and are never cut — no press is left to show the rest — so the row grows 24 px a name line and 36 px a value line.
 
 #pragma once
 

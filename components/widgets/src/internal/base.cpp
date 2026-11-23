@@ -87,6 +87,20 @@ lv_obj_t *Words(lv_obj_t *parent, ui::Type role, const char *text, bool secondar
     return label;
 }
 
+lv_obj_t *WrapWords(lv_obj_t *parent, const char *text, ui::Type role)
+{
+    const lv_font_t *font = ui::Font(role);
+    lv_obj_t *label = lv_label_create(parent);
+    lv_label_set_text(label, text);
+    lv_obj_set_style_text_font(label, font, 0);
+    const int32_t spare = ui::LineBox(role) - lv_font_get_line_height(font);
+    lv_obj_set_style_text_line_space(label, spare > 0 ? spare : 0, 0);
+    lv_label_set_long_mode(label, LV_LABEL_LONG_MODE_WRAP);
+    lv_obj_set_width(label, lv_pct(100));
+    ui::FitLineBox(label, role);
+    return label;
+}
+
 void Focusable(lv_obj_t *obj)
 {
     ui::RingOutside(obj);

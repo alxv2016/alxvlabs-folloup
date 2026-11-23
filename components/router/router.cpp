@@ -21,11 +21,16 @@ struct Entry {
     lv_obj_t *root = nullptr;
     lv_group_t *group = nullptr;
     detail::StatusBand band;  // the screen's status line, if it reserved one (status.cpp)
+    void (*escape)(void *) = nullptr;  // what holding OK does on this screen, if it attached one (AttachEscape)
+    void *escape_user = nullptr;
 };
 
 Entry s_stack[kMaxDepth];
 size_t s_depth = 0;
 bool s_ready = false;
+bool s_creating = false;  // a screen's OnCreate is running: AttachEscape is heard
+void (*s_pending_escape)(void *) = nullptr;
+void *s_pending_escape_user = nullptr;
 
 // A popped screen, waiting for its deletion.
 struct Retired {
@@ -100,13 +105,19 @@ bool MakeEntry(std::unique_ptr<Screen> screen, Entry *out)
     lv_group_set_editing(group, false);
     lvgl_display::SetGroup(group);
     detail::BeginStatusBand();
+    s_creating = true;
+    s_pending_escape = nullptr;
+    s_pending_escape_user = nullptr;
     screen->OnCreate(root, group);
+    s_creating = false;
     const detail::StatusBand band = detail::TakeStatusBand();
     lv_obj_t *named = lv_group_get_focused(group);
     if (named != nullptr) {
         lv_obj_remove_state(named, LV_STATE_FOCUS_KEY);
     }
-    *out = Entry{std::move(screen), root, group, band};
+    *out = Entry{std::move(screen), root, group, band, s_pending_escape, s_pending_escape_user};
+    s_pending_escape = nullptr;
+    s_pending_escape_user = nullptr;
     return true;
 }
 
@@ -277,6 +288,16 @@ size_t Depth()
     return s_depth;
 }
 
+void AttachEscape(void (*escape)(void *user), void *user)
+{
+    if (!s_creating) {
+        ESP_LOGW(kTag, "an escape attached outside OnCreate is ignored");
+        return;
+    }
+    s_pending_escape = escape;
+    s_pending_escape_user = user;
+}
+
 bool Escape()
 {
     // First, a control open for editing — a range slider, a text view being read: it hears LV_EVENT_CANCEL, which puts back
@@ -289,6 +310,10 @@ bool Escape()
         return true;
     }
     if (detail::EscapeTopOverlay()) {
+        return true;
+    }
+    if (s_depth > 0 && Top().escape != nullptr) {
+        Top().escape(Top().escape_user);
         return true;
     }
     if (s_depth > 1) {

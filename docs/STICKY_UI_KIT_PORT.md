@@ -8,7 +8,7 @@
 > the select sheet, a real dialog and the keyboard on it — and its third — the focus rules — are built and seen on a V1.0; its
 > fourth, the escape chain's first link and slide-off, completes it and is not yet seen on the glass; sound is done — the
 > note player, the six sounds the person chose by ear on a V1.0, and the at-end and outcome sounds wired, heard in place on a
-> V1.0; the status bar is dropped; the status line is built in the working tree and not yet seen on the glass; the rest is not started.
+> V1.0; the status bar is dropped; the status line is built in the working tree and not yet seen on the glass; the widgets of item 5 — wrapping rows, the roller with the Clock screen and the carousel with the Welcome screen — are built the same way; the rest is not started.
 
 The plan for porting UI from the agent deck's landscape kit and BYTE-90's widgets to FolloUp's e-ink kit on the
 reTerminal Sticky (800 x 480 e-paper, one bit plus dither, three keys UP, DOWN and AI/OK, GT911 touch, a buzzer): each
@@ -49,7 +49,7 @@ component follows), [STICKY_EPAPER_WAVEFORMS](STICKY_EPAPER_WAVEFORMS.md) (the r
 | 1 | [Order and decisions](#1-order-and-decisions) | The port order, and the decisions the person made that bind every item |
 | 2 | [Done](#2-done) | What is built in the working tree, and what is left on it |
 | 3 | [Drafting](#3-drafting) | The drafts in progress and each one's open choice |
-| 4 | [Not started](#4-not-started) | The seven items, the framework first |
+| 4 | [Not started](#4-not-started) | The seven items, the framework first: four Done, one Dropped, two to do |
 | 5 | [Conflicts with today's design](#5-conflicts-with-todays-design) | Where an item runs against DESIGN.md or the code |
 | 6 | [What to measure or test first](#6-what-to-measure-or-test-first) | The runs that settle an open question |
 
@@ -59,8 +59,8 @@ component follows), [STICKY_EPAPER_WAVEFORMS](STICKY_EPAPER_WAVEFORMS.md) (the r
 
 **The order is: finish the kit port, then the missing components and new additions (the drafts) with this plan doc
 tracking them, then the interaction framework as its own task `[P]`.** The kit's own widgets come before anything that
-depends on an overlay or a router. The order of items 1 to 7 in [§4](#4-not-started) after the framework is proposed
-`[?]`.
+depends on an overlay or a router. Items 1, 2, 4 and 5 of [§4](#4-not-started) are built (the framework, sound, the status line and the
+widgets) and item 3 is dropped; the order of items 6 and 7 is proposed `[?]`.
 
 **The decisions that bind every item:**
 
@@ -117,6 +117,7 @@ pending.
 | The interaction framework, round 4 of 4, and so the whole of it: holding OK's first link — a control open for editing closes and puts back what it had (the range slider's value, the text view's page) — before the overlay and the screen; slide-off, a lift off a pressed button, focus stop or the range slider past its hit area and `spacing.md` presses nothing, the slider keeping the value the press found | BYTE-90 `ui_router/touch.cpp` (`CancelSlidOffPress`) | `components/router/router.cpp` (`Escape`), `touch.cpp` (`CancelOnSlideOff`); `detail::ToggleEditingOnKeyClick`'s `opened`; `range_slider.cpp`, `text_view.cpp`; `tests/host/slide_off_lvgl_test.cpp` | Done | Lifting off the slider no longer sets an end value `[HOST]`; not yet seen on the glass |
 | Sound: the deck's note format on the buzzer — `devices::Play` by word or by table, pulse voices as duty, slides stepped, noise as pitch hops; DESIGN.md's six `sound.*` tokens; the at-end cue from the list view, text view, pager and range slider; the Microphone screen's recording start and stop, its failure, and the Storage screen's read as success or error, now through the status line; the audition of the six on Buttons and buzzer and the console's `sound <name>` and `sound band` | The deck's `components/chiptune/`; BYTE-90's `scene_sound.h` nudge | `components/devices` (`sound_rules.h`, `sounds.h`), `design_tokens.h`, `lvgl_display::PlayCue`, `components/hw_test`; `tests/host/sound_rules_test.cpp`, `slide_off_lvgl_test.cpp`, `swipe_lvgl_test.cpp` | Done | Tick the one-note click, at end the double tick, error the womp, success the rise, recording start and stop BYTE-90's nudge up and down — chosen by ear on a V1.0 `[P]`; the wiring not yet heard on the glass |
 | The status line (item 4): news that asks nothing, as plain words in a band under the title that only a screen that can get news reserves — no box, no glyph, the three kinds drawn alike, the newest replacing the one showing, leaving at the next change of screen or its caller's `Clear`, never on a timer; held under a dialog, sheet or keyboard and drawn and sounded as it closes; success and error sound `sound.success` and `sound.error`, info is silent; the Storage screen's Read card says its outcome there | BYTE-90 `ui_toast`, changed: the toast's card, marquee, fade and 3 s timeout are not ported | `components/router/status.cpp`, `include/router/status_rules.h` (`Say`, `Clear`, `AttachStatusLine`); `components/widgets/src/status_line.cpp` (`MakeStatusLine`); `lvgl_display::Cue::kSuccess` and `kError`, mapped in `app_shell`; `hw_test`'s Storage screen; `tests/host/status_rules_test.cpp`, `status_line_lvgl_test.cpp` | Done | The person's choices `[P]`: a flat band under the title, reserved only by screens that get news, the newest replaces, news with no press sounds success and error only; an 80 px band, keylines and no box, an empty band white with no edge, the lower rule drawn only while news shows; the six DESIGN changes in [DESIGN → The kit](../DESIGN.md#the-kit); built, not yet seen on the glass — its lower rule's ghost on a clear and whether a boxless band is noticed are judged there `[?]`; the same words again still sound success or error, with no redraw `[P]` |
+| Widgets (item 5): wrapping detail and radio rows; the roller, with `devices::SetClock` and the hardware test's Clock screen; the carousel, with the hardware test's Welcome screen | BYTE-90 `ui_widgets/src/choice_row.cpp`, `roller.cpp`, `carousel.cpp`; the deck's `wrapping_label.cpp`, `roller.cpp` | `components/widgets/` (`src/detail_row.cpp`, `radio_row.cpp`, `list_view.cpp`, `roller.cpp`, `carousel.cpp`, `internal/roller_rules.h`, `detail::WrapWords`); `components/router` (`AttachEscape`); `components/devices` (`SetClock`); `components/hw_test` (the kit page's rollers, the Clock and Welcome screens, `clock_rules.h`); `tests/host/row_centring_lvgl_test.cpp`, `roller_rules_test.cpp`, `roller_lvgl_test.cpp`, `carousel_lvgl_test.cpp`, `carousel_escape_lvgl_test.cpp` | Done | The rules are [DESIGN → The kit](../DESIGN.md#the-kit) (Roller, Carousel, Radio row, Detail row) and [DESIGN → Layout → Paging](../DESIGN.md#paging); the person's choices on the drafts `[P]`; built, not yet seen on the glass `[?]` |
 
 ---
 
@@ -131,8 +132,8 @@ None.
 
 ## 4. Not started
 
-**The interaction framework (1) is done; the order of 2 to 7 is proposed `[?]`.** Each is built by the three gates of the `ui-designer` where it
-is visible.
+**Items 1, 2, 4 and 5 are Done and item 3 is Dropped; items 6 and 7 remain, and their order is proposed `[?]`.** Each is built by the three
+gates of the `ui-designer` where it is visible; a Done item's row stays so the items keep their numbers.
 
 | # | Item | Source | FolloUp's target | Status | Depends on | Decision or open question |
 | --- | --- | --- | --- | --- | --- | --- |
@@ -140,7 +141,7 @@ is visible.
 | 2 | **Sound**: the deck's chiptune note format (NES pulse voices at 50, 25 and 12.5 % duty, slides, arpeggios) on the Sticky's LEDC-driven magnetic buzzer, with press tick, at-end, error, success and recording start and stop; BYTE-90's ta-da and nudge melodies where they fit | The deck's `components/chiptune/`; BYTE-90's `ui_haptics`, `chiptune` | `components/devices`: the note player beside the buzzer it drives, and the six sounds as DESIGN.md's tokens — no new component, since `devices` owns the LEDC channel and is already shared (APP_ARCHITECTURE §1) | Done ([§2](#2-done)) | — | The style and the words are in [§1](#1-order-and-decisions). **Open:** the buzzer's pitch range — argued 2 to 6 kHz, `sound band` measures it — and its timing during a refresh `[?]` |
 | 3 | **Status bar**: battery indicator, Wi-Fi indicator, a toolbar with Back as an icon button | BYTE-90 `ui_widgets/src/battery_indicator.cpp`, `wifi_indicator.cpp`; the deck's `battery_glyph.cpp` | `ui::NewStatusBar` in `components/ui/ui.cpp` | Dropped `[P]` | — | DESIGN asks for time, battery, Wi-Fi, storage and recording state; `ui::NewStatusBar` takes a title only today |
 | 4 | **Overlays**: a status line | BYTE-90 `ui_toast` | `router::Say` and `Clear`, `widgets::MakeStatusLine` ([§2](#2-done)) | Done ([§2](#2-done)) | — | The dialog, the select sheet and the keyboard are overlays on the router's stack; the status line is a flat band under the title, not an overlay — [DESIGN → The kit](../DESIGN.md#the-kit), [APP_ARCHITECTURE §7](APP_ARCHITECTURE.md#7-screens-routes-and-focus) |
-| 5 | **Widgets**: wrapping detail and radio rows; a roller as a stepped picker (OK opens, UP and DOWN step) `[?]`; a carousel turned by page `[?]` | BYTE-90 `ui_widgets/src/choice_row.cpp`, `roller.cpp`, `carousel.cpp`; the deck's `wrapping_label.cpp`, `roller.cpp` | `components/widgets/` | Not started | — | Detail and radio rows cut words with LVGL's dots today; BYTE-90's choice row grows with its words and never rolls |
+| 5 | **Widgets**: wrapping detail and radio rows; a roller as a stepped picker (OK opens, UP and DOWN step); a carousel turned by page | BYTE-90 `ui_widgets/src/choice_row.cpp`, `roller.cpp`, `carousel.cpp`; the deck's `wrapping_label.cpp`, `roller.cpp` | `components/widgets/` | Done ([§2](#2-done)) | — | Decided `[P]`: detail and radio rows wrap and are never cut, a radio row has no detail line (a choice card does) and a list view's band is cut to its page; the roller is the person's choice over the brief's advice to drop it, wrapping only when marked circular, with a Cancel stop in the footer while open; the carousel is thin, for onboarding, with "2 of 4" and the page dots, Skip visible and holding OK leaving. The rules are in [DESIGN → The kit](../DESIGN.md#the-kit)
 | 6 | **Gaps from the deck comparison** `[?]`: a list page with no focusable rows is unreachable by keys; choice cards and radio rows send no event and keep no exclusivity; the at-end sound is done (item 2) | The deck's `list_view`, `choice_card`, `radio_row` | `components/widgets/src/list_view.cpp`, `choice_card.cpp`, `radio_row.cpp`, `internal/base.cpp` | Not started | — | Each screen and overlay has its own focus group (item 1) |
 | 7 | **Practices from BYTE-90** `[?]`: kit rules in DESIGN (a second caller moves a control into the kit; nothing duplicates a kit control); a table of chosen and disabled looks per control; `static_assert`s on token arithmetic; a host check that DESIGN.md's tokens equal `design_tokens.h`; the specimen rule (every new control on the kit page, walked by keys and touch); a `ui_probe`-style check of ring position and clipping | BYTE-90 `ui_probe`, `ui_theme`, `ui_tuner` | DESIGN.md, `components/design_tokens/`, `tests/host/` | Not started | — | `ui::NewButton` and `ui::NewRow` duplicate `widgets` controls today and move into the kit |
 

@@ -1613,7 +1613,7 @@ gate 1's yes with `approve --kind mock|motion|copy`
 
 ## 21. Open items
 
-These claims about the coding agents have not been checked against the tools' current documentation. Each one closes
+These claims about the coding agents and the kit's own checks have not been checked against the tools' current documentation or by a repeated run. Each one closes
 when it is checked against that documentation, or seen in a session with that tool; its outcome then replaces the `[?]` in place.
 
 | Claim | Where | What would settle it |
@@ -1623,6 +1623,7 @@ when it is checked against that documentation, or seen in a session with that to
 | An edit to `.codex/` makes Codex ask for the project's hooks to be reviewed and trusted again — open; that hooks run only once trusted is settled `[TD]` | §14.2 | Codex's hooks docs, or editing `.codex/hooks.json` in a trusted project |
 | A Claude Code `Read(…)` deny binds the Read tool even when the PreToolUse hook fails — open | §14.1 | Claude Code's permissions docs, or a Read of a denied path with the guard broken |
 | Claude Code applies an edited hook only after the person reviews it in `/hooks` or restarts — open | §14.1 | Claude Code's hooks docs, or editing `.claude/settings.json` mid-session |
+| The ux check's timing self-tests (`ux_lint.py`, "40,000 literals on a line") hold while a firmware build runs beside them — open; one failed once and passed unchanged on the next three runs | §7.2 | Ten runs of the self-test during a firmware build; a failure under load widens the test's margin |
 
 ---
 

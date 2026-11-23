@@ -485,7 +485,7 @@ components:
     textColor: "{colors.text-primary}"
     typography: "{typography.label}"
     rounded: "{rounded.lg}"
-    height: "{spacing.list-row-height}"
+    height: "{spacing.list-row-height}"  # a floor: the row grows with its words, `spacing.xs` above and below them
     padding: "{spacing.card-inset}"
   choice-mark:
     backgroundColor: "{colors.background}"
@@ -520,6 +520,27 @@ components:
     backgroundColor: "{colors.knob}"
     rounded: "{rounded.full}"
     width: "{spacing.sm}"
+  carousel-card:  # white inside a `spacing.stroke.default` outline; never the light dither
+    backgroundColor: "{colors.background}"
+    textColor: "{colors.text-primary}"
+    typography: "{typography.body}"   # its title `display`
+    rounded: "{rounded.lg}"
+    padding: "{spacing.card-inset}"
+  roller:  # a value in a long ordered list or range: three rows of `spacing.target`, the value between its neighbours
+    backgroundColor: "{colors.background}"
+    textColor: "{colors.text-primary}"
+    typography: "{typography.label}"
+    rounded: "{rounded.lg}"
+    height: "{spacing.target}"   # one row; three make the roller
+    padding: "{spacing.lg}"      # either side of its widest value
+  roller-neighbour:
+    backgroundColor: "{colors.background}"
+    textColor: "{colors.text-secondary}"
+    typography: "{typography.caption}"
+  roller-open:  # the middle row inverted, as `sheet-option-chosen`
+    backgroundColor: "{colors.surface-chosen}"
+    textColor: "{colors.text-on-fill}"
+    rounded: "{rounded.md}"
   scroll-indicator:  # the thumb; the track pieces round it are the light dither
     backgroundColor: "{colors.surface-on}"
     width: "{spacing.scroll-thumb}"
@@ -825,6 +846,8 @@ At 235 ppi a pixel is 0.108 mm and a point is 3.26 px.
 
 - **Content turns by page, never scrolls by pixel** — UP and DOWN move focus, and focus leaving the glass turns the
   page; a swipe up or down turns one page, as the buttons do. A pixel scroll would refresh the glass on every step.
+- **A page shows only its own rows** — a row that grew with its words takes the room of more than one, and the next page's
+  first row never shows in what is left: a list's band is cut to the page's last row and the focus ring's reach under it.
 - **Focus wraps across pages** — DOWN on the last row of the last page goes to the first row of the first page, a page
   turn like any other.
 
@@ -1031,11 +1054,12 @@ At 235 ppi a pixel is 0.108 mm and a point is 3.26 px.
   its group — a group is rows sharing one parent, `spacing.target` apart, its name in `caption` over it; a radio never
   unchooses itself. A disabled row shows its reason as a toggle row does. A choice that is one setting among settings,
   or a short list beside toggle rows, is a checkbox row or a radio button row; a question that is the screen's one
-  task, or an answer that needs a detail line, is a radio row or a choice card.
+  task is a radio row; an answer that needs a detail line is a choice card.
 - **Value row, detail row, section heading** — a setting's name left and its value right in `text-secondary`, its words
   `spacing.md` in from the row's outer edge (a value row reserves its `spacing.stroke.default` edge inside that), the
   value ending in LVGL's dots (three full stops, the one place they stand; Voice & Content) when its full words are
-  one press away; a fact's name in `caption` over its value, never focused; a group's name in `caption` above it, with
+  one press away; a fact's name in `caption` over its value, never focused, both wrapping to 33 and 22 characters a line and never cut,
+  since nothing is one press away; a group's name in `caption` above it, with
   `spacing.lg` of room over it that sets it off from the group before.
 - **A row's content is centred on its height** — one line or more: a toggle, checkbox, radio, value, home, network or list-view
   row, a choice card, a dropdown field and a select sheet's option all keep their words and controls on the row's
@@ -1049,7 +1073,12 @@ At 235 ppi a pixel is 0.108 mm and a point is 3.26 px.
   choices on one light-dither track `spacing.target` high, `spacing.sm` round the items and between them, the chosen
   item a black pill behind its white word; every item is a focus stop.
 - **Sticky** — one follow-up as a card: its tag and its words in `display` or `body`.
-- **Carousel** — onboarding, one card at a time; the current dot filled, the others outlined.
+- **Carousel** — onboarding, one card at a time: a white card in a `spacing.stroke.default` outline, `rounded.lg`, filling the content's
+  height, its title in `display` and its words in `body`, `spacing.card-inset` in; its page in words ("2 of 4", `caption`
+  `text-secondary`) with the page dots beside them, an indicator and never a control; Back, Skip and Next (Done on the last card) are
+  stops in three fixed slots a third of the content wide, Back (outline) absent on the first card and Skip (outline) in the middle
+  slot on every card; a swipe left or right turns one card on the lift, `sound.at-end` past either end; a turn is one partial
+  refresh; holding OK leaves, as Skip does, at any depth — the screen's own escape, which the router runs when nothing is open.
 - **Dialog** — a decision the person must make now, with one action button and Cancel; a destructive action names
   what it destroys ("Delete note", under the title "Delete this note?"), and its dialog opens with focus on Cancel. It sits
   in the middle of the glass, `spacing.edge` from its sides, behind a catcher the size of the glass. It stands on a `spacing.stroke.strong`
@@ -1135,8 +1164,9 @@ At 235 ppi a pixel is 0.108 mm and a point is 3.26 px.
   dots a hollow `spacing.page-dot` circle, the current page a black pill `spacing.page-pill` wide, `spacing.sm` apart —
   an indicator beside its words, never a control: the deck's dots are no tap target either. Each steps, never glides.
 - **Radio row, choice card** — a card on the light dither, `rounded.lg`, its words `spacing.card-inset` in, with a
-  `spacing.mark` ring (one choice) or box (many) at the right; a radio row is `spacing.list-row-height` high with a
-  `label` name, a choice card at least the mark and two `spacing.md` high with a `caption` name in bold over its detail.
+  `spacing.mark` ring (one choice) or box (many) at the right; a radio row is at least `spacing.list-row-height` high, its `label`
+  name wrapping to 18 characters a line and never cut, `spacing.xs` above and below so one line and two both stand 80, three
+  116 and four 152, with no detail line; a choice card at least the mark and two `spacing.md` high with a `caption` name in bold over its detail.
   Chosen is the mark alone: the ring's `spacing.mark-dot` dot, the box's check — the card does not change.
 - **List view, text view, scroll indicator** — rows or `caption-loose` text taller than their band, no box (the ring
   alone shows a text view, and its words stand `spacing.sm` inside the view on every side, so the first glyph is 12 px
@@ -1157,6 +1187,18 @@ At 235 ppi a pixel is 0.108 mm and a point is 3.26 px.
   black on the track when the fill is too short ("60%", "Off" at the bottom); its name in `caption` above it. OK
   opens it for editing, UP and DOWN step it, one partial refresh a step, and OK closes it; a finger's drag lands its
   value on lift.
+- **Roller** — a value in a long ordered list or range, in three rows of `spacing.target`: the value between its neighbours,
+  which stand as still words (`caption`, `text-secondary`, never a grey or a fade); at an end of a list that does not wrap the
+  missing neighbour is a blank row. Its name stands in `caption` `spacing.md` above it, always, and it is as wide as its widest
+  value and `spacing.lg` either side, `spacing.target` at least, inside a `spacing.stroke.hairline` outline, `rounded.lg`. OK or a
+  tap opens it; UP steps to the value above and DOWN to the one below, one partial refresh a step; OK keeps, the field reporting
+  one change; holding OK, or the Cancel the footer shows while it is open, puts the value back; a press that takes the focus
+  elsewhere — a tap on another control — closes it keeping the value, as the range slider's edit does. Open, the ring is
+  `spacing.stroke.edit` and the middle row is the chosen inversion — the value OK will keep — and the footer says in words what
+  the buttons do ("UP or DOWN steps. OK keeps. Hold OK cancels."). A roller its caller marks circular (hours, minutes, months)
+  wraps with the tick alone; any other stops at its ends with `sound.at-end`. A tap on a neighbour steps one, one vertical swipe
+  steps one on the lift, and nothing follows a finger. Use it for one value in a list of up to about 60; under about eight named
+  options use the select list, for a level the range slider.
 - **Status block** — a heading in `label` over a line in `caption`, with the deck's mark — a check, a clock or a
   link-off, `spacing.status-mark` of art, at one bit, compiled into the widgets component alone — flush left a
   `spacing.lg` before the words: an empty or a done state; with no mark the slot stays empty and the words stand a `spacing.lg` in, where they would after a mark.
@@ -1171,9 +1213,10 @@ At 235 ppi a pixel is 0.108 mm and a point is 3.26 px.
   track: the track's `spacing.sm` is the ring's reach, so its outer edge is the track's. A focused, chosen control shows
   both: its chosen mark and the ring round it. Focus stops sit `spacing.md` apart or more, and a container that holds one
   lets its ring out; the footer's 16 px over and under its buttons keep it off the glass's edge.
-- **Open for editing** — a control that takes UP and DOWN as its own, a range slider or a text view open for reading,
+- **Open for editing** — a control that takes UP and DOWN as its own, a range slider, a roller or a text view open for reading,
   draws its ring at `spacing.stroke.edit`, 6 px, still `spacing.focus-offset` outside it: the weight says the buttons
-  now change the value or turn the page. The screen says what they do in words, in its footer's hints or its heading.
+  now change the value or turn the page. The screen says what they do in words, in its footer's hints or its heading; a roller's
+  middle row is inverted too, and its footer shows Cancel.
 - **Chosen** — inverted: `surface-chosen` with `text-on-fill` on a segment's item and a home row; a chip is chosen by
   a black edge, a card or radio row by the dot or check in its mark, a checkbox or radio by its black fill and its
   white check or dot, never a grey alone.
@@ -1208,9 +1251,10 @@ At 235 ppi a pixel is 0.108 mm and a point is 3.26 px.
 ### Buttons and touch
 
 - **UP and DOWN move focus, OK acts** — on every screen, including the overlays; anything touchable is reachable this
-  way. The one exception is a control OK has opened for editing — a range slider, a text view being read: UP and DOWN
+  way. The one exception is a control OK has opened for editing — a range slider, a roller, a text view being read: UP and DOWN
   are its own until OK closes it, keeping the change, and the screen says so in words. Holding OK closes it instead and
-  puts back what it had when OK opened it: the slider's value, the text view's page.
+  puts back what it had when OK opened it: the slider's value, the roller's value, the text view's page. The Cancel a roller's
+  footer shows while it is open is a touch stop only.
 - **The AI button records** — a hold records and its release saves; a press-to-start, press-to-stop way, the hold's
   length, and how a hold is told from OK, a wake and power-off are open (DESIGN → Open items).
 - **The first button press shows the focus ring and moves nothing**; the next moves it, and focus wraps at the ends of

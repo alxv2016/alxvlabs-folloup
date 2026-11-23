@@ -18,6 +18,7 @@
 
 #include "app_hooks.h"
 #include "board.h"
+#include "clock_rules.h"
 #include "design_tokens.h"
 #include "devices.h"
 #include "sounds.h"
@@ -43,6 +44,7 @@ namespace hw_test {
 namespace {
 
 namespace dt = design_tokens;
+namespace clock_rules = hw_test::clock_rules;
 using ui::Type;
 constexpr const char *kTag = "hw_test";
 
@@ -106,8 +108,9 @@ lv_obj_t *BeginScreen(lv_obj_t *screen, const char *title, bool news = false)
     return column;
 }
 
-// The footer: Back last in the focus order, after the screen's own controls, always at the bottom.
-void EndScreen(lv_obj_t *screen)
+// The footer: Back last in the focus order, after the screen's own controls, always at the bottom. Returns it, for a screen
+// whose rollers show Cancel in it while one is open (widgets::MakeRollerFooter).
+lv_obj_t *EndScreen(lv_obj_t *screen)
 {
     lv_obj_t *footer = lv_obj_create(screen);
     lv_obj_remove_style_all(footer);
@@ -118,6 +121,7 @@ void EndScreen(lv_obj_t *screen)
     lv_obj_set_scrollable(footer, false);
     lv_obj_t *back = ui::NewButton(footer, "Back", false, OnBack, nullptr);
     lv_obj_set_width(back, 160);
+    return footer;
 }
 
 // A test screen as the router takes it: built by `create`, entered by `enter` when it starts something, left by LeaveScreen;
@@ -485,6 +489,19 @@ lv_obj_t *KitName(lv_obj_t *content, const char *name)
 void KitReason(lv_obj_t *content, const char *reason)
 {
     ui::NewLabel(content, Type::kCaption, reason, true);
+}
+
+// A row of rollers `spacing.lg` apart, which is what a roller's open ring (10 px out) leaves room for, and lets the rings out.
+lv_obj_t *RollerRow(lv_obj_t *parent)
+{
+    lv_obj_t *row = lv_obj_create(parent);
+    lv_obj_remove_style_all(row);
+    lv_obj_set_size(row, lv_pct(100), LV_SIZE_CONTENT);
+    lv_obj_set_flex_flow(row, LV_FLEX_FLOW_ROW);
+    lv_obj_set_style_pad_column(row, dt::kSpacingLg, 0);
+    lv_obj_set_scrollable(row, false);
+    ui::LetRingOut(row);
+    return row;
 }
 
 // A column of controls that sit spacing.md apart and let their rings out.
@@ -907,6 +924,18 @@ void CreateKit(lv_obj_t *screen, lv_group_t *, void *)
     widgets::MakeDropdown(content, "Remind me", kRemind, 8, 4);
     widgets::SetDropdownEnabled(widgets::MakeDropdown(content, "Alert", kAlert, 2, 0), false, "Turn on repeats first");
 
+    // Rollers: Count stops at its ends, Hour goes round. OK opens one, UP and DOWN step, OK keeps, holding OK or the footer's Cancel
+    // puts the value back; while one is open the footer shows Cancel and the hint in Back's place.
+    widgets::MakeSectionHeading(content, "Rollers: OK opens, UP or DOWN steps, OK keeps");
+    lv_obj_t *rollers = RollerRow(content);
+    lv_obj_set_style_margin_top(rollers, dt::kSpacingXs, 0);
+    const widgets::Roller kit_count = widgets::MakeNumberRoller(rollers, "Count", 1, 12, 1, 1, false, 1);
+    const widgets::Roller kit_hour = widgets::MakeNumberRoller(rollers, "Hour", 0, 23, 1, 2, true, 0);
+    lv_obj_t *roller_words = ui::NewLabel(rollers, Type::kCaption, "Count stops at 1 and 12.\nHour wraps round.", true);
+    lv_obj_set_width(roller_words, 1);
+    lv_obj_set_flex_grow(roller_words, 1);
+    lv_obj_set_style_align(roller_words, LV_ALIGN_BOTTOM_LEFT, 0);
+
     // The horizontal pager: whole chips a page, dots and their count under it; UP and DOWN walk, a swipe left or right turns.
     widgets::MakeSectionHeading(content, "Horizontal pager: DOWN or a swipe turns a page");
     const widgets::HorizontalPager pager = widgets::MakeHorizontalPager(content);
@@ -955,7 +984,10 @@ void CreateKit(lv_obj_t *screen, lv_group_t *, void *)
 
     lv_obj_t *row = ButtonRow(content);
     HalfButton(row, "Display", false, OnBack);
-    EndScreen(screen);
+    lv_obj_t *footer = EndScreen(screen);
+    lv_obj_t *roller_bar = widgets::MakeRollerFooter(footer);
+    widgets::SetRollerFooter(kit_count, roller_bar);
+    widgets::SetRollerFooter(kit_hour, roller_bar);
 }
 
 // --- Refresh benchmark: an animation ---------------------------------------------------------------------------
@@ -1277,6 +1309,102 @@ void CreateSensors(lv_obj_t *screen, lv_group_t *, void *)
 void EnterSensors(void *)
 {
     s_timer = lv_timer_create(FillSensors, dt::kSelfUpdateMinMs, nullptr);
+}
+
+// --- Clock ------------------------------------------------------------------------------------------------------
+
+// "Now 08:12", read once as the screen opens and again after a set (no ticking, so no repaint runs under an open roller), the Hour
+// and Minute rollers — 24-hour until a 12 or 24 hour setting exists — and Set clock, which writes them to the RTC with seconds at 0 and
+// the date as read, then says so on the status line. A roller kept changes only the screen's draft, never the RTC.
+struct ClockScreen {
+    lv_obj_t *now = nullptr;
+    widgets::Roller hour{};
+    widgets::Roller minute{};
+    std::tm date{};       // the date the RTC held when last read, kept for a set that finds the clock unreadable
+    bool dated = false;  // false while the RTC has read nothing (never set, or absent): a set starts from 2026-01-01
+};
+ClockScreen s_clock;
+
+bool ReadRtc(std::tm *out)
+{
+    return devices::ReadClock(out) == ESP_OK;
+}
+
+// "Now 08:12" for the RTC's reading, or "Now not set" when it reads nothing.
+void ShowClockNow(const std::tm *reading)
+{
+    char words[24] = "Now not set";
+    if (reading != nullptr) {
+        clock_rules::NowWords(words, sizeof words, *reading);
+    }
+    lv_label_set_text(s_clock.now, words);
+}
+
+// Set clock: the chosen hour and minute, seconds 0, with the date the RTC holds as it is written (read again here, so a set after
+// midnight keeps today's). The rollers are never touched: a failed set leaves what the person chose for another try.
+void OnSetClock(lv_event_t *)
+{
+    const clock_rules::SetOutcome out = clock_rules::Set(
+        ReadRtc, [](const std::tm &when) { return devices::SetClock(when) == ESP_OK; }, s_clock.dated ? &s_clock.date : nullptr,
+        widgets::RollerValue(s_clock.hour), widgets::RollerValue(s_clock.minute));
+    if (!out.ok) {
+        router::Say(router::StatusKind::kError, "Could not set the clock");
+        return;
+    }
+    s_clock.date = out.date;
+    s_clock.dated = out.dated;
+    ShowClockNow(&out.shown);
+    char words[40];
+    clock_rules::SetWords(words, sizeof words, out.shown);
+    router::Say(router::StatusKind::kSuccess, words);
+}
+
+void CreateClock(lv_obj_t *screen, lv_group_t *, void *)
+{
+    lv_obj_t *content = BeginScreen(screen, "Clock", true);
+    s_clock = ClockScreen{};
+    s_clock.now = ui::NewLabel(content, Type::kLabel, "");
+    std::tm t{};
+    const bool read = ReadRtc(&t);  // once, as the screen opens
+    if (read) {
+        s_clock.date = t;
+        s_clock.dated = true;
+    }
+    ShowClockNow(read ? &t : nullptr);
+    lv_obj_t *rollers = RollerRow(content);
+    lv_obj_set_style_margin_top(rollers, dt::kSpacingMd, 0);
+    s_clock.hour = widgets::MakeNumberRoller(rollers, "Hour", 0, 23, 1, 2, true, read ? t.tm_hour : 0);
+    s_clock.minute = widgets::MakeNumberRoller(rollers, "Minute", 0, 59, 1, 2, true, read ? t.tm_min : 0);
+    lv_obj_t *buttons = ButtonRow(content);
+    lv_obj_set_style_margin_top(buttons, dt::kSpacingLg, 0);
+    HalfButton(buttons, "Set clock", true, OnSetClock);
+    lv_obj_t *footer = EndScreen(screen);
+    lv_obj_t *bar = widgets::MakeRollerFooter(footer);
+    widgets::SetRollerFooter(s_clock.hour, bar);
+    widgets::SetRollerFooter(s_clock.minute, bar);
+}
+
+// --- Welcome ----------------------------------------------------------------------------------------------------
+
+// The carousel as onboarding would use it: four cards, one at a time; a swipe or Back and Next turn them, Skip and Done leave, and so
+// does holding OK. The words are illustrative; real onboarding copy is the ux-content-writer's.
+constexpr widgets::CarouselCard kWelcomeCards[] = {
+    {"Say it, and it is kept", "Hold the AI button and speak. FolloUp writes down what you said."},
+    {"What matters stays in view", "The follow-ups you pin stay on the glass, even while FolloUp sleeps."},
+    {"Everything is on the card",
+     "Your notes are kept on the MicroSD card, so they are yours to take. Lift the card out to copy them to a computer."},
+    {"Ready when you are", "Press Done, then hold the AI button and say your first follow-up."},
+};
+
+void LeaveWelcome(void *)
+{
+    router::Pop();
+}
+
+void CreateWelcome(lv_obj_t *screen, lv_group_t *, void *)
+{
+    lv_obj_t *content = BeginScreen(screen, "Welcome");
+    widgets::MakeCarousel(screen, content, kWelcomeCards, 4, LeaveWelcome, nullptr);
 }
 
 // --- Battery and power ----------------------------------------------------------------------------------------
@@ -1865,6 +1993,8 @@ std::unique_ptr<router::Screen> BenchmarkScreen() { return TestScreen(CreateBenc
 std::unique_ptr<router::Screen> TouchScreen() { return TestScreen(CreateTouch); }
 std::unique_ptr<router::Screen> ButtonsScreen() { return TestScreen(CreateButtons, EnterButtons); }
 std::unique_ptr<router::Screen> SensorsScreen() { return TestScreen(CreateSensors, EnterSensors, PauseWhileCovered); }
+std::unique_ptr<router::Screen> ClockScreenRoute() { return TestScreen(CreateClock); }
+std::unique_ptr<router::Screen> WelcomeScreen() { return TestScreen(CreateWelcome); }
 std::unique_ptr<router::Screen> PowerScreen() { return TestScreen(CreatePower, EnterPower, PauseWhileCovered); }
 std::unique_ptr<router::Screen> StorageScreen() { return TestScreen(CreateStorage); }
 std::unique_ptr<router::Screen> MicrophoneScreen() { return TestScreen(CreateMicrophone); }
@@ -1879,6 +2009,8 @@ constexpr router::Route kRoutes[] = {
     {"hw.touch", router::NoParam<TouchScreen>},
     {"hw.buttons", router::NoParam<ButtonsScreen>},
     {"hw.sensors", router::NoParam<SensorsScreen>},
+    {"hw.clock", router::NoParam<ClockScreenRoute>},
+    {"hw.welcome", router::NoParam<WelcomeScreen>},
     {"hw.power", router::NoParam<PowerScreen>},
     {"hw.storage", router::NoParam<StorageScreen>},
     {"hw.microphone", router::NoParam<MicrophoneScreen>},
@@ -1904,6 +2036,8 @@ constexpr Entry kEntries[] = {
     {"Touch", "Where a tap lands", "hw.touch"},
     {"Buttons and buzzer", "UP, DOWN, OK and the tick", "hw.buttons"},
     {"Sensors", "Temperature, motion, clock", "hw.sensors"},
+    {"Clock", "Read and set the RTC", "hw.clock"},
+    {"Welcome", "A first-run carousel", "hw.welcome"},
     {"Battery and power", "Gauge, charger, sleep, power off", "hw.power"},
     {"Storage", "Flash, PSRAM and the card", "hw.storage"},
     {"Microphone", "A second of sound level", "hw.microphone"},

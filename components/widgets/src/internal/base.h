@@ -40,6 +40,10 @@ lv_obj_t *NewMark(lv_obj_t *parent, const lv_image_dsc_t *mark, uint8_t rest, ui
 lv_obj_t *Line(lv_obj_t *parent, ui::Type role, const char *text, bool secondary);
 // Words that wrap, in `role`, each line on the role's line box — the same for a name or a detail line that may take two.
 lv_obj_t *Words(lv_obj_t *parent, ui::Type role, const char *text, bool secondary = false);
+// Words that wrap in `role`, each line on the role's line box, with no colour of its own: the states of the row or card they
+// stand in reach them (a disabled one's `text-disabled`). A choice card's name and detail, and a radio row's words, are these;
+// the label is as wide as its parent's content, so a parent that is a flex item sets its own width first.
+lv_obj_t *WrapWords(lv_obj_t *parent, const char *text, ui::Type role);
 // Adds the object to the focus group, its ring outside it (`ui::RingOutside`), and has it brought into view at once.
 void Focusable(lv_obj_t *obj);
 // Adds the object to the focus group, with no ring of its own: the caller has drawn it. A page that scrolls brings the
