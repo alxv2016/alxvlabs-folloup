@@ -17,12 +17,12 @@
 #include "widgets/chip.h"              // MakeChip
 #include "widgets/choice_card.h"       // MakeChoiceCard, SetChoiceChosen, ChoiceChosen
 #include "widgets/detail_row.h"        // DetailRow, MakeDetailRow, SetDetailRow
-#include "widgets/dialog.h"            // Dialog, MakeDialog
+#include "widgets/dialog.h"            // Dialog, MakeDialog, OpenDialog, CloseDialog
 #include "widgets/dropdown.h"          // Dropdown, MakeDropdown, DropdownSelected, SetDropdownSelected, ChooseDropdown, SetDropdownEnabled, SetDropdownOpener
 #include "widgets/glyph.h"             // Glyph, IconAction
 #include "widgets/horizontal_pager.h"  // HorizontalPager, MakeHorizontalPager, UpdateHorizontalPager, HorizontalPagerPage, HorizontalPagerPages
 #include "widgets/icon_button.h"        // MakeIconButton, IconButtonWords
-#include "widgets/keyboard.h"          // KeyboardKind, KeyboardConfig, MakeKeyboardScreen, KeyboardEscape
+#include "widgets/keyboard.h"          // KeyboardKind, KeyboardConfig, OpenKeyboard
 #include "widgets/list_view.h"         // ListView, MakeListView, UpdateListView, ListViewPage, ListViewPages
 #include "widgets/network_row.h"       // NetworkState, MakeNetworkRow, SetNetworkRow
 #include "widgets/page_dots.h"         // MakePageDots, SetPageDot

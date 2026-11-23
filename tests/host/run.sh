@@ -51,7 +51,7 @@ lvgl_built=0
 for test in "${tests[@]}"; do
     name="$(basename "$test" .cpp)"
     flags=(-std=c++20 -Wall -Wextra -Werror -I components/lvgl_display/include -I components/widgets/src
-           -I components/design_tokens/include -I components/ui/include)
+           -I components/design_tokens/include -I components/ui/include -I components/router/include)
     extra=()
     if [[ "$name" == *_lvgl_test ]]; then
         # LVGL is compiled for the test, and so are the firmware sources it exercises, against it: the files on the test's

@@ -224,8 +224,8 @@ Where it lives: `components/lvgl_display/display.cpp`.
 | SSD2677 | 85 Hz | `0x30` = `0x05` for partials | Yes — the fastest, no ghosting `[SEEN]` |
 | SSD1677 | Seeed | `0xFC` on every partial | |
 | SSD1677 | Keep waveform | `0xCC` after the first partial | |
-| SSD1677 | Scan 2 x 12 | Scans of 2 frames, a budget of 12 | Yes — the person's choice `[SEEN]` |
-| SSD1677 | Scan 3 x 10 | Scans of 3 frames, a budget of 10 | |
+| SSD1677 | Scan 2 x 12 | Scans of 2 frames, a budget of 12 — ghosts over a dithered fill under a fast touch scroll or fast presses `[SEEN]` | No |
+| SSD1677 | Scan 3 x 10 | Scans of 3 frames, a budget of 10 — no ghost the person saw under the same fast input `[SEEN]` | Yes — the person's choice |
 | SSD1677 | Scan 4 x 10 | Scans of 4 frames, a budget of 10 | |
 
 - **A preset is chosen on the board** — the Display screen's Speed button, or `speed <n>` on the console `[FW]`.
@@ -280,18 +280,18 @@ growing and shrinking by 36 px a frame on a white track** `[MEAS]`.
 | Partial, a forced 50 °C or 70 °C (`0x1A`) | — | 467 ms | — | `[MEAS]` |
 | Partial, a forced 90 °C | — | 1505 ms | — | `[MEAS]` |
 | Scans 2 x 12 | 27–39 ms a scan | 19–20 ms | 85 ms, 11.8 fps | `[MEAS]` |
-| Scans 3 x 10 | — | — | 100 ms, 10.0 fps | `[MEAS]` |
+| Scans 3 x 10 | — | — | 107–108 ms, 9.3 fps | `[MEAS]` |
 | Scans 4 x 10 | — | — | 124 ms, 8.1 fps | `[MEAS]` |
 
 - **The animation column is on ESP-IDF v6.1.1 and LVGL 9.6.0**, measured three times. The same firmware on LVGL
-  9.5.0 gave 80, 99 and 119 ms for the scans: LVGL 9.6.0 adds 1–5 ms a frame (5 ms on scans 2 x 12 and 4 x 10), and the person keeps 9.6 for the
+  9.5.0 gave 80, 99 and 119 ms for the scans: LVGL 9.6.0 adds 1–9 ms a frame (5 ms on scans 2 x 12 and 4 x 10, 8 ms on 3 x 10, measured twice), and the person keeps 9.6 for the
   newer LVGL `[MEAS]`.
 
 - **The OTP holds one partial waveform from room temperature to 70 °C** — a forced temperature found nothing faster
   `[MEAS]`.
 - **A scan's drive is about 10 ms a frame** — 2 frames 19–20 ms, 7 frames 69 ms `[MEAS]`.
 - **A scan's upload is 0–10 ms** — only the rows and columns in play `[MEAS]`.
-- **A pixel finishes in about 12 scans at 2 x 12** — about 0.35 s `[D]`.
+- **A pixel finishes in about 12 scans at the 2 x 12 preset** — about 0.35 s `[D]`.
 - **The scans draw clean frames: no earlier position of the bar stays on the glass** `[SEEN]`.
 
 ---
@@ -346,5 +346,6 @@ growing and shrinking by 36 px a frame on a white track** `[MEAS]`.
 | The SSD2677 at 65 Hz on our driver — measured slower than its own rate on Seeed's driver (§4.1) | Open | The benchmark with a 65 Hz preset on a V2.0 board |
 | Whether a forced hotter slot changes the SSD2677's partial on our driver — no change on Seeed's driver (§4.1) | Open | The benchmark with a forced 35 °C and 50 °C partial slot on a V2.0 board |
 | Ghosting after many scan frames before the full refresh at 150 | Open | A long animation on a V1.0 board, then the glass checked before the full refresh |
+| Scans 2 x 12 at 124 ms a frame in one benchmark on LVGL 9.6.0, against the 85 ms of §4.2 — scans 3 x 10 gave 107 and 108 ms in two runs `[MEAS]` | Open | The benchmark run three times on a V1.0 board at room temperature |
 | The scans below 15 °C and above 35 °C — the window is a guess, not a measurement | Open | The scans judged on the glass in the cold and the heat |
 | The panel's life under scans | Open | A long run on a V1.0 board, the glass checked against a fresh full refresh |

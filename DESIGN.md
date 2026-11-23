@@ -274,6 +274,14 @@ motion:
     duration: 0ms
     delay: 1500ms
     timingFunction: steps(1, start)
+  key-repeat-delay:  # a held UP or DOWN steps again once it has been held this long (Focus and input)
+    duration: 0ms
+    delay: 600ms
+    timingFunction: steps(1, start)
+  key-repeat-period:  # then steps again this often while it is held, each step's frame landed first
+    duration: 0ms
+    delay: 500ms
+    timingFunction: steps(1, start)
 components:
   status-bar:
     backgroundColor: "{colors.background}"
@@ -884,6 +892,8 @@ At 235 ppi a pixel is 0.108 mm and a point is 3.26 px.
 - **Every press ticks, even during a refresh.** UP and DOWN move focus to the latest place; an OK pressed before the
   frame lands waits and acts where the presses before it left focus, and a second OK in that time ticks but is
   ignored. On touch, a double tap during a refresh is two taps.
+- **A held UP or DOWN steps at the glass's pace** — after `motion.key-repeat-delay`, then every
+  `motion.key-repeat-period`, each step drawn before the next, and each with its tick (Focus and input).
 
 ### Waits and things that update on their own
 
@@ -891,6 +901,8 @@ At 235 ppi a pixel is 0.108 mm and a point is 3.26 px.
 - **Nothing updates on its own faster than every 5 s** (`motion.self-update`) — a recording's timer, a wait's progress
   — and the clock once a minute (`motion.clock-tick`), except a masked field's last character, which hides itself after
   `motion.password-reveal`, once per character (Exceptions → A password's last character).
+- **A covered screen stops updating itself** — while a sheet, a dialog or the keyboard stands over it, its own updates wait,
+  and when it is uncovered it reads again at once.
 - **Nothing leaves on a timer** — a message stays until the next change of screen. One exception: a masked field's last
   typed character (Exceptions → A password's last character, `motion.password-reveal`).
 
@@ -988,7 +1000,8 @@ At 235 ppi a pixel is 0.108 mm and a point is 3.26 px.
 - **Sticky** — one follow-up as a card: its tag and its words in `display` or `body`.
 - **Carousel** — onboarding, one card at a time; the current dot filled, the others outlined.
 - **Dialog** — a decision the person must make now, with one action button and Cancel; a destructive action names
-  what it destroys ("Delete this note"), and its dialog opens with focus on Cancel. It stands on a `spacing.stroke.strong`
+  what it destroys ("Delete note", under the title "Delete this note?"), and its dialog opens with focus on Cancel. It sits
+  in the middle of the glass, `spacing.edge` from its sides, behind a catcher the size of the glass. It stands on a `spacing.stroke.strong`
   outline, `rounded.md`, `spacing.lg` inside, its title in `label` and its message in `body`, the two buttons half width
   `spacing.md` apart; its offset, `spacing.overlay-offset` down and to the right in `shadow-3`, stands inside the page's margin
   (Elevation & Depth). A touch outside it is eaten (Focus and input).
@@ -1138,11 +1151,24 @@ At 235 ppi a pixel is 0.108 mm and a point is 3.26 px.
 
 - **UP and DOWN move focus, OK acts** — on every screen, including the overlays; anything touchable is reachable this
   way. The one exception is a control OK has opened for editing — a range slider, a text view being read: UP and DOWN
-  are its own until OK closes it, and the screen says so in words.
+  are its own until OK closes it, keeping the change, and the screen says so in words. Holding OK closes it instead and
+  puts back what it had when OK opened it: the slider's value, the text view's page.
 - **The AI button records** — a hold records and its release saves; a press-to-start, press-to-stop way, the hold's
   length, and how a hold is told from OK, a wake and power-off are open (DESIGN → Open items).
 - **The first button press shows the focus ring and moves nothing**; the next moves it, and focus wraps at the ends of
-  a list. A screen opened by touch shows no ring.
+  a list. With no ring on the glass — a screen just opened, a sheet or a dialog opened by touch, or after a touch — the
+  first UP, DOWN or OK rings the focused control and moves and presses nothing; only the next acts, so the
+  first OK never presses what the person cannot see is chosen. The press still ticks. When the focused control is off the
+  glass, the first press rings the first control in view instead. A control open for editing takes its keys at once.
+- **A touch shows no ring and drops the one showing** — the ring is the buttons'. The place stays: the next button press
+  rings the control the finger last pressed, and walks on from there.
+- **A press acts on the lift, on the control** — a finger that slides off what it pressed, past its hit area and
+  `spacing.md`, presses nothing (WCAG 2.5.2). Lifting off a range slider that way leaves its value as it was when the
+  finger went down; a lift on the track, or within `spacing.md` of it, lands the value there.
+- **A held UP or DOWN walks on** — once held `motion.key-repeat-delay`, 600 ms, it steps again every
+  `motion.key-repeat-period`, 500 ms, each step only once the last one is on the glass and no refresh is running, so the
+  walk never runs ahead of what is drawn. Letting go stops it at once; no step is kept for later. Each step ticks, as a
+  press does. A control open for editing steps its value the same way. OK never repeats: held, it is the escape.
 - **A swipe up or down on a list view or a text view turns one page, as DOWN and UP do** — decided when the finger
   lifts: 64 px of travel (`kTouchSwipeDistance`, one target), or a flick at the end of a drag of 24 px or more; one swipe,
   one page, however far or fast; a drag pulled back, or a finger that rested before lifting, places and turns nothing.
@@ -1159,8 +1185,11 @@ At 235 ppi a pixel is 0.108 mm and a point is 3.26 px.
   every key from the left of row 1 to the end of the bottom row, Cancel, the action, and wrap. OK types the focused key, each
   key has the ordinary `spacing.stroke.focus` ring and none is open for editing, and holding OK cancels the keyboard in one hold.
   The keyboard opens on the first key, so typing starts at once; UP reaches the field.
-- **An overlay takes focus when it opens and gives it back to what opened it when it closes**; every overlay closes
-  with Cancel or Back. Holding OK is the escape: it cancels the keyboard, and a sheet.
+- **An overlay takes focus when it opens and gives it back to what opened it when it closes** — with the ring if it wore
+  one when the overlay opened, without if it did not; every overlay closes with Cancel or Back.
+- **Holding OK is the escape, one step a hold**: first it closes a control open for editing, putting back what it had; else
+  it cancels the top overlay — the keyboard, a sheet, a dialog, so a dialog over a sheet goes first and the sheet next;
+  else it goes back one screen. At home with nothing open it does nothing.
 - **A touch outside a dialog or a sheet is eaten** — the tick, and nothing else: no tap reaches the page behind and no drag
   moves it. A sheet has no drag, throw or handle: a swipe on its list turns a page, and its way out is Cancel and holding OK.
 
@@ -1307,6 +1336,8 @@ The chosen option of a select sheet is marked by the check, without its word.
 
 ## Open items
 
+- **A setting for the keys' repeat** — holding UP or DOWN repeats after `motion.key-repeat-delay` every
+  `motion.key-repeat-period`, with no setting to slow or stop it; EN 301 549 5.7 asks for one where a key repeats.
 - **The frame left on the glass while the device sleeps** — the stickies, the lock screen or a blank glass — decided
   with the designs.
 - **The viewing distance** the sizes are set for — `hero`'s 60 px figures read at about 35 cm and `display` at about
@@ -1316,7 +1347,6 @@ The chosen option of a select sheet is marked by the check, without its word.
 - **The AI button** — its name on the glass (AI or OK), a hold's length, and how a hold, a wake and power-off differ.
 - **The elevation scale** — the dither of an overlay's offset by elevation level; the dialog's and the sheet's are both the dark
   dither until it is decided.
-- **The dither over many partials** — whether it ghosts before the full refresh clears it.
 - **The clock's cost** — a minute tick makes a full refresh every twenty minutes on a still screen — and whether the
   lock screen's clock is 24-hour or shows AM and PM in the status bar.
 - **A spoken mode** — none is possible on this hardware; who that leaves out, and what would serve them.

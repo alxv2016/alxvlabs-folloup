@@ -82,7 +82,10 @@ void TurnPage(lv_obj_t *band, int32_t dir)
     if (page == s->page) {
         return;  // at an end: the press's tick answered it, and nothing wraps under a finger
     }
-    lv_obj_t *focused = lv_group_get_focused(lvgl_display::Group());
+    // The items' own group, the screen's or an overlay's.
+    lv_obj_t *item = lv_obj_get_child_count(band) > 0 ? lv_obj_get_child(band, 0) : nullptr;
+    lv_group_t *group = item != nullptr ? lv_obj_get_group(item) : nullptr;
+    lv_obj_t *focused = group != nullptr ? lv_group_get_focused(group) : nullptr;
     ShowPage(band, page, true);
     if (focused != nullptr && lv_obj_get_parent(focused) == band) {
         lv_group_focus_obj(lv_obj_get_child(band, s->first_item[static_cast<size_t>(page)]));

@@ -106,26 +106,45 @@ bool FromKeys()
 }
 
 namespace {
-void OnEditableClicked(lv_event_t *)
+// The event a control hears as OK opens it for editing, registered with LVGL once.
+lv_event_code_t EditOpenedEvent()
 {
-    if (FromKeys()) {
-        lv_group_t *group = lvgl_display::Group();
-        lv_group_set_editing(group, !lv_group_get_editing(group));
+    static const lv_event_code_t code = static_cast<lv_event_code_t>(lv_event_register_id());
+    return code;
+}
+
+// The control's own group, which is the screen's or an overlay's: there is one for each (APP_ARCHITECTURE §7). Opening it tells
+// the control, which keeps what holding OK puts back (router::Escape's first link sends it LV_EVENT_CANCEL).
+void OnEditableClicked(lv_event_t *e)
+{
+    lv_obj_t *obj = lv_event_get_current_target_obj(e);
+    lv_group_t *group = lv_obj_get_group(obj);
+    if (FromKeys() && group != nullptr) {
+        const bool open = !lv_group_get_editing(group);
+        lv_group_set_editing(group, open);
+        if (open) {
+            lv_obj_send_event(obj, EditOpenedEvent(), nullptr);
+        }
     }
 }
 
 // LVGL leaves editing when the group moves its focus (lv_group_focus_obj); this says so where a tap, which takes the
 // focus the same way, is concerned, so the open ring never stays on a control the finger has left.
-void OnEditableDefocused(lv_event_t *)
+void OnEditableDefocused(lv_event_t *e)
 {
-    lv_group_set_editing(lvgl_display::Group(), false);
+    if (lv_group_t *group = lv_obj_get_group(lv_event_get_current_target_obj(e)); group != nullptr) {
+        lv_group_set_editing(group, false);
+    }
 }
 }  // namespace
 
-void ToggleEditingOnKeyClick(lv_obj_t *obj)
+void ToggleEditingOnKeyClick(lv_obj_t *obj, lv_event_cb_t opened)
 {
     lv_obj_add_event_cb(obj, OnEditableClicked, LV_EVENT_CLICKED, nullptr);
     lv_obj_add_event_cb(obj, OnEditableDefocused, LV_EVENT_DEFOCUSED, nullptr);
+    if (opened != nullptr) {
+        lv_obj_add_event_cb(obj, opened, EditOpenedEvent(), nullptr);
+    }
 }
 
 }  // namespace widgets::detail

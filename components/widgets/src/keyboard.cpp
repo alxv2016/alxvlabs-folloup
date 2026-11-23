@@ -9,6 +9,7 @@
 #include "internal/base.h"
 #include "internal/keyboard_pages.h"
 #include "lvgl_display.h"
+#include "router/router.h"
 #include "widgets/button.h"
 
 namespace widgets {
@@ -42,6 +43,7 @@ struct KeyboardState {
     bool shift = false;
     KeyPage page = KeyPage::kLower;
     bool finished = false;
+    router::Overlay overlay;  // the keyboard on the router's overlay stack, full-glass: its screen, its group, holding OK
 
     lv_obj_t *screen = nullptr;
     lv_obj_t *count = nullptr;
@@ -110,15 +112,38 @@ void TypeChar(KeyboardState *kb, char c)
     Changed(kb);
 }
 
-void Finish(KeyboardState *kb, bool accepted)
+// Closes: off the overlay stack — the screen it opened over comes back, drawn full (the router asks it: DESIGN → Motion), focus
+// on what opened it — its screen deleted after this event, then the answer, when there is one to give. What was typed is still
+// in the target: the field in the slot goes with the screen, after the answer.
+void Close(KeyboardState *kb, bool answer, bool accepted)
 {
     if (kb->finished) {
         return;
     }
     kb->finished = true;
     lvgl_display::SetPartialCounting(lvgl_display::PartialCounting::kEvery);
-    lvgl_display::RequestFull();  // a large overlay closes on a full refresh (DESIGN → Motion)
-    kb->config.done(accepted, kb->config.user);
+    router::CloseOverlay(&kb->overlay);
+    lv_obj_delete_async(kb->screen);  // its delete event frees `kb`
+    if (answer && kb->config.done != nullptr) {
+        kb->config.done(accepted, kb->config.user);
+    }
+}
+
+void Finish(KeyboardState *kb, bool accepted)
+{
+    Close(kb, true, accepted);
+}
+
+// Holding OK cancels at once: there is no row level to leave (DESIGN → Focus and input).
+void EscapeOverlay(void *user)
+{
+    Finish(static_cast<KeyboardState *>(user), false);
+}
+
+// What replaces the glass closes it with no answer.
+void DismissOverlay(void *user)
+{
+    Close(static_cast<KeyboardState *>(user), false, false);
 }
 
 // --- The keys and the walk ----------------------------------------------------------------------------------------------
@@ -223,8 +248,9 @@ void BuildKeys(KeyboardState *kb)
 // again. No row level and no editing: UP and DOWN step through the keys, OK presses the focused one.
 void BuildWalk(KeyboardState *kb)
 {
-    lvgl_display::ClearGroup();
-    lv_group_t *group = lvgl_display::Group();
+    lv_group_t *group = kb->overlay.group;
+    lv_group_set_editing(group, false);
+    lv_group_remove_all_objs(group);
     if (kb->field_frame != nullptr) {
         lv_group_add_obj(group, kb->field_frame);
     }
@@ -244,7 +270,7 @@ void BuildWalk(KeyboardState *kb)
 // the ring was; the focus stays on another stop when that had it.
 void SwitchPage(KeyboardState *kb, KeyPage page)
 {
-    lv_obj_t *had = lv_group_get_focused(lvgl_display::Group());
+    lv_obj_t *had = lv_group_get_focused(kb->overlay.group);
     int row = -1;
     int slot = 0;
     for (int r = 0; r < kKeyRows && row < 0; ++r) {
@@ -257,7 +283,7 @@ void SwitchPage(KeyboardState *kb, KeyPage page)
         }
     }
     kb->page = page;
-    lvgl_display::ClearGroup();  // the old keys go with their group places; none is left to be deleted while focused
+    lv_group_remove_all_objs(kb->overlay.group);  // the old keys go with their group places; none is left to be deleted while focused
     BuildKeys(kb);
     BuildWalk(kb);
     lvgl_display::NoteTyping();  // a page switch counts as one partial, as a typing press does
@@ -281,7 +307,7 @@ void SwitchPage(KeyboardState *kb, KeyPage page)
         }
     }
     if (to != nullptr) {
-        lv_group_focus_obj(to);
+        router::Focus(to);
     }
 }
 
@@ -298,6 +324,9 @@ void OnCancelClicked(lv_event_t *e)
 void OnScreenDelete(lv_event_t *e)
 {
     KeyboardState *kb = static_cast<KeyboardState *>(lv_event_get_user_data(e));
+    if (!kb->finished) {
+        router::CloseOverlay(&kb->overlay);  // deleted some other way than closing: off the overlay stack first
+    }
     if (s_active == kb) {
         s_active = nullptr;
         // a screen deleted any other way than Finish leaves the rule as it was — unless a newer keyboard has set its own
@@ -308,16 +337,29 @@ void OnScreenDelete(lv_event_t *e)
 
 }  // namespace
 
-Keyboard MakeKeyboardScreen(const KeyboardConfig &config)
+Keyboard OpenKeyboard(const KeyboardConfig &config)
 {
+    if (s_active != nullptr && !s_active->finished) {
+        return Keyboard{nullptr, nullptr};  // one at a time
+    }
     KeyboardState *kb = new KeyboardState{};
+    lv_obj_t *screen = ui::NewScreen();
+    // A full-glass overlay: opening loads its screen and binds its group before a key is made, so the keys join it.
+    kb->overlay.screen = screen;
+    kb->overlay.escape = EscapeOverlay;
+    kb->overlay.dismiss = DismissOverlay;
+    kb->overlay.user = kb;
+    if (router::OpenOverlay(&kb->overlay) == nullptr) {
+        lv_obj_delete(screen);
+        delete kb;
+        return Keyboard{nullptr, nullptr};
+    }
     kb->config = config;
     kb->title = config.title != nullptr ? config.title : "";
     kb->action_words = config.action != nullptr ? config.action : "Done";
     kb->config.title = kb->title.c_str();
     kb->config.action = kb->action_words.c_str();
 
-    lv_obj_t *screen = ui::NewScreen();
     kb->screen = screen;
     ui::NewStatusBar(screen, kb->title.c_str());
     lv_obj_t *body = Bare(screen);
@@ -365,7 +407,7 @@ Keyboard MakeKeyboardScreen(const KeyboardConfig &config)
     s_active = kb;
     lvgl_display::SetPartialCounting(lvgl_display::PartialCounting::kTypingOnly);  // only the presses that type count toward the full refresh
     BuildWalk(kb);
-    lv_group_focus_obj(kb->keys[0][0]);  // opens on the first key, so typing starts at once; UP reaches the field
+    router::Focus(kb->keys[0][0]);  // opens on the first key, so typing starts at once, ringed when the buttons opened it; UP reaches the field
     return Keyboard{screen, slot};
 }
 
@@ -387,24 +429,16 @@ void KeyboardJoinField(const Keyboard &keyboard, lv_obj_t *field, lv_obj_t *butt
     kb->field_frame = field;
     kb->field_stop = button;
     BuildWalk(kb);  // the field, its button, the keys, Cancel, the action: made again whole, so a second call changes nothing
-    lv_group_focus_obj(kb->keys[0][0]);  // the keyboard still opens on the first key
+    router::Focus(kb->keys[0][0]);  // the keyboard still opens on the first key
 }
 
 void KeyboardTextChanged(lv_obj_t *screen)
 {
-    KeyboardState *kb = s_active;
-    if (kb != nullptr && kb->screen == screen) {
+    KeyboardState *kb = s_active;  // nullptr once a keyboard's screen is deleted; a closed one waiting for its deletion is ignored
+    if (kb != nullptr && !kb->finished && kb->screen == screen) {
         Refresh(kb);
     }
 }
 
-void KeyboardEscape()
-{
-    KeyboardState *kb = s_active;
-    if (kb == nullptr) {
-        return;
-    }
-    Finish(kb, false);  // no row level to leave: holding OK cancels
-}
 
 }  // namespace widgets

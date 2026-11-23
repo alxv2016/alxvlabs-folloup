@@ -42,4 +42,4 @@ idf_component_register(SRCS "src/internal/base.cpp"
                        INCLUDE_DIRS "include"
                        PRIV_INCLUDE_DIRS "src"
                        REQUIRES lvgl__lvgl
-                       PRIV_REQUIRES ui design_tokens lvgl_display mbedtls)
+                       PRIV_REQUIRES ui design_tokens lvgl_display router mbedtls)

@@ -10,6 +10,7 @@
 #include "internal/secure_zero.h"
 #include "internal/text_input_state.h"
 #include "lvgl_display.h"
+#include "router/router.h"
 #include "widgets/icon_button.h"
 
 namespace widgets {
@@ -112,6 +113,27 @@ void Changed(State *s)
     lv_obj_send_event(s->frame, LV_EVENT_VALUE_CHANGED, nullptr);
 }
 
+// The stop after `obj` in its group, round the end, that is shown and enabled: where the walk goes on from it. nullptr when none.
+lv_obj_t *NextStop(lv_obj_t *obj)
+{
+    lv_group_t *group = lv_obj_get_group(obj);
+    if (group == nullptr) {
+        return nullptr;
+    }
+    const uint32_t n = lv_group_get_obj_count(group);
+    uint32_t at = 0;
+    while (at < n && lv_group_get_obj_by_index(group, at) != obj) {
+        ++at;
+    }
+    for (uint32_t k = 1; k < n; ++k) {
+        lv_obj_t *next = lv_group_get_obj_by_index(group, (at + k) % n);
+        if (!lv_obj_has_flag(next, LV_OBJ_FLAG_HIDDEN) && !lv_obj_has_state(next, LV_STATE_DISABLED)) {
+            return next;
+        }
+    }
+    return nullptr;
+}
+
 void OnButtonClicked(lv_event_t *e)
 {
     State *s = static_cast<State *>(lv_event_get_user_data(e));
@@ -126,10 +148,9 @@ void OnButtonClicked(lv_event_t *e)
     detail::SecureZero(s->text, sizeof s->text);
     s->len = 0;
     lvgl_display::NoteTyping();  // the cross changes the text as Delete does: its frame counts toward the partial limit
-    Refresh(s);  // the cross is hidden now, so the walk moves on to the next stop
-    if (lv_obj_has_flag(s->button, LV_OBJ_FLAG_HIDDEN)) {
-        lv_group_focus_next(lvgl_display::Group());
-    }
+    // The cross goes with the text: focus passes to the next stop first, ringed only if the cross was.
+    router::SetHiddenHandingFocus(s->button, true, NextStop(s->button));
+    Refresh(s);
     Changed(s);
 }
 

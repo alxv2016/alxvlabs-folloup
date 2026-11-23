@@ -11,7 +11,7 @@
 // password input, and in the keyboard, where the field is no stop and the button rings only when it is the one focused.
 // run.sh builds LVGL's sources from managed_components once, into build/host/lvgl, and the sources named below, against stand-ins
 // for the ESP-IDF headers (tests/host/stubs).
-// host-sources: components/ui/ui.cpp components/ui/line_box.cpp components/ui/fonts/bitcount/*.c components/widgets/marks/marks.c components/widgets/src/*.cpp components/widgets/src/internal/*.cpp
+// host-sources: components/ui/ui.cpp components/ui/line_box.cpp components/ui/fonts/bitcount/*.c components/widgets/marks/marks.c components/widgets/src/*.cpp components/widgets/src/internal/*.cpp components/router/router.cpp components/router/overlays.cpp components/router/focus.cpp components/router/touch.cpp components/router/routes.cpp components/router/screen.cpp
 // Build and run: bash tests/host/run.sh
 
 #include <algorithm>
@@ -25,6 +25,7 @@
 #include "mbedtls/platform_util.h"
 #include "lvgl.h"
 #include "lvgl_display.h"
+#include "router/router.h"
 #include "ui.h"
 #include "widgets/widgets.h"
 
@@ -45,8 +46,24 @@ void ClearGroup()
     lv_group_set_editing(s_group, false);
     lv_group_remove_all_objs(s_group);
 }
+// The router binds a screen's or an overlay's group here: the buttons and LVGL's default group follow it, as on the board.
+void SetGroup(lv_group_t *group)
+{
+    if (group == nullptr) {
+        return;
+    }
+    s_group = group;
+    for (lv_indev_t *indev = lv_indev_get_next(nullptr); indev != nullptr; indev = lv_indev_get_next(indev)) {
+        lv_indev_set_group(indev, group);  // a keypad's only: LVGL ignores it for a pointer
+    }
+    lv_group_set_default(group);
+}
 void SetBackHandler(void (*back)()) { s_back = back; }
-void (*BackHandler())() { return s_back; }
+// The router's read hooks, kept so a test can run a key read through the focus rules as LVGL's read would.
+void (*s_key_hook)(lv_indev_t *, lv_indev_data_t *) = nullptr;
+void (*s_touch_hook)(lv_indev_t *, lv_indev_data_t *) = nullptr;
+void SetKeyReadHook(void (*hook)(lv_indev_t *, lv_indev_data_t *)) { s_key_hook = hook; }
+void SetTouchReadHook(void (*hook)(lv_indev_t *, lv_indev_data_t *)) { s_touch_hook = hook; }
 void SetPartialCounting(PartialCounting) {}
 void NoteTyping() { ++s_typing_notes; }
 void RequestFull() {}
@@ -141,6 +158,8 @@ bool AllZero(const char *p, size_t n)
 
 lv_obj_t *NewPage()
 {
+    router::DismissOverlays();  // a keyboard left open by the last test closes, its group with it
+    lv_timer_handler();         // and its screen, deleted after the close, goes now: LVGL's heap here is small
     if (s_screen != nullptr) {
         lvgl_display::ClearGroup();
         lv_screen_load(lv_obj_create(nullptr));
@@ -386,7 +405,6 @@ struct Kb {
 Kb NewKeyboard(bool password)
 {
     NewPage();
-    lvgl_display::ClearGroup();
     widgets::KeyboardConfig config{};
     config.title = "Join HomeNet";
     config.min_length = 8;
@@ -394,13 +412,10 @@ Kb NewKeyboard(bool password)
     config.action = "Join";
     config.done = [](bool accepted, void *) { ++s_done; s_accepted = accepted; };
     Kb k{};
-    k.keyboard = widgets::MakeKeyboardScreen(config);
+    k.keyboard = widgets::OpenKeyboard(config);  // over the page, with its own group: s_group, while it is open
     k.input = password ? widgets::MakePasswordInput(k.keyboard.field_slot, "Password", dt::kSpacingContent, true)
                        : widgets::MakeTextInput(k.keyboard.field_slot, "Name", dt::kSpacingContent, true);
     widgets::SetKeyboardTarget(k.keyboard, widgets::InputKeyboardTarget(k.input));
-    lv_screen_load(k.keyboard.screen);
-    lv_obj_delete(s_screen);
-    s_screen = k.keyboard.screen;
     return k;
 }
 
@@ -505,8 +520,9 @@ void TestKeyboardEscape()
     widgets::KeyboardJoinField(k.keyboard, k.input.field, k.input.button);
     lv_group_focus_obj(lv_group_get_obj_by_index(s_group, 10));  // a key in the middle of the grid
     s_done = 0;
-    widgets::KeyboardEscape();
+    router::Escape();  // holding OK: the escape chain's first link is the top overlay, the keyboard
     Check(s_done == 1 && !s_accepted, "holding OK on a key cancels the keyboard in one hold");
+    Check(!router::OverlayOpen() && lv_screen_active() == s_screen, "and the page it opened over is back on the glass");
 }
 
 // A page switch rebuilds the keys and the walk, in the same order, keeping the place.
@@ -558,6 +574,18 @@ void TestSeparateRingsInKeyboard()
     }
 }
 
+// A button press and release read through the router's focus rules, as LVGL's keypad read hands them over: from here the
+// buttons are the last input given, so a focus the code makes with no input being read rings, as after a press on the board.
+void PressThroughFocusRules()
+{
+    lv_indev_data_t data{};
+    data.key = LV_KEY_NEXT;
+    data.state = LV_INDEV_STATE_PRESSED;
+    lvgl_display::s_key_hook(nullptr, &data);
+    data.state = LV_INDEV_STATE_RELEASED;
+    lvgl_display::s_key_hook(nullptr, &data);
+}
+
 }  // namespace
 
 int main()
@@ -581,6 +609,8 @@ int main()
         std::printf("ui::Start failed\n");
         return 1;
     }
+    router::Init();
+    PressThroughFocusRules();
     TestGeometry();
     TestCapacityAndTail();
     TestClearCross();

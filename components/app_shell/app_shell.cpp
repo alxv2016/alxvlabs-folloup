@@ -4,6 +4,7 @@
 #include "board.h"
 #include "devices.h"
 #include "lvgl_display.h"
+#include "router/router.h"
 #include "ui.h"
 #include "esp_app_desc.h"
 #include "esp_err.h"
@@ -27,11 +28,13 @@ void StartDevices()
     ESP_ERROR_CHECK(devices::Init());
 }
 
-// The first frame: ui's fonts and styles, then home — under lvgl_display's lock, drawn as one full refresh.
+// The first frame: ui's fonts and styles, the router, then home as its root — under lvgl_display's lock, once the display and
+// the buttons are up, and drawn as one full refresh (APP_ARCHITECTURE §3, §7).
 void FirstScreen()
 {
     ESP_ERROR_CHECK(ui::Start());
-    screen_home::Show();
+    ESP_ERROR_CHECK(router::Init());
+    ESP_ERROR_CHECK(router::SetRoot(router::MakeScreen(screen_home::Build)));
 }
 
 bool ReadRoomTemperature(float *celsius)

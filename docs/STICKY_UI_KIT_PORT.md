@@ -3,7 +3,11 @@
 > **STATUS: PARTLY IMPLEMENTED.** The agent deck's landscape widgets are built and seen on a V1.0; the checkbox and
 > radio rows, the button icons, the one disabled look, and BYTE-90's Wi-Fi network row, dialog offset, keyboard's key grid,
 > dropdown with its select sheet and horizontal pager are built in the working tree and not yet seen on the glass; the
-> text input and password input with the keyboard's field are built the same way; the interaction framework, sound, status bar, overlay stack and the rest are not started.
+> text input and password input with the keyboard's field are built the same way; the interaction framework's first round —
+> the router's screen stack and routes, and hold-to-repeat — is built and seen on a V1.0, its second — the overlay stack, with
+> the select sheet, a real dialog and the keyboard on it — and its third — the focus rules — are built and seen on a V1.0; its
+> fourth, the escape chain's first link and slide-off, completes it and is not yet seen on the glass; sound, status bar, a
+> status line and the rest are not started.
 
 The plan for porting UI from the agent deck's landscape kit and BYTE-90's widgets to FolloUp's e-ink kit on the
 reTerminal Sticky (800 x 480 e-paper, one bit plus dither, three keys UP, DOWN and AI/OK, GT911 touch, a buzzer): each
@@ -73,8 +77,8 @@ depends on an overlay or a router. The order of items 1 to 7 in [§4](#4-not-sta
   [DESIGN → The icon button](../DESIGN.md#the-icon-button).
 - **A swipe on a list view or text view turns one page**, as the buttons do; nothing scrolls by pixel `[P]`.
 - **The horizontal scroller is ported** `[P]`, and turns by page.
-- **The keyboard is built as a kit component on the kit page first** `[P]`, and becomes an overlay once the interaction
-  framework lands.
+- **The keyboard is built as a kit component on the kit page first** `[P]`, and opens as a full-glass overlay on the
+  router's stack.
 
 ---
 
@@ -105,6 +109,10 @@ pending.
 | Dropdown and its select sheet: `MakeDropdown`, `OpenSelectSheet` | BYTE-90 `ui_widgets/src/dropdown.cpp`, `ui_sheet` | `components/widgets/src/dropdown.cpp`, `select_sheet.cpp`, `internal/sheet_rules.h`; `tests/host/sheet_rules_test.cpp` | Done | The closed field is a value row with the chevron beside the value; the list is a bottom sheet, options in `caption-strong` wrapping to more lines, the chosen row inverted with the check alone, four rows a page or three, opened and closed on a partial refresh `[P]` |
 | Horizontal pager: `MakeHorizontalPager` | BYTE-90 `ui_widgets/src/horizontal_scroller.cpp` | `components/widgets/src/horizontal_pager.cpp`; a horizontal axis in `internal/swipe.cpp` | Done | Pages of whole items, "1 of 2" in words alone (no page dots), a horizontal swipe turns one page and a vertical drag is the page's `[P]` |
 | A row's content is centred on its height | The person: menu items are always vertically centred | `tests/host/row_centring_lvgl_test.cpp`; `components/widgets/src/select_sheet.cpp` and the setting rows | Done | One rule, one test: every row kind, one line and more, within 1 px `[P]` |
+| The interaction framework, round 1 of 4: the screen stack and routes, with no transitions; a focus group per screen; a screen opens with no ring; focus back to the opener on every pop; the root press lock; hold-to-repeat on UP and DOWN | BYTE-90 `ui_router/ui_router.cpp`, `routes.cpp`, `include/` | `components/router` ([APP_ARCHITECTURE §7](APP_ARCHITECTURE.md#7-screens-routes-and-focus)); `lvgl_display::SetGroup`, `SetKeyReadHook`, `SetTouchReadHook` and `include/key_rules.h`; `motion.key-repeat-delay` and `motion.key-repeat-period`; `hw_test`'s screens as routes, its hand-kept back state gone; `tests/host/router_lvgl_test.cpp`, `key_rules_test.cpp` | Done | 600 ms, then a step every 500 ms, each once the last one's frame is on the glass, and each step ticks `[P]`; the stack stops at four `[HOST]`; seen working on a V1.0 `[SEEN]` |
+| The interaction framework, round 2 of 4: the overlay stack — a focus group per overlay, the ring taken off what is under it and given back only if it showed, `OnCovered` at the edges, a full refresh as a full-glass overlay closes, holding OK closing the top overlay before it goes back; the select sheet, a real dialog (`OpenDialog`, on Cancel when destructive) and the keyboard as a full-glass overlay on it | BYTE-90 `ui_router/overlays.cpp`, `ui_dialog`, `ui_sheet`, `ui_keyboard` | `components/router/overlays.cpp` ([APP_ARCHITECTURE §7](APP_ARCHITECTURE.md#7-screens-routes-and-focus)); `widgets::OpenDialog`, `OpenKeyboard`, the select sheet; `lvgl_display::BackHandler` gone; the kit page's Delete button; `tests/host/overlay_lvgl_test.cpp` | Done | The kit page is not built again after the keyboard; Sensors and Battery and power pause their timer while covered `[HOST]`; seen on a V1.0 `[SEEN]` |
+| The interaction framework, round 3 of 4: the focus rules — with no ring on the glass the first UP, DOWN or OK rings and moves and presses nothing, a touch drops the ring and keeps the place; the hand-focus helpers `Focus`, `Ring`, `ClearRing`, `SetHiddenHandingFocus`, `DeleteHandingFocus`, `Hold` | BYTE-90 `ui_router/focus.cpp` (`ConsumeUnringedPress`), `touch.cpp` | `components/router/focus.cpp`, `touch.cpp` through `lvgl_display`'s read hooks; the sheet's chosen row, the dialog's first button, the keyboard's first key and the text input's cross through the helpers; `tests/host/focus_rules_lvgl_test.cpp` | Done | The bench console's first `key down` on a fresh screen or after a touch only rings `[HOST]`; seen on a V1.0 `[SEEN]` |
+| The interaction framework, round 4 of 4, and so the whole of it: holding OK's first link — a control open for editing closes and puts back what it had (the range slider's value, the text view's page) — before the overlay and the screen; slide-off, a lift off a pressed button, focus stop or the range slider past its hit area and `spacing.md` presses nothing, the slider keeping the value the press found | BYTE-90 `ui_router/touch.cpp` (`CancelSlidOffPress`) | `components/router/router.cpp` (`Escape`), `touch.cpp` (`CancelOnSlideOff`); `detail::ToggleEditingOnKeyClick`'s `opened`; `range_slider.cpp`, `text_view.cpp`; `tests/host/slide_off_lvgl_test.cpp` | Done | Lifting off the slider no longer sets an end value `[HOST]`; not yet seen on the glass |
 
 ---
 
@@ -119,17 +127,17 @@ None.
 
 ## 4. Not started
 
-**The interaction framework (1) follows the drafts as its own task `[P]`; the order of 2 to 7 is proposed `[?]`.** Each is built by the three gates of the `ui-designer` where it
+**The interaction framework (1) is done; the order of 2 to 7 is proposed `[?]`.** Each is built by the three gates of the `ui-designer` where it
 is visible.
 
 | # | Item | Source | FolloUp's target | Status | Depends on | Decision or open question |
 | --- | --- | --- | --- | --- | --- | --- |
-| 1 | **Interaction framework**: an overlay stack with a focus group per screen and per overlay; the first key press shows the ring and moves nothing, a tap shows no ring; a screen stack and routes with no transitions; hold OK as the escape chain; slide-off cancels a press, extended to the range slider `[?]`; hold-to-repeat on UP and DOWN (holding steps the focus until released) `[P]`; the root press lock | BYTE-90 `ui_router/focus.cpp`, `overlays.cpp`, `touch.cpp`, `routes.cpp` | New; `components/lvgl_display/input.cpp` for the ring, and a router that replaces `hw_test`'s hand-kept back state | Not started | The drafts | The first-press and tap rule is [DESIGN → Focus and input](../DESIGN.md#focus-and-input) and is not built today. Lifting off the range slider sets an end value today; extending slide-off to cancel it is proposed `[?]` |
+| 1 | **Interaction framework**: the screen and overlay stacks, routes, focus groups, the focus rules, the escape chain, slide-off and hold-to-repeat | BYTE-90 `ui_router/` | `components/router`, `components/lvgl_display/input.cpp` | Done, in four rounds ([§2](#2-done)) | — | [APP_ARCHITECTURE §7](APP_ARCHITECTURE.md#7-screens-routes-and-focus) and [DESIGN → Focus and input](../DESIGN.md#focus-and-input) |
 | 2 | **Sound**: the deck's chiptune note format (NES pulse voices at 50, 25 and 12.5 % duty, slides, arpeggios) on the Sticky's LEDC-driven magnetic buzzer, with press tick, at-end, error, success and recording start and stop; BYTE-90's ta-da and nudge melodies where they fit | The deck's `components/chiptune/`; BYTE-90's `ui_haptics`, `chiptune` | New component on the buzzer | Not started | — | The style and the words are in [§1](#1-order-and-decisions). **Open:** the buzzer's pitch range, and its timing during a refresh `[?]` |
 | 3 | **Status bar**: battery indicator, Wi-Fi indicator, a toolbar with Back as an icon button | BYTE-90 `ui_widgets/src/battery_indicator.cpp`, `wifi_indicator.cpp`; the deck's `battery_glyph.cpp` | `ui::NewStatusBar` in `components/ui/ui.cpp` | Not started | Wi-Fi signal glyphs (the icon button is built) | DESIGN asks for time, battery, Wi-Fi, storage and recording state; `ui::NewStatusBar` takes a title only today |
-| 4 | **Overlays**: the dialog as a real overlay (one action and Cancel, hold OK cancels; the touch catcher the select sheet already has); the select sheet and the keyboard on the overlay stack; a status line | BYTE-90 `ui_dialog`, `ui_sheet`, `ui_toast`, `ui_keyboard` | The dialog's box, the sheet and the keyboard's screen exist as kit components; the stack, the focus hand-over and the escape chain do not | Blocked by 1 | The select sheet takes and returns the focus group and the back handler itself today ([STICKY_DESIGN_TOKENS §12](STICKY_DESIGN_TOKENS.md#12-the-select-sheet)); the keyboard replaces its page and builds it again; the stack replaces both. They follow [DESIGN → The kit](../DESIGN.md#the-kit) |
+| 4 | **Overlays**: a status line | BYTE-90 `ui_toast` | — | Not started | — | The dialog, the select sheet and the keyboard are overlays on the router's stack ([§2](#2-done)); a status line follows [DESIGN → The kit](../DESIGN.md#the-kit) |
 | 5 | **Widgets**: wrapping detail and radio rows; a roller as a stepped picker (OK opens, UP and DOWN step) `[?]`; a carousel turned by page `[?]` | BYTE-90 `ui_widgets/src/choice_row.cpp`, `roller.cpp`, `carousel.cpp`; the deck's `wrapping_label.cpp`, `roller.cpp` | `components/widgets/` | Not started | — | Detail and radio rows cut words with LVGL's dots today; BYTE-90's choice row grows with its words and never rolls |
-| 6 | **Gaps from the deck comparison** `[?]`: a list page with no focusable rows is unreachable by keys; choice cards and radio rows send no event and keep no exclusivity; no distinct at-end sound; one global focus group | The deck's `list_view`, `choice_card`, `radio_row` | `components/widgets/src/list_view.cpp`, `choice_card.cpp`, `radio_row.cpp`, `internal/base.cpp` | Blocked by 1 (the focus group), 2 (the sound) | — | The focus group is the framework's per-screen group |
+| 6 | **Gaps from the deck comparison** `[?]`: a list page with no focusable rows is unreachable by keys; choice cards and radio rows send no event and keep no exclusivity; no distinct at-end sound | The deck's `list_view`, `choice_card`, `radio_row` | `components/widgets/src/list_view.cpp`, `choice_card.cpp`, `radio_row.cpp`, `internal/base.cpp` | Blocked by 2 (the sound) | — | Each screen and overlay has its own focus group (item 1) |
 | 7 | **Practices from BYTE-90** `[?]`: kit rules in DESIGN (a second caller moves a control into the kit; nothing duplicates a kit control); a table of chosen and disabled looks per control; `static_assert`s on token arithmetic; a host check that DESIGN.md's tokens equal `design_tokens.h`; the specimen rule (every new control on the kit page, walked by keys and touch); a `ui_probe`-style check of ring position and clipping | BYTE-90 `ui_probe`, `ui_theme`, `ui_tuner` | DESIGN.md, `components/design_tokens/`, `tests/host/` | Not started | — | `ui::NewButton` and `ui::NewRow` duplicate `widgets` controls today and move into the kit |
 
 ---
@@ -139,10 +147,8 @@ is visible.
 | Requirement | Conflicts with | Options |
 | --- | --- | --- |
 | The keyboard in BYTE-90's 48 px keys, about ten a row | The 64 px hit-area floor | Settled `[P]`: six 64 px keys a row; no exception in DESIGN |
-| A first key press that shows the ring and moves nothing; a tap that shows no ring | `components/lvgl_display/input.cpp` does neither | Item 1 builds it |
 | A status bar with time, battery, Wi-Fi, storage and recording state | `ui::NewStatusBar` takes a title only | Item 3 |
 | One kit with no duplicate controls | `ui::NewButton` and `ui::NewRow` beside `widgets` | Item 7 moves them |
-| Slide-off cancels a press on every control | Lifting off the range slider sets an end value | Item 1 |
 
 ---
 
@@ -150,8 +156,6 @@ is visible.
 
 | Question | How | Settles |
 | --- | --- | --- |
-| Why ghosting builds on a V1.0 as the kit page scrolls past the choice cards' light dither and clears going down `[SEEN]` — the likely cause is the scans' full refresh, only after 150 scan frames and a 2 s pause ([STICKY_EPAPER_WAVEFORMS §3.4](STICKY_EPAPER_WAVEFORMS.md#34-which-refresh-a-frame-gets)); not measured `[?]` | The same `key` walk on Seeed's partial preset and on Scan 2 x 12, with the person watching; awaiting the person | DESIGN's open item "the dither over many partials", and whether choice cards keep the light dither |
-| Whether the kit shows the same on a V2.0 (SSD2677) | A run of the kit page and its key walk on a V2.0 board; not done | The kit's V2.0 look, and the same ghosting question there |
 | The buzzer's pitch range and its timing during a refresh `[?]` | A bench run of the chiptune voices on the LEDC buzzer, with a refresh in flight | Item 2 |
 | Whether the keyboard reads and hits on the glass, and whether its ring moves — uncounted — leave a ghost | The kit page's keyboard walked by keys and touch on a V1.0, long enough to type a password; awaiting the person | The keyboard in [§2](#2-done) |
 | Whether the sheet's partial close ghosts where its chosen row was, and whether the offsets and the keyline read | The kit page's dropdowns opened and closed ten times on a V1.0 | The select sheet and the elevation scale in [§2](#2-done) |

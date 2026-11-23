@@ -6,7 +6,7 @@
 #include "internal/base.h"
 #include "internal/marks.h"
 #include "internal/sheet_rules.h"
-#include "lvgl_display.h"
+#include "router/router.h"
 #include "widgets/button.h"
 #include "widgets/list_view.h"
 
@@ -34,13 +34,12 @@ struct Sheet {
     Dropdown *dropdown;
     lv_obj_t *catcher;  // a touch above the sheet lands here and nowhere else
     lv_obj_t *box;
-    std::vector<lv_obj_t *> saved;  // the page's focus stops, put back when the sheet closes
-    void (*back)();                 // the back handler it replaced
+    router::Overlay overlay;  // the sheet on the router's overlay stack: its group, holding OK, and focus back to the field
 };
 Sheet *s_open = nullptr;
 
-// Closes: the page's stops come back, focus goes to the field, the back handler returns, and a choice is reported. The sheet's
-// objects go first-hand, last — this runs inside the events of the objects it deletes.
+// Closes: off the overlay stack — the page's group is bound again, focus still on the field, ringed if it was — then the sheet's
+// objects go, and a choice is reported. The objects go first-hand, last: this runs inside the events of the objects it deletes.
 void Close(int choose)
 {
     Sheet *s = s_open;
@@ -49,21 +48,19 @@ void Close(int choose)
     }
     s_open = nullptr;
     Dropdown *dropdown = s->dropdown;
-    const std::vector<lv_obj_t *> saved = s->saved;
-    void (*back)() = s->back;
     lv_obj_t *catcher = s->catcher;
     lv_obj_t *box = s->box;  // its delete event frees `s`
-    lvgl_display::ClearGroup();
-    for (lv_obj_t *stop : saved) {
-        lv_group_add_obj(lvgl_display::Group(), stop);
-    }
-    lvgl_display::SetBackHandler(back);
+    router::CloseOverlay(&s->overlay);
     lv_obj_delete(box);
     lv_obj_delete(catcher);
-    lv_group_focus_obj(dropdown->field);
     if (choose >= 0) {
         ChooseDropdown(dropdown, choose);
     }
+}
+
+void CloseAsCancel(void *)
+{
+    Close(-1);
 }
 
 void OnRowClicked(lv_event_t *e)
@@ -76,12 +73,13 @@ void OnCancelClicked(lv_event_t *)
     Close(-1);
 }
 
-// The sheet freed with its screen: a screen deleted while it is open takes it along, and the page's stops with it.
+// The sheet freed with its screen: a screen deleted while it is open takes it along, off the overlay stack first.
 void OnBoxDelete(lv_event_t *e)
 {
     Sheet *s = static_cast<Sheet *>(lv_event_get_user_data(e));
     if (s_open == s) {
         s_open = nullptr;
+        router::CloseOverlay(&s->overlay);
     }
     delete s;
 }
@@ -151,12 +149,16 @@ void OpenSelectSheet(Dropdown *dropdown)
 
     Sheet *s = new Sheet{};
     s->dropdown = dropdown;
-    s_open = s;
-    lv_group_t *group = lvgl_display::Group();
-    for (uint32_t i = 0; i < lv_group_get_obj_count(group); ++i) {
-        s->saved.push_back(lv_group_get_obj_by_index(group, i));
+    // On the overlay stack before a row is made: its rows and Cancel join the sheet's own group, and nothing behind the sheet
+    // is reachable by the buttons. Holding OK is Cancel.
+    s->overlay.escape = CloseAsCancel;
+    s->overlay.dismiss = CloseAsCancel;
+    s->overlay.user = s;
+    if (router::OpenOverlay(&s->overlay) == nullptr) {
+        delete s;
+        return;
     }
-    lvgl_display::ClearGroup();  // nothing behind the sheet is reachable by the buttons
+    s_open = s;
 
     // A touch above the sheet is eaten: the tick the input task sounds, and nothing else — no tap lands on the page behind, and a
     // drag does not move it.
@@ -213,12 +215,8 @@ void OpenSelectSheet(Dropdown *dropdown)
     lv_obj_set_flex_grow(hint, 1);
     lv_obj_set_width(hint, 1);
 
-    // Holding OK is Cancel while the sheet is up; the page's own handler comes back with it.
-    s->back = lvgl_display::BackHandler();
-    lvgl_display::SetBackHandler(CloseSelectSheet);
-
     // Focus opens on the chosen row, turning to its page (the list view's own rule), the ring shown.
-    lv_group_focus_obj(option_rows[static_cast<size_t>(selected)]);
+    router::Focus(option_rows[static_cast<size_t>(selected)]);  // ringed when the buttons opened it
 }
 
 void CloseSelectSheet()

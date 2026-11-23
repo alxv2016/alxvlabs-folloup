@@ -76,7 +76,24 @@ DESIGN_FILE = "DESIGN.md"
 #   "baseline": the hits accepted today, each with its reason in a comment here
 #   Web:     {"paths": ("src/", "public/locales/")}
 #   ESP-IDF: {"paths": ("components/ui_*/", "main/"), "names": ("<Product>",)}
-UX_STRINGS = {"paths": (), "calls": (), "names": (), "baseline": 0}
+# The kit's widgets take their words through their own factories, which LVGL's calls do not name: MakeX / NewX (a
+# button's, row's, card's, dialog's, field's words), detail::Line / Words, and the setters that take a reason.
+UX_STRINGS = {"paths": (), "baseline": 0,
+              "names": ("English", "United Kingdom", "Sam", "Priya", "Thursday", "Saturday"),
+              "calls": (
+    # LVGL's own text calls (the check's defaults for LVGL), kept since these replace the defaults
+    r"\blv_label_set_text(?:_fmt|_static)?", r"\blv_checkbox_set_text(?:_static)?",
+    r"\blv_dropdown_set_text(?:_static)?", r"\blv_dropdown_set_options(?:_static)?", r"\blv_dropdown_add_option",
+    r"\blv_roller_set_options", r"\blv_textarea_set_placeholder_text",
+    r"\blv_msgbox_add_(?:title|text|text_fmt|footer_button)", r"\blv_msgbox_create",
+    r"\blv_list_add_(?:text|button|btn)", r"\blv_list_set_button_text", r"\blv_win_add_title",
+    r"\blv_tabview_add_tab", r"\blv_tabview_set_tab_text", r"\blv_menu_page_create",
+    r"\blv_menu_set_page_title(?:_static)?", r"\blv_span_set_text(?:_static|_fmt)?",
+    # the kit's own factories and setters
+    r"\b(?:ui::|widgets::|detail::)?(?:Make|New)[A-Z]\w*",
+    r"\b(?:Line|Words)(?=\s*\()",
+    r"\bSet\w*(?:Enabled|Reason)(?=\s*\()",
+)}
 
 # Where the design tokens live in code — the values DESIGN.md decides, in the platform's format. A screen takes its
 # values from these files, never from a literal (the design-system skill). Empty: the token check and the design

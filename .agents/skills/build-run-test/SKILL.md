@@ -88,6 +88,11 @@ from the agent deck's bridge for its run — never stop the bridge. The `bench-r
 python tests/bench/flash.py                         # the build in build/, as idf.py flash writes it; no yes needed
 python tests/bench/boot_check.py --log <SP>/boot.log  # resets, reads 12 s: exit 0 clean, 1 a fault, 2 no boot
 python tests/bench/console_word.py help             # the firmware's console: bench, anim, pages [n], stop, speed [n], key up|down|ok|hold [n], shot
+#   key: a press lasts 80 ms and never repeats; key hold closes an open edit (restoring it), then the top overlay (dialog,
+#   sheet, keyboard), else goes back
+#   one screen (a Display sub-screen returns to Display);
+#   bench and anim replace every screen above Home; with no ring on the glass (a screen just opened, or after a touch)
+#   the first key up|down|ok only shows the ring — count one extra press per fresh screen (APP_ARCHITECTURE §7)
 python tests/bench/console_word.py --listen 8 key down 3   # presses a button through the real input path, to reach a screen
 python tests/bench/console_word.py --listen 120 bench  # the refresh benchmark: one `animation` line a preset
 python tests/bench/screenshot.py -o <SP>/home.png   # the one-bit frame on the glass, as a portrait PNG

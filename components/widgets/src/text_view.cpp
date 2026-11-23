@@ -16,6 +16,7 @@ struct State {
     int32_t line;   // a line box, px
     int page;
     int pages;
+    int opened_page;  // the page when OK opened it for reading: holding OK turns back to it
 };
 
 State *Of(lv_obj_t *band)
@@ -75,6 +76,19 @@ void TurnPage(lv_obj_t *band, int32_t dir)
     ShowPage(band, Of(band)->page + static_cast<int>(dir), true);  // at an end nothing changes: the tick answered it
 }
 
+void OnEditOpened(lv_event_t *e)
+{
+    State *s = Of(lv_event_get_current_target_obj(e));
+    s->opened_page = s->page;
+}
+
+// Holding OK while it is open: back to the page it opened on (router::Escape's first link).
+void OnCancel(lv_event_t *e)
+{
+    lv_obj_t *band = lv_event_get_current_target_obj(e);
+    ShowPage(band, Of(band)->opened_page, true);
+}
+
 void OnDelete(lv_event_t *e)
 {
     delete Of(lv_event_get_target_obj(e));
@@ -105,10 +119,11 @@ TextView MakeTextView(lv_obj_t *parent, int32_t lines, const char *text)
     view.label = ui::NewLabel(view.root, ui::Type::kCaptionLoose, text);
     detail::ClaimSwipe(view.root, TurnPage);
     view.indicator = MakeScrollIndicator(view.frame, height);
-    lv_obj_set_user_data(view.root, new State{view.indicator, view.label, lines, line, 0, 1});
+    lv_obj_set_user_data(view.root, new State{view.indicator, view.label, lines, line, 0, 1, 0});
     lv_obj_add_event_cb(view.root, OnDelete, LV_EVENT_DELETE, nullptr);
     lv_obj_add_event_cb(view.root, OnKey, LV_EVENT_KEY, nullptr);
-    detail::ToggleEditingOnKeyClick(view.root);
+    lv_obj_add_event_cb(view.root, OnCancel, LV_EVENT_CANCEL, nullptr);
+    detail::ToggleEditingOnKeyClick(view.root, OnEditOpened);
     ui::RingOutside(view.root, kInset);
     ui::RingEditing(view.root, kInset);  // 6 px while it is open for reading
     detail::JoinGroup(view.root, view.frame);  // the page brings the view's box, and the ring round it, into view

@@ -4,6 +4,7 @@
 
 #include "design_tokens.h"
 #include "internal/base.h"
+#include "router/router.h"
 
 namespace widgets {
 namespace dt = design_tokens;
@@ -19,6 +20,8 @@ constexpr int32_t kMinFill = kInset + kKnobWidth + kInset;
 
 struct State {
     int32_t min, max, step, value;
+    int32_t opened_value;   // the value when OK opened the edit: holding OK puts it back
+    int32_t pressed_value;  // the value when a finger went down: a lift off the track puts it back
     const char *suffix;
     const char *at_min;
     lv_obj_t *fill, *knob, *label;
@@ -86,6 +89,33 @@ void OnKey(lv_event_t *e)
     } else if (key == LV_KEY_DOWN || key == LV_KEY_LEFT) {
         Set(root, Of(root)->value - Of(root)->step, true);
     }
+}
+
+// OK opened the edit: what holding OK puts back.
+void OnEditOpened(lv_event_t *e)
+{
+    Of(lv_event_get_current_target_obj(e))->opened_value = Of(lv_event_get_current_target_obj(e))->value;
+}
+
+// Holding OK while the edit is open: the value it had when it opened (router::Escape's first link).
+void OnCancel(lv_event_t *e)
+{
+    lv_obj_t *root = lv_event_get_current_target_obj(e);
+    Set(root, Of(root)->opened_value, true);
+}
+
+void OnPressed(lv_event_t *e)
+{
+    lv_obj_t *root = lv_event_get_current_target_obj(e);
+    Of(root)->pressed_value = Of(root)->value;
+}
+
+// The press was lost — the finger lifted off the track past the slop, which the router cancels, or the page took the drag: the
+// value the press found (DESIGN → Focus and input).
+void OnPressLost(lv_event_t *e)
+{
+    lv_obj_t *root = lv_event_get_current_target_obj(e);
+    Set(root, Of(root)->pressed_value, true);
 }
 
 // A finger lands the value where it lifts, to the nearest step: one refresh, never one a frame.
@@ -157,20 +187,26 @@ RangeSlider MakeRangeSlider(lv_obj_t *parent, int32_t min, int32_t max, int32_t 
     lv_obj_set_style_bg_color(slider.knob, ui::Level(dt::kColorKnob), 0);
     lv_obj_set_style_bg_color(slider.knob, detail::DisabledOnPage(), LV_STATE_DISABLED);
 
-    State *state = new State{min, max, step > 0 ? step : 1, min - 1, suffix, at_min, slider.fill, slider.knob,
-                             slider.label};
+    State *state = new State{min, max, step > 0 ? step : 1, min - 1, min - 1, min - 1, suffix, at_min, slider.fill,
+                             slider.knob, slider.label};
     lv_obj_set_user_data(slider.root, state);
     lv_obj_add_event_cb(slider.root, OnDelete, LV_EVENT_DELETE, nullptr);
     lv_obj_add_event_cb(slider.root, OnKey, LV_EVENT_KEY, nullptr);
     lv_obj_add_event_cb(slider.root, OnReleased, LV_EVENT_RELEASED, nullptr);
+    lv_obj_add_event_cb(slider.root, OnPressed, LV_EVENT_PRESSED, nullptr);
+    lv_obj_add_event_cb(slider.root, OnPressLost, LV_EVENT_PRESS_LOST, nullptr);
+    lv_obj_add_event_cb(slider.root, OnCancel, LV_EVENT_CANCEL, nullptr);
+    router::CancelOnSlideOff(slider.root);  // a lift off the track, past the slop, lands nothing
     lv_obj_add_event_cb(slider.root, OnStateChanged, LV_EVENT_STATE_CHANGED, nullptr);
-    detail::ToggleEditingOnKeyClick(slider.root);
+    detail::ToggleEditingOnKeyClick(slider.root, OnEditOpened);
     // Touches across spacing.target: the 52 px track padded 6 px above and below.
     lv_obj_set_ext_click_area(slider.root, (dt::kSpacingTarget - dt::kSpacingSliderHeight) / 2);
     ui::RingOutside(slider.root);
     ui::RingEditing(slider.root);
     detail::JoinGroup(slider.root);
     Set(slider.root, value, false);
+    state->opened_value = state->value;
+    state->pressed_value = state->value;
     return slider;
 }
 

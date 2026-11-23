@@ -49,8 +49,10 @@ void Focusable(lv_obj_t *obj);
 void JoinGroup(lv_obj_t *obj, lv_obj_t *show = nullptr);
 // Whether the event came from the buttons, not the touch panel.
 bool FromKeys();
-// OK on an editable widget opens it for editing, and OK again closes it: UP and DOWN then reach the widget. A press
-// that takes the focus elsewhere — a tap on another control — closes it too.
-void ToggleEditingOnKeyClick(lv_obj_t *obj);
+// OK on an editable widget opens it for editing, and OK again closes it, keeping what was done: UP and DOWN then reach the
+// widget. A press that takes the focus elsewhere — a tap on another control — closes it too. `opened`, when given, runs as OK
+// opens it, so the widget keeps what LV_EVENT_CANCEL puts back: holding OK while it is open cancels the edit (router::Escape,
+// DESIGN → Focus and input).
+void ToggleEditingOnKeyClick(lv_obj_t *obj, lv_event_cb_t opened = nullptr);
 
 }  // namespace widgets::detail

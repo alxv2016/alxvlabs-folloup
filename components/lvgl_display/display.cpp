@@ -72,8 +72,8 @@ constexpr TuningPreset kTunings1677[] = {
     {"Scan 4 x 10", {0, true, 4, 10}},
 };
 constexpr int kDefaultTuning2677 = 2;  // 85 Hz
-constexpr int kDefaultTuning1677 = 2;  // scan 2 x 12: 85 ms a frame, 11.8 fps, clean on a V1.0 board's glass (the
-                                       // person's choice; STICKY_EPAPER_WAVEFORMS §4.2)
+constexpr int kDefaultTuning1677 = 3;  // scan 3 x 10: about 100 ms a frame; scan 2 x 12 ghosts under a fast scroll or
+                                       // fast presses (the person's choice; STICKY_EPAPER_WAVEFORMS §3.5)
 const TuningPreset *s_tunings = kTunings1677;
 int s_tuning_count = 1;
 int s_tuning = 0;
@@ -702,6 +702,13 @@ void SetTemperatureSource(bool (*read)(float *celsius))
 int64_t LastRefreshEndUs()
 {
     return s_last_refresh_us;
+}
+
+// Only the scans: a frame is drawn by the flush on LVGL's own task, the task that reads the keys, so no key read ever runs
+// while one is being drawn — whether a step's frame is on the glass is LastRefreshEndUs's to say (key_rules.h).
+bool RefreshBusy()
+{
+    return s_scan_work;
 }
 
 esp_err_t SetTuning(int preset)

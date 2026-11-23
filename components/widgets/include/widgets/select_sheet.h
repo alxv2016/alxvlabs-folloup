@@ -4,8 +4,8 @@
 // foot, in the footer's place, holds Cancel and what the buttons do in words. It appears in the next frame, closes the same way,
 // and the page above stays as it was.
 //
-// Today a screen holds it as an object of its own, which takes the focus group and the back handler while it is open and gives
-// them back; the interaction framework's overlay stack will own that, and this builds the same.
+// It is an overlay on the router's stack (router/router.h): its own focus group while it is open, holding OK as Cancel, and
+// focus back on the field, ringed if it was, when it closes. Its objects stand on the screen it covers.
 
 #pragma once
 
@@ -21,7 +21,7 @@ namespace widgets {
 // chooses it (ChooseDropdown, which reports a change once) and closes; Cancel, holding OK, or choosing nothing new closes with
 // nothing changed; focus goes back to the field. A touch above the sheet is eaten. One sheet at a time.
 void OpenSelectSheet(Dropdown *dropdown);
-// Closes the sheet as Cancel does; does nothing when none is open. The back handler while it is open.
+// Closes the sheet as Cancel does; does nothing when none is open. Holding OK does the same, through the overlay stack.
 void CloseSelectSheet();
 bool SelectSheetOpen();
 

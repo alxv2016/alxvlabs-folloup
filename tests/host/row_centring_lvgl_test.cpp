@@ -10,7 +10,7 @@
 // boxes included), its images and its controls; each case prints the offset it measured, in px, positive below the row's centre.
 // run.sh builds LVGL's sources from managed_components once, into build/host/lvgl, and the sources named below, against stand-ins
 // for the ESP-IDF headers (tests/host/stubs).
-// host-sources: components/ui/ui.cpp components/ui/line_box.cpp components/ui/fonts/bitcount/*.c components/widgets/marks/marks.c components/widgets/src/*.cpp components/widgets/src/internal/*.cpp
+// host-sources: components/ui/ui.cpp components/ui/line_box.cpp components/ui/fonts/bitcount/*.c components/widgets/marks/marks.c components/widgets/src/*.cpp components/widgets/src/internal/*.cpp components/router/router.cpp components/router/overlays.cpp components/router/focus.cpp components/router/touch.cpp components/router/routes.cpp components/router/screen.cpp
 // Build and run: bash tests/host/run.sh
 
 #include <algorithm>
@@ -39,8 +39,24 @@ void ClearGroup()
     lv_group_set_editing(s_group, false);
     lv_group_remove_all_objs(s_group);
 }
+// The router binds a screen's or an overlay's group here: the buttons and LVGL's default group follow it, as on the board.
+void SetGroup(lv_group_t *group)
+{
+    if (group == nullptr) {
+        return;
+    }
+    s_group = group;
+    for (lv_indev_t *indev = lv_indev_get_next(nullptr); indev != nullptr; indev = lv_indev_get_next(indev)) {
+        lv_indev_set_group(indev, group);  // a keypad's only: LVGL ignores it for a pointer
+    }
+    lv_group_set_default(group);
+}
 void SetBackHandler(void (*back)()) { s_back = back; }
-void (*BackHandler())() { return s_back; }
+// The router's read hooks, kept so a test can run a key read through the focus rules as LVGL's read would.
+void (*s_key_hook)(lv_indev_t *, lv_indev_data_t *) = nullptr;
+void (*s_touch_hook)(lv_indev_t *, lv_indev_data_t *) = nullptr;
+void SetKeyReadHook(void (*hook)(lv_indev_t *, lv_indev_data_t *)) { s_key_hook = hook; }
+void SetTouchReadHook(void (*hook)(lv_indev_t *, lv_indev_data_t *)) { s_touch_hook = hook; }
 void SetPartialCounting(PartialCounting) {}
 void NoteTyping() {}
 void RequestFull() {}

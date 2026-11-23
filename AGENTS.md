@@ -20,7 +20,7 @@ and the code: find out which is intended before changing either
 
 | Path | Holds |
 | --- | --- |
-| [`main/`](main/), [`components/`](components/) | The ESP-IDF firmware: `main` composes, `app_shell` sequences, `board` brings the hardware up, `devices`, `lvgl_display`, `ui` and `widgets` serve it, features such as `hw_test` plug in — [APP_ARCHITECTURE](docs/APP_ARCHITECTURE.md) |
+| [`main/`](main/), [`components/`](components/) | The ESP-IDF firmware: `main` composes, `app_shell` sequences, `board` brings the hardware up, `devices`, `lvgl_display`, `ui` and `widgets` serve it, `router` stacks the screens and their routes ([APP_ARCHITECTURE §7](docs/APP_ARCHITECTURE.md#7-screens-routes-and-focus)), features such as `hw_test` plug in — [APP_ARCHITECTURE](docs/APP_ARCHITECTURE.md) |
 | [`components/epaper`](components/epaper/), [`ssd1677`](components/ssd1677/), [`ssd2677`](components/ssd2677/) | The display drivers: the panel interface and bus, and each controller — how the glass is refreshed is [STICKY_EPAPER_WAVEFORMS](docs/STICKY_EPAPER_WAVEFORMS.md) |
 | [`DESIGN.md`](DESIGN.md) | FolloUp's design system for e-ink, to Google's DESIGN.md spec: principles, and every token in its front matter — its code side is [STICKY_DESIGN_TOKENS](docs/STICKY_DESIGN_TOKENS.md) |
 | `docs/` | The knowledge: rules, reasons, decisions, open items |
@@ -28,8 +28,8 @@ and the code: find out which is intended before changing either
 | `.agents/` | The agent kit: skills, agents, rubrics, hooks, the project settings ([.agents/README.md](.agents/README.md)) |
 
 Every arrow points at `app_hooks` or down at the board — never at a feature: `main` → `app_shell` and the listed
-features; `app_shell` → `app_hooks`, `board`, `devices`, `lvgl_display`, `ui`; a feature → `app_hooks` and the shared components;
-`board` → `board_config` and the display drivers. `esp_idf.py check` fails a break (E1–E5,
+features; `app_shell` → `app_hooks`, `board`, `devices`, `lvgl_display`, `router`, `ui`; a feature → `app_hooks` and the shared
+components (`router` among them); `widgets` → `router`; `router` → `lvgl_display`; `board` → `board_config` and the display drivers. `esp_idf.py check` fails a break (E1–E5,
 [APP_ARCHITECTURE §2](docs/APP_ARCHITECTURE.md#2-rules)).
 
 ---
@@ -210,6 +210,7 @@ not of the product: the target and the person's sign-off are what show it works.
 | [STICKY_EPAPER_WAVEFORMS](docs/STICKY_EPAPER_WAVEFORMS.md) | How the glass is refreshed on each controller: the waveforms, the SSD1677's scans, the presets, their measured times, the panel's safety rules |
 | [STICKY_DESIGN_TOKENS](docs/STICKY_DESIGN_TOKENS.md) | How the firmware implements DESIGN.md: each role on both refreshes and the contrast proof, fonts, the token header, the refresh policy and feedback, enforcement |
 | [STICKY_HARDWARE_SPECS](docs/STICKY_HARDWARE_SPECS.md) | The reTerminal Sticky board: constraints, firmware facts, pins, buses, power, sleep and wake, bring-up order, traps |
+| [STICKY_UI_KIT_PORT](docs/STICKY_UI_KIT_PORT.md) | The plan for porting the agent deck's and BYTE-90's UI to the e-ink kit: each item's source, target, status (Done, Drafting, Not started, Blocked), dependency and decision, in port order |
 
 Sync rules: a doc changes in the same commit as the code it describes; a heading keeps its number; every doc is listed
 in [README.md](README.md#documentation).

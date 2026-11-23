@@ -11,6 +11,7 @@
 #include <cstdlib>
 #include <cstring>
 #include <ctime>
+#include <memory>
 #include <string>
 
 #include "app_hooks.h"
@@ -19,6 +20,7 @@
 #include "devices.h"
 #include "esp_system.h"
 #include "lvgl_display.h"
+#include "router/router.h"
 #include "ui.h"
 #include "widgets/widgets.h"
 #include "esp_app_desc.h"
@@ -41,21 +43,9 @@ namespace dt = design_tokens;
 using ui::Type;
 constexpr const char *kTag = "hw_test";
 
-lv_obj_t *s_home = nullptr;  // home's screen, kept while a test screen shows
-constexpr size_t kMaxHomeRows = 9;
-lv_obj_t *s_home_rows[kMaxHomeRows] = {};
-size_t s_home_row_count = 0;
-lv_obj_t *s_current = nullptr;  // the test screen showing, or nullptr on home
-lv_timer_t *s_timer = nullptr;  // the showing screen's self-update, if it has one
-lv_obj_t *s_opener = nullptr;   // the home row that opened the screen showing: focus goes back to it
-// Display's own sub-screens (Four greys, Type scale, UI kit) are opened from its button row and close back to Display, which
-// is built again: the opener is kept as its place in that row, and focus goes back to the button there (DESIGN → Focus and
-// input; a router that keeps the opener of every screen comes later).
-// s_display_row dangles once Display is deleted — a sub-screen replaces it — until ShowDisplay sets it again. Until then it is
-// only compared as a pointer (KeepDisplayOpener, against a button's parent), and OnGrayBack reads it only after ShowDisplay
-// has reset it: it is never dereferenced while it dangles.
-lv_obj_t *s_display_row = nullptr;  // Display's button row while Display shows
-int32_t s_display_opener = -1;      // the row's child that opened a sub-screen, or -1
+// Each test screen is a route on the router's stack: home's rows push one, Display pushes its sub-screens over itself, and Back
+// and holding OK pop, focus back on the control that opened the screen (APP_ARCHITECTURE §7). Only the top screen runs a timer.
+lv_timer_t *s_timer = nullptr;  // the top screen's self-update, if it has one
 bool s_bench_running = false;   // a benchmark run is cycling the presets: leaving it puts the default back
 
 // --- Navigation -----------------------------------------------------------------------------------------------
@@ -68,9 +58,9 @@ void StopTimer()
     }
 }
 
-// Leaving a screen: its timer stops, the buttons stop reporting to it, and a benchmark cut short leaves the default
-// preset, not the last one it tried.
-void LeaveScreen()
+// Every test screen's OnExit — covered by another or popped: its timer stops, the buttons stop reporting to it, and a benchmark
+// cut short leaves the default preset, not the last one it tried.
+void LeaveScreen(void * = nullptr)
 {
     StopTimer();
     lvgl_display::SetKeyObserver(nullptr);
@@ -80,39 +70,22 @@ void LeaveScreen()
     }
 }
 
-void ShowHome()
-{
-    if (s_current == nullptr) {
-        return;
-    }
-    LeaveScreen();
-    lvgl_display::ClearGroup();
-    lv_screen_load(s_home);
-    lv_obj_delete(s_current);
-    s_current = nullptr;
-    for (size_t i = 0; i < s_home_row_count; ++i) {
-        lv_group_add_obj(lvgl_display::Group(), s_home_rows[i]);
-    }
-    if (s_opener != nullptr) {
-        lv_group_focus_obj(s_opener);  // the next step starts where the last one did
-    }
-    lvgl_display::SetBackHandler(nullptr);
-}
-
+// Back, and a sub-screen's Display: the screen under this one, focus on what opened this.
 void OnBack(lv_event_t *)
 {
-    ShowHome();
+    router::Pop();
 }
 
-// Starts a test screen: the glass, its status bar, and a content column; Back goes home.
-lv_obj_t *BeginScreen(const char *title, lv_obj_t **content)
+// A button that opens a screen pushes its route, named in the button's user data.
+void OnPushRoute(lv_event_t *e)
 {
-    if (s_current == nullptr) {
-        s_opener = lv_group_get_focused(lvgl_display::Group());  // a tap on a row focuses it too
-    }
-    LeaveScreen();
-    lvgl_display::ClearGroup();
-    lv_obj_t *screen = ui::NewScreen();
+    router::PushRoute(static_cast<const char *>(lv_event_get_user_data(e)));
+}
+
+// Starts a test screen in the router's root: the glass, its status bar, and a content column, returned.
+lv_obj_t *BeginScreen(lv_obj_t *screen, const char *title)
+{
+    ui::StyleScreen(screen);
     ui::NewStatusBar(screen, title);
     lv_obj_t *column = lv_obj_create(screen);
     lv_obj_remove_style_all(column);
@@ -123,8 +96,7 @@ lv_obj_t *BeginScreen(const char *title, lv_obj_t **content)
     lv_obj_set_style_pad_ver(column, dt::kSpacingMd, 0);
     lv_obj_set_style_pad_row(column, dt::kSpacingMd, 0);  // a ring reaches 8 px: stops sit 16 apart (DESIGN → Layout → Spacing)
     lv_obj_set_scrollable(column, false);
-    *content = column;
-    return screen;
+    return column;
 }
 
 // The footer: Back last in the focus order, after the screen's own controls, always at the bottom.
@@ -139,14 +111,29 @@ void EndScreen(lv_obj_t *screen)
     lv_obj_set_scrollable(footer, false);
     lv_obj_t *back = ui::NewButton(footer, "Back", false, OnBack, nullptr);
     lv_obj_set_width(back, 160);
+}
 
-    lv_obj_t *old = s_current;
-    s_current = screen;
-    lv_screen_load(screen);
-    if (old != nullptr) {
-        lv_obj_delete(old);
+// A test screen as the router takes it: built by `create`, entered by `enter` when it starts something, left by LeaveScreen;
+// `covered` when an overlay over it should stop what it does on its own.
+std::unique_ptr<router::Screen> TestScreen(router::CreateFn create, router::LifecycleFn enter = nullptr,
+                                           router::CoveredFn covered = nullptr)
+{
+    return router::MakeScreen(create, enter, LeaveScreen, covered);
+}
+
+// A self-updating screen's timer stops while an overlay covers it, and on uncover reads at once, then keeps its period
+// (DESIGN → Motion → Waits).
+void PauseWhileCovered(bool covered, void *)
+{
+    if (s_timer == nullptr) {
+        return;
     }
-    lvgl_display::SetBackHandler(ShowHome);
+    if (covered) {
+        lv_timer_pause(s_timer);
+    } else {
+        lv_timer_resume(s_timer);
+        lv_timer_ready(s_timer);
+    }
 }
 
 lv_obj_t *Value(lv_obj_t *parent, const char *text)
@@ -230,8 +217,6 @@ void OnPartial(lv_event_t *)
     s_stats_pending = true;
 }
 
-void ShowDisplay();
-
 lv_obj_t *s_tuning_button = nullptr;
 
 void SetTuningLabel()
@@ -250,10 +235,6 @@ void OnTuning(lv_event_t *)
         s_stats_pending = true;
     }
 }
-
-void OnGray(lv_event_t *);
-void OnTypeScale(lv_event_t *);
-void OnKit(lv_event_t *);
 
 void OnPattern(lv_event_t *e)
 {
@@ -286,17 +267,9 @@ void DrawChecker(lv_event_t *e)
     }
 }
 
-// Called by a Display button that opens a sub-screen, before it does.
-void KeepDisplayOpener(lv_event_t *e)
+void CreateDisplay(lv_obj_t *screen, lv_group_t *, void *)
 {
-    lv_obj_t *button = lv_event_get_target_obj(e);
-    s_display_opener = lv_obj_get_parent(button) == s_display_row ? lv_obj_get_index(button) : -1;
-}
-
-void ShowDisplay()
-{
-    lv_obj_t *content;
-    lv_obj_t *screen = BeginScreen("Display", &content);
+    lv_obj_t *content = BeginScreen(screen, "Display");
     const lvgl_display::Stats s = lvgl_display::GetStats();
     // The heading and its note are a pair: spacing.sm apart, where blocks sit spacing.md apart (DESIGN → Layout → Spacing).
     lv_obj_t *heading = lv_obj_create(content);
@@ -316,12 +289,12 @@ void ShowDisplay()
     FillStats();
 
     lv_obj_t *row = ButtonRow(content);
-    s_display_row = row;
     HalfButton(row, "Full", true, OnFull);  // a half button holds 10 characters of label (STICKY_DESIGN_TOKENS §4)
     HalfButton(row, "Partial", false, OnPartial);
-    HalfButton(row, "Four greys", false, OnGray);
-    HalfButton(row, "Type scale", false, OnTypeScale);
-    HalfButton(row, "UI kit", false, OnKit);
+    // Display's sub-screens push over it, and pop back to it with focus on the button that opened them.
+    HalfButton(row, "Four greys", false, OnPushRoute, const_cast<char *>("hw.display.grays"));
+    HalfButton(row, "Type scale", false, OnPushRoute, const_cast<char *>("hw.display.type-scale"));
+    HalfButton(row, "UI kit", false, OnPushRoute, const_cast<char *>("hw.display.kit"));
     lv_obj_t *pattern_button = HalfButton(row, "Pattern", false, nullptr);  // in the row, before Speed below it
 
     if (lvgl_display::TuningCount() > 1) {
@@ -341,27 +314,20 @@ void ShowDisplay()
     lv_obj_set_style_bg_opa(checker, LV_OPA_TRANSP, 0);
     lv_obj_add_event_cb(checker, DrawChecker, LV_EVENT_DRAW_MAIN_END, nullptr);
     lv_obj_add_event_cb(pattern_button, OnPattern, LV_EVENT_CLICKED, checker);
-
-    s_timer = lv_timer_create(ShowStatsOnce, 1500, nullptr);
     EndScreen(screen);
 }
 
-// A sub-screen's "Display" button: Display again, with focus on the button that opened the sub-screen.
-void OnGrayBack(lv_event_t *)
+// On top again, after a sub-screen too: the stats read again, and their once-after-a-refresh update runs.
+void EnterDisplay(void *)
 {
-    ShowDisplay();
-    if (s_display_opener >= 0 && s_display_row != nullptr &&
-        s_display_opener < static_cast<int32_t>(lv_obj_get_child_count(s_display_row))) {
-        lv_group_focus_obj(lv_obj_get_child(s_display_row, s_display_opener));
-    }
+    FillStats();
+    s_timer = lv_timer_create(ShowStatsOnce, 1500, nullptr);
 }
 
-void OnGray(lv_event_t *e)
+void CreateGrays(lv_obj_t *screen, lv_group_t *, void *)
 {
-    KeepDisplayOpener(e);
     // Four bands, black to white, drawn in two bits a pixel. The frame after it is drawn full, one bit.
-    lv_obj_t *content;
-    lv_obj_t *screen = BeginScreen("Four greys", &content);
+    lv_obj_t *content = BeginScreen(screen, "Four greys");
     static const char *const kNames[] = {"Level 0 · #000000", "Level 1 · #555555", "Level 2 · #AAAAAA",
                                          "Level 3 · #FFFFFF"};
     for (uint8_t level = 0; level < 4; ++level) {
@@ -380,9 +346,13 @@ void OnGray(lv_event_t *e)
     }
     ui::NewLabel(content, Type::kCaption, "Bands run black to white. Back draws the next frame in full.", true);
     lv_obj_t *row = ButtonRow(content);
-    HalfButton(row, "Display", false, OnGrayBack);
-    lvgl_display::RequestGray();
+    HalfButton(row, "Display", false, OnBack);
     EndScreen(screen);
+}
+
+void EnterGrays(void *)
+{
+    lvgl_display::RequestGray();
 }
 
 // A sample on the type scale page: a column that takes focus for UP and DOWN, ringed, and brought into view at once —
@@ -410,9 +380,8 @@ lv_obj_t *NewSpecimen(lv_obj_t *parent)
 
 // The type scale: every primitive type token — Bitcount Single at one bit — with its values and the roles that use it
 // (STICKY_DESIGN_TOKENS §3). The page scrolls; UP and DOWN step through the entries.
-void OnTypeScale(lv_event_t *e)
+void CreateTypeScale(lv_obj_t *screen, lv_group_t *, void *)
 {
-    KeepDisplayOpener(e);
     struct Primitive {
         const char *name;
         dt::TypeRole tokens;
@@ -447,8 +416,7 @@ void OnTypeScale(lv_event_t *e)
         {"hero", dt::kTypographyHero},   {"display", dt::kTypographyDisplay}, {"headline", dt::kTypographyHeadline},
         {"body", dt::kTypographyBody},   {"label", dt::kTypographyLabel},     {"caption", dt::kTypographyCaption},
     };
-    lv_obj_t *content;
-    lv_obj_t *screen = BeginScreen("Type scale", &content);
+    lv_obj_t *content = BeginScreen(screen, "Type scale");
     lv_obj_set_scrollable(content, true);
     lv_obj_set_scroll_dir(content, LV_DIR_VER);
     lv_obj_set_scrollbar_mode(content, LV_SCROLLBAR_MODE_OFF);
@@ -486,7 +454,7 @@ void OnTypeScale(lv_event_t *e)
         ui::NewLabel(entry, Type::kCaption, tokens, true);
     }
     lv_obj_t *row = ButtonRow(content);
-    HalfButton(row, "Display", false, OnGrayBack);
+    HalfButton(row, "Display", false, OnBack);
     EndScreen(screen);
 }
 
@@ -613,29 +581,28 @@ void ShowKitPages(lv_event_t *)
     lv_label_set_text_fmt(k.text_words, "Page %d of %d", widgets::TextViewPage(k.text) + 1, widgets::TextViewPages(k.text));
 }
 
-// The kit's keyboard sample: which button opened the keyboard (focus goes back to it when the page is built again), what was
-// typed, and the field: the widgets' own text or password input fills the keyboard's slot, and the keyboard appends, erases and
-// reads through it (DESIGN → Exceptions: the kit page is a bench fixture).
-enum class KitReturn : uint8_t { kNone, kPassword, kName };
-KitReturn s_kit_return = KitReturn::kNone;
+// The kit's keyboard sample, a full-glass overlay over the kit page: what was typed, and the field — the widgets' own text or
+// password input fills the keyboard's slot, and the keyboard appends, erases and reads through it (DESIGN → Exceptions: the kit
+// page is a bench fixture). The kit page stays under it, so closing the keyboard comes back to the button or field that opened
+// it, and the page's words are set in place.
 std::string s_kit_name = "Maple";            // the plain field's text, kept for its next opening; a password is never kept
 std::string s_kit_result = "Nothing typed yet.";
 bool s_kit_password = false;
 widgets::TextInput s_kit_input{};            // the field in the keyboard's slot while it is open
-lv_obj_t *s_kit_password_button = nullptr;
-lv_obj_t *s_kit_name_button = nullptr;
-
-void ShowKit();
+lv_obj_t *s_kit_keyboard = nullptr;          // the keyboard's screen while it is open
+lv_obj_t *s_kit_result_label = nullptr;      // the kit page's line saying what happened
+widgets::TextInput s_kit_named{};            // the kit page's field that shows the kept name
 
 // The field's own button changed the text or its view behind the keyboard's back: the count line reads it again.
 void OnKitFieldChanged(lv_event_t *)
 {
-    widgets::KeyboardTextChanged(s_current);
+    widgets::KeyboardTextChanged(s_kit_keyboard);
 }
 
-// The keyboard is done: a page again, focus on the button that opened it, and what happened in words.
+// The keyboard is done, and the kit page is on the glass again: what happened, in words on it.
 void KitKeyboardDone(bool accepted, void *)
 {
+    s_kit_keyboard = nullptr;
     char words[96];
     if (!accepted) {
         std::snprintf(words, sizeof words, "Cancelled; nothing kept.");
@@ -644,23 +611,34 @@ void KitKeyboardDone(bool accepted, void *)
     } else {
         s_kit_name = widgets::InputText(s_kit_input);
         std::snprintf(words, sizeof words, "Name is %s.", s_kit_name.c_str());
+        widgets::SetInputText(s_kit_named, s_kit_name.c_str());
     }
     s_kit_result = words;
-    ShowKit();
+    lv_label_set_text(s_kit_result_label, s_kit_result.c_str());
+}
+
+// The kit page's OnExit: a keyboard over it was closed with no answer first (a screen change dismisses the overlays), so the
+// page forgets it here as well as in KitKeyboardDone.
+void LeaveKit(void *)
+{
+    s_kit_keyboard = nullptr;
+    LeaveScreen();
 }
 
 void OnKitKeyboard(lv_event_t *e)
 {
     s_kit_password = lv_event_get_user_data(e) != nullptr;
-    s_kit_return = s_kit_password ? KitReturn::kPassword : KitReturn::kName;
-    lvgl_display::ClearGroup();
     widgets::KeyboardConfig config{};
     config.title = s_kit_password ? "Join HomeNet" : "Device name";
     config.min_length = s_kit_password ? 8 : 0;
     config.max_length = 63;
     config.action = s_kit_password ? "Join" : "Save";
     config.done = KitKeyboardDone;
-    const widgets::Keyboard keyboard = widgets::MakeKeyboardScreen(config);
+    const widgets::Keyboard keyboard = widgets::OpenKeyboard(config);
+    if (keyboard.screen == nullptr) {
+        return;
+    }
+    s_kit_keyboard = keyboard.screen;
     // The real field in the keyboard's slot, the keyboard's target; the field is the walk's first stop and its button the second, and the field says when the
     // eye or the cross changed what the keyboard shows.
     s_kit_input = s_kit_password ? widgets::MakePasswordInput(keyboard.field_slot, "Type the password", dt::kSpacingContent, true)
@@ -671,25 +649,31 @@ void OnKitKeyboard(lv_event_t *e)
     lv_obj_add_event_cb(s_kit_input.field, OnKitFieldChanged, LV_EVENT_VALUE_CHANGED, nullptr);
     widgets::SetKeyboardTarget(keyboard, widgets::InputKeyboardTarget(s_kit_input));
     widgets::KeyboardJoinField(keyboard, s_kit_input.field, s_kit_input.button);
-    lv_obj_t *old = s_current;
-    s_current = keyboard.screen;
-    lv_screen_load(keyboard.screen);
-    if (old != nullptr) {
-        lv_obj_delete(old);
-    }
-    lvgl_display::SetBackHandler(widgets::KeyboardEscape);  // holding OK cancels; the page's own Back comes back with it
 }
 
-void OnKit(lv_event_t *e)
+// The kit's real dialog: a destructive one, so it opens on Cancel; what was answered, in words under its button.
+lv_obj_t *s_kit_dialog_label = nullptr;
+
+void KitDialogDone(bool accepted, void *)
 {
-    KeepDisplayOpener(e);
-    ShowKit();
+    lv_label_set_text(s_kit_dialog_label, accepted ? "Deleted." : "Kept.");
 }
 
-void ShowKit()
+void OnKitDialog(lv_event_t *)
 {
-    lv_obj_t *content;
-    lv_obj_t *screen = BeginScreen("UI kit", &content);
+    widgets::DialogConfig config{};
+    config.title = "Delete this note?";
+    config.message = "It goes from the device and the card.";
+    config.action = "Delete note";
+    config.cancel = "Cancel";
+    config.destructive = true;
+    config.done = KitDialogDone;
+    widgets::OpenDialog(config);
+}
+
+void CreateKit(lv_obj_t *screen, lv_group_t *, void *)
+{
+    lv_obj_t *content = BeginScreen(screen, "UI kit");
     lv_obj_set_scrollable(content, true);
     lv_obj_set_scroll_dir(content, LV_DIR_VER);
     lv_obj_set_scrollbar_mode(content, LV_SCROLLBAR_MODE_OFF);
@@ -746,12 +730,12 @@ void ShowKit()
     }
     KitReason(content, "Nothing to stop");
 
-    widgets::MakeSectionHeading(content, "Toggle rows");
+    widgets::MakeSectionHeading(content, "Toggle rows");  // ux-exception: the kit page names the component type
     widgets::MakeToggleRow(content, "Wi-Fi", true);
     widgets::MakeToggleRow(content, "Grid", false);
     widgets::MakeToggleRow(content, "Wi-Fi sync", true);
     widgets::SetToggleRowEnabled(widgets::MakeToggleRow(content, "Background", false), false, "Turn Wi-Fi on first");
-    widgets::MakeSectionHeading(content, "Toggle icon rows");
+    widgets::MakeSectionHeading(content, "Toggle icon rows");  // ux-exception: the kit page names the component type
     widgets::MakeToggleIconRow(content, "Sound", true);
     widgets::MakeToggleIconRow(content, "Keys", false);
     widgets::SetToggleIconRowEnabled(widgets::MakeToggleIconRow(content, "Alerts", false), false, "Muted by the system");
@@ -872,7 +856,7 @@ void ShowKit()
     paged.text_words = ui::NewLabel(content, Type::kCaption, "", true);
     paged.text = widgets::MakeTextView(
         content, 6,
-        "Call Sam about the venue on Thursday. Ask whether the hall holds sixty, and whether the kitchen can stay "
+        "Call Sam about the venue on Thursday. Ask whether the hall holds sixty, and whether the kitchen can stay "  // ux-exception: a paragraph of sentences, each starting with a capital
         "open until ten. Send the deposit once the date is fixed, and copy Priya on the invoice. Book the van for the "
         "Saturday morning, and check the parking permit covers the loading bay. Remind the band to bring their own "
         "leads. Ask Sam for the key, and whether the stage can be set the night before.");
@@ -901,6 +885,9 @@ void ShowKit()
     // The failed-join dialog, static: the offset in the dark dither falls down and to the right (DESIGN → Elevation & Depth).
     widgets::MakeSectionHeading(content, "Dialog");
     widgets::MakeDialog(content, "Office", "Wrong password. Check it and try again.", "Try again", "Cancel");
+    lv_obj_t *dialogs = ButtonRow(content);
+    HalfButton(dialogs, "Delete", false, OnKitDialog);
+    s_kit_dialog_label = ui::NewLabel(content, Type::kCaption, "Opens a real dialog, on Cancel.", true);
 
     // Dropdowns: OK opens the select sheet over the lower part of the page. Three options, eight (one a long one, which
     // wraps), and a disabled field with its reason.
@@ -927,7 +914,8 @@ void ShowKit()
     KitName(content, "Empty: the placeholder and, on focus, the caret");
     widgets::SetInputActivateHandler(widgets::MakeTextInput(content, "Add a name"), OnKitKeyboard, nullptr);
     KitName(content, "With text: the cross clears it");
-    widgets::SetInputText(widgets::MakeTextInput(content, "Add a name"), s_kit_name.c_str());
+    s_kit_named = widgets::MakeTextInput(content, "Add a name");
+    widgets::SetInputText(s_kit_named, s_kit_name.c_str());
     KitName(content, "Disabled");
     widgets::SetInputEnabled(widgets::MakeTextInput(content, "Add a name"), false);
     KitReason(content, "Sign in first");
@@ -946,9 +934,9 @@ void ShowKit()
     // The keyboard, its own screen: a password to join a network, and a plain name kept for the next opening.
     widgets::MakeSectionHeading(content, "Keyboard: OK opens it");
     lv_obj_t *keyboards = ButtonRow(content);
-    s_kit_password_button = HalfButton(keyboards, "Password", false, OnKitKeyboard, reinterpret_cast<void *>(1));
-    s_kit_name_button = HalfButton(keyboards, "Name", false, OnKitKeyboard, nullptr);
-    ui::NewLabel(content, Type::kCaption, s_kit_result.c_str(), true);
+    HalfButton(keyboards, "Password", false, OnKitKeyboard, reinterpret_cast<void *>(1));
+    HalfButton(keyboards, "Name", false, OnKitKeyboard, nullptr);
+    s_kit_result_label = ui::NewLabel(content, Type::kCaption, s_kit_result.c_str(), true);
 
     widgets::MakeSectionHeading(content, "Status blocks");
     lv_obj_t *statuses = KitColumn(content);
@@ -959,13 +947,8 @@ void ShowKit()
     widgets::MakeStatusBlock(statuses, "No follow-ups yet", "Hold AI or press Record.");
 
     lv_obj_t *row = ButtonRow(content);
-    HalfButton(row, "Display", false, OnGrayBack);
+    HalfButton(row, "Display", false, OnBack);
     EndScreen(screen);
-    // Back from the keyboard: the button that opened it has the focus again, and the page brings it into view.
-    if (s_kit_return != KitReturn::kNone) {
-        lv_group_focus_obj(s_kit_return == KitReturn::kPassword ? s_kit_password_button : s_kit_name_button);
-        s_kit_return = KitReturn::kNone;
-    }
 }
 
 // --- Refresh benchmark: an animation ---------------------------------------------------------------------------
@@ -1102,10 +1085,9 @@ void OnAnimRun(lv_event_t *)
     s_timer = lv_timer_create(AnimTick, 5, nullptr);
 }
 
-void ShowBenchmark()
+void CreateBenchmark(lv_obj_t *screen, lv_group_t *, void *)
 {
-    lv_obj_t *content;
-    lv_obj_t *screen = BeginScreen("Refresh benchmark", &content);
+    lv_obj_t *content = BeginScreen(screen, "Refresh benchmark");
     ui::NewLabel(content, Type::kCaption,
                         "A bar grows and shrinks as fast as the glass can draw it, 30 frames for each speed setting. "
                         "Watch its edge for ghosting. Back stops the run.",
@@ -1145,10 +1127,9 @@ void OnTouch(lv_event_t *)
     lv_label_set_text_fmt(s_touch_label, "Raw %d, %d, on screen %d, %d", t.raw_x, t.raw_y, t.x, t.y);
 }
 
-void ShowTouch()
+void CreateTouch(lv_obj_t *screen, lv_group_t *, void *)
 {
-    lv_obj_t *content;
-    lv_obj_t *screen = BeginScreen("Touch", &content);
+    lv_obj_t *content = BeginScreen(screen, "Touch");
     if (!lvgl_display::TouchReady()) {
         Value(content, "The touch panel did not answer. Check the log for the GT911.");
         EndScreen(screen);
@@ -1210,10 +1191,9 @@ void OnTone(lv_event_t *)
     devices::Tone(1000);
 }
 
-void ShowButtons()
+void CreateButtons(lv_obj_t *screen, lv_group_t *, void *)
 {
-    lv_obj_t *content;
-    lv_obj_t *screen = BeginScreen("Buttons and buzzer", &content);
+    lv_obj_t *content = BeginScreen(screen, "Buttons and buzzer");
     ui::NewLabel(content, Type::kBody,
                         "UP and DOWN move the ring. OK presses. Hold OK for a second to go back. Every press ticks.");
     s_keys_label = Value(content, "Last: none");
@@ -1221,11 +1201,15 @@ void ShowButtons()
     lv_obj_t *row = ButtonRow(content);
     HalfButton(row, "Tick", true, OnTick);
     HalfButton(row, "Tone, 1 s", false, OnTone);
-    lvgl_display::SetKeyObserver(OnKey);
     if (!devices::Found().buzzer) {
         Value(content, "The buzzer did not start. Check the log.");
     }
     EndScreen(screen);
+}
+
+void EnterButtons(void *)
+{
+    lvgl_display::SetKeyObserver(OnKey);
 }
 
 // --- Sensors --------------------------------------------------------------------------------------------------
@@ -1258,17 +1242,20 @@ void OnReadSensors(lv_event_t *)
     FillSensors();
 }
 
-void ShowSensors()
+void CreateSensors(lv_obj_t *screen, lv_group_t *, void *)
 {
-    lv_obj_t *content;
-    lv_obj_t *screen = BeginScreen("Sensors", &content);
+    lv_obj_t *content = BeginScreen(screen, "Sensors");
     s_sensors_label = Value(content, "");
     FillSensors();
     ui::NewLabel(content, Type::kCaption, "Reads again every 5 seconds.", true);
     lv_obj_t *row = ButtonRow(content);
     HalfButton(row, "Read now", true, OnReadSensors);
-    s_timer = lv_timer_create(FillSensors, dt::kSelfUpdateMinMs, nullptr);
     EndScreen(screen);
+}
+
+void EnterSensors(void *)
+{
+    s_timer = lv_timer_create(FillSensors, dt::kSelfUpdateMinMs, nullptr);
 }
 
 // --- Battery and power ----------------------------------------------------------------------------------------
@@ -1320,6 +1307,25 @@ enum class LeaveBy : uintptr_t { kSleep, kPowerOff, kPowerOffTimed };
 constexpr uint8_t kRtcWakeS = 60;  // DESIGN → Exceptions: a hardware-test timer; the Off, 60 s button and the
                                    // Battery page's caption spell it out too, so change all three together
 
+// The screen the board leaves on, in place of every screen above home: its title and how it comes back.
+void CreateLeave(lv_obj_t *screen, lv_group_t *, void *user)
+{
+    const auto how = static_cast<LeaveBy>(reinterpret_cast<uintptr_t>(user));
+    const bool power_off = how != LeaveBy::kSleep;
+    ui::StyleScreen(screen);
+    lv_obj_set_flex_align(screen, LV_FLEX_ALIGN_CENTER, LV_FLEX_ALIGN_CENTER, LV_FLEX_ALIGN_CENTER);
+    lv_obj_set_style_pad_hor(screen, dt::kSpacingEdge, 0);
+    lv_obj_t *title = ui::NewLabel(screen, Type::kDisplay, power_off ? "Off" : "Asleep");
+    lv_obj_set_style_text_align(title, LV_TEXT_ALIGN_CENTER, 0);
+    char timed[64];
+    std::snprintf(timed, sizeof timed, "Turns on in %u s. Hold OK to turn on now.", unsigned{kRtcWakeS});
+    lv_obj_t *hint = ui::NewLabel(screen, Type::kBody,
+                                  how == LeaveBy::kPowerOffTimed ? timed
+                                  : power_off                    ? "Hold OK to turn on."
+                                                                 : "Press OK, UP or DOWN to wake.");
+    lv_obj_set_style_text_align(hint, LV_TEXT_ALIGN_CENTER, 0);
+}
+
 // The frame left on the glass when the board leaves: drawn in full, then the panel sleeps (DESIGN → Motion).
 void Leave(LeaveBy how)
 {
@@ -1332,25 +1338,10 @@ void Leave(LeaveBy how)
     if (how != LeaveBy::kPowerOffTimed && devices::ClearRtcWake() != ESP_OK) {
         ESP_LOGE(kTag, "RTC interrupts not cleared: the board may turn on again");
     }
-    StopTimer();
-    lvgl_display::ClearGroup();
-    lv_obj_t *screen = ui::NewScreen();
-    lv_obj_set_flex_align(screen, LV_FLEX_ALIGN_CENTER, LV_FLEX_ALIGN_CENTER, LV_FLEX_ALIGN_CENTER);
-    lv_obj_set_style_pad_hor(screen, dt::kSpacingEdge, 0);
-    lv_obj_t *title = ui::NewLabel(screen, Type::kDisplay, power_off ? "Off" : "Asleep");
-    lv_obj_set_style_text_align(title, LV_TEXT_ALIGN_CENTER, 0);
-    char timed[64];
-    std::snprintf(timed, sizeof timed, "Turns on in %u s. Hold OK to turn on now.", unsigned{kRtcWakeS});
-    lv_obj_t *hint = ui::NewLabel(screen, Type::kBody,
-                                  how == LeaveBy::kPowerOffTimed ? timed
-                                  : power_off                    ? "Hold OK to turn on."
-                                                                 : "Press OK, UP or DOWN to wake.");
-    lv_obj_set_style_text_align(hint, LV_TEXT_ALIGN_CENTER, 0);
-    lv_obj_t *old = s_current;
-    s_current = screen;
-    lv_screen_load(screen);
-    if (old != nullptr) {
-        lv_obj_delete(old);
+    // The Battery screen's OnExit stops its timer; the screens above home are let go, the board never comes back to them.
+    if (router::GoTo(router::MakeScreen(CreateLeave, nullptr, nullptr, nullptr,
+                                        reinterpret_cast<void *>(static_cast<uintptr_t>(how)))) != ESP_OK) {
+        ESP_LOGE(kTag, "no memory for the leaving screen: the glass keeps the last one");
     }
     lvgl_display::RequestFull();
     lvgl_display::Redraw();
@@ -1394,10 +1385,9 @@ void OnPowerOffTimed(lv_event_t *)
     lv_timer_create(LeaveSoon, 50, reinterpret_cast<void *>(LeaveBy::kPowerOffTimed));
 }
 
-void ShowPower()
+void CreatePower(lv_obj_t *screen, lv_group_t *, void *)
 {
-    lv_obj_t *content;
-    lv_obj_t *screen = BeginScreen("Battery and power", &content);
+    lv_obj_t *content = BeginScreen(screen, "Battery and power");
     s_power_label = Value(content, "");
     FillPower();
     lv_obj_t *row = ButtonRow(content);
@@ -1409,8 +1399,12 @@ void ShowPower()
                  "On USB, power off restarts the board. On battery it turns off; hold OK to turn on. On battery, "
                  "Off, 60 s turns it on again by itself.",
                  true);
-    s_timer = lv_timer_create(FillPower, dt::kSelfUpdateMinMs, nullptr);
     EndScreen(screen);
+}
+
+void EnterPower(void *)
+{
+    s_timer = lv_timer_create(FillPower, dt::kSelfUpdateMinMs, nullptr);
 }
 
 // --- Storage --------------------------------------------------------------------------------------------------
@@ -1435,10 +1429,9 @@ void OnProbeCard(lv_event_t *)
     }
 }
 
-void ShowStorage()
+void CreateStorage(lv_obj_t *screen, lv_group_t *, void *)
 {
-    lv_obj_t *content;
-    lv_obj_t *screen = BeginScreen("Storage", &content);
+    lv_obj_t *content = BeginScreen(screen, "Storage");
     uint32_t flash = 0;
     esp_flash_get_size(nullptr, &flash);
     lv_obj_t *mem = Value(content, "");
@@ -1477,11 +1470,10 @@ void OnListen(lv_event_t *)
     lv_obj_set_width(s_mic_bar, std::max<int32_t>(dt::kSpacingStrokeDefault, width));
 }
 
-void ShowMicrophone()
+void CreateMicrophone(lv_obj_t *screen, lv_group_t *, void *)
 {
-    lv_obj_t *content;
-    lv_obj_t *screen = BeginScreen("Microphone", &content);
-    ui::NewLabel(content, Type::kBody, "Press Listen, then speak or clap. It records one second.");
+    lv_obj_t *content = BeginScreen(screen, "Microphone");
+    ui::NewLabel(content, Type::kBody, "Press Listen, then speak or clap. It records one second.");  // ux-exception: Listen is the button's name
     s_mic_label = Value(content, "Not heard yet");
     s_mic_bar = lv_obj_create(content);
     lv_obj_remove_style_all(s_mic_bar);
@@ -1495,10 +1487,9 @@ void ShowMicrophone()
 
 // --- About ----------------------------------------------------------------------------------------------------
 
-void ShowAbout()
+void CreateAbout(lv_obj_t *screen, lv_group_t *, void *)
 {
-    lv_obj_t *content;
-    lv_obj_t *screen = BeginScreen("About", &content);
+    lv_obj_t *content = BeginScreen(screen, "About");
     const esp_app_desc_t *app = esp_app_get_description();
     esp_chip_info_t chip;
     esp_chip_info(&chip);
@@ -1579,8 +1570,9 @@ void SendShot()
 void RunBenchmark()
 {
     if (lvgl_display::Lock()) {
-        ShowBenchmark();
-        OnAnimRun(nullptr);
+        if (router::GoToRoute("hw.benchmark") == ESP_OK) {
+            OnAnimRun(nullptr);
+        }
         lvgl_display::Unlock();
     }
 }
@@ -1589,7 +1581,10 @@ void RunBenchmark()
 void RunAnimation()
 {
     if (lvgl_display::Lock()) {
-        ShowBenchmark();
+        if (router::GoToRoute("hw.benchmark") != ESP_OK) {
+            lvgl_display::Unlock();
+            return;
+        }
         s_anim = Anim{};
         s_anim.preset = lvgl_display::Tuning();
         s_anim_continuous = true;
@@ -1621,7 +1616,9 @@ void SetSpeed(const char *arg)
 }
 
 // `key up|down|ok|hold [n]`: presses a button n times (1 to 20) through the real input path, so a bench script can walk
-// the screens a person would press to; each press waits out a full refresh before the next, so no OK lands in one.
+// the screens a person would press to; each press waits out a full refresh before the next, so no OK lands in one. As on the
+// buttons, with no ring on the glass — a screen just opened, or after a touch — the first press only shows the ring
+// (DESIGN → Focus and input): `key down` there rings, and the next `key down` moves.
 void PressKeys(const char *arg)
 {
     constexpr int kBetweenMs = 1800;  // over a full refresh on either board, 1.58 s at most (STICKY_EPAPER_WAVEFORMS §4)
@@ -1715,28 +1712,64 @@ void StartConsole()
 
 // --- Home -----------------------------------------------------------------------------------------------------
 
+// The test screens as routes, ids `hw.<screen>`, and Display's sub-screens under it: what a home row, Display's buttons and the
+// bench console push (router/route.h).
+std::unique_ptr<router::Screen> DisplayScreen() { return TestScreen(CreateDisplay, EnterDisplay); }
+std::unique_ptr<router::Screen> GraysScreen() { return TestScreen(CreateGrays, EnterGrays); }
+std::unique_ptr<router::Screen> TypeScaleScreen() { return TestScreen(CreateTypeScale); }
+std::unique_ptr<router::Screen> KitScreen() { return router::MakeScreen(CreateKit, nullptr, LeaveKit); }
+std::unique_ptr<router::Screen> BenchmarkScreen() { return TestScreen(CreateBenchmark); }
+std::unique_ptr<router::Screen> TouchScreen() { return TestScreen(CreateTouch); }
+std::unique_ptr<router::Screen> ButtonsScreen() { return TestScreen(CreateButtons, EnterButtons); }
+std::unique_ptr<router::Screen> SensorsScreen() { return TestScreen(CreateSensors, EnterSensors, PauseWhileCovered); }
+std::unique_ptr<router::Screen> PowerScreen() { return TestScreen(CreatePower, EnterPower, PauseWhileCovered); }
+std::unique_ptr<router::Screen> StorageScreen() { return TestScreen(CreateStorage); }
+std::unique_ptr<router::Screen> MicrophoneScreen() { return TestScreen(CreateMicrophone); }
+std::unique_ptr<router::Screen> AboutScreen() { return TestScreen(CreateAbout); }
+
+constexpr router::Route kRoutes[] = {
+    {"hw.display", router::NoParam<DisplayScreen>},
+    {"hw.display.grays", router::NoParam<GraysScreen>},
+    {"hw.display.type-scale", router::NoParam<TypeScaleScreen>},
+    {"hw.display.kit", router::NoParam<KitScreen>},
+    {"hw.benchmark", router::NoParam<BenchmarkScreen>},
+    {"hw.touch", router::NoParam<TouchScreen>},
+    {"hw.buttons", router::NoParam<ButtonsScreen>},
+    {"hw.sensors", router::NoParam<SensorsScreen>},
+    {"hw.power", router::NoParam<PowerScreen>},
+    {"hw.storage", router::NoParam<StorageScreen>},
+    {"hw.microphone", router::NoParam<MicrophoneScreen>},
+    {"hw.about", router::NoParam<AboutScreen>},
+};
+
+// A kBoardUp step, before anything is drawn: the routes are reachable by the time home is (APP_ARCHITECTURE §3).
+void AddRoutes()
+{
+    if (router::AddRoutes({kRoutes, sizeof(kRoutes) / sizeof(kRoutes[0])}) != ESP_OK) {
+        ESP_LOGE(kTag, "the test screens' routes were refused: home's rows open nothing");
+    }
+}
+
 struct Entry {
     const char *label;
     const char *supporting;
-    void (*show)();
+    const char *route;
 };
 constexpr Entry kEntries[] = {
-    {"Display", "Refresh modes, greys, ghosting", ShowDisplay},
-    {"Refresh benchmark", "A bar, timed at each speed", ShowBenchmark},
-    {"Touch", "Where a tap lands", ShowTouch},
-    {"Buttons and buzzer", "UP, DOWN, OK and the tick", ShowButtons},
-    {"Sensors", "Temperature, motion, clock", ShowSensors},
-    {"Battery and power", "Gauge, charger, sleep, power off", ShowPower},
-    {"Storage", "Flash, PSRAM and the card", ShowStorage},
-    {"Microphone", "A second of sound level", ShowMicrophone},
-    {"About", "Firmware and board", ShowAbout},
+    {"Display", "Refresh modes, greys, ghosting", "hw.display"},
+    {"Refresh benchmark", "A bar, timed at each speed", "hw.benchmark"},
+    {"Touch", "Where a tap lands", "hw.touch"},
+    {"Buttons and buzzer", "UP, DOWN, OK and the tick", "hw.buttons"},
+    {"Sensors", "Temperature, motion, clock", "hw.sensors"},
+    {"Battery and power", "Gauge, charger, sleep, power off", "hw.power"},
+    {"Storage", "Flash, PSRAM and the card", "hw.storage"},
+    {"Microphone", "A second of sound level", "hw.microphone"},
+    {"About", "Firmware and board", "hw.about"},
 };
-static_assert(sizeof(kEntries) / sizeof(kEntries[0]) <= kMaxHomeRows, "raise kMaxHomeRows");
 
 void OnEntry(lv_event_t *e)
 {
-    const auto *entry = static_cast<const Entry *>(lv_event_get_user_data(e));
-    entry->show();
+    router::PushRoute(static_cast<const Entry *>(lv_event_get_user_data(e))->route);
 }
 
 // Home's rows: the content column's width, 80 high, 16 apart with no rule between, seven to a page; the rest turn with a
@@ -1745,8 +1778,6 @@ constexpr int32_t kHomeRowsPerPage = 7;
 
 void BuildHome(lv_obj_t *home)
 {
-    s_home = lv_obj_get_screen(home);
-    s_home_row_count = 0;
     lv_obj_t *column = lv_obj_create(home);
     lv_obj_remove_style_all(column);
     lv_obj_set_width(column, lv_pct(100));
@@ -1757,8 +1788,7 @@ void BuildHome(lv_obj_t *home)
     ui::LetRingOut(column);
     const widgets::ListView list = widgets::MakeListView(column, kHomeRowsPerPage, dt::kSpacingListRowHeight, widgets::IndicatorCentre::kGlass);
     for (const Entry &entry : kEntries) {
-        s_home_rows[s_home_row_count++] =
-            ui::NewRow(list.root, entry.label, entry.supporting, OnEntry, const_cast<Entry *>(&entry));
+        ui::NewRow(list.root, entry.label, entry.supporting, OnEntry, const_cast<Entry *>(&entry));
     }
     widgets::UpdateListView(list);
 }
@@ -1773,17 +1803,18 @@ void PagesTask(void *arg)
     constexpr int kRows = static_cast<int>(sizeof(kEntries) / sizeof(kEntries[0]));
     int row = 0;
     for (int k = 0; k < count && !s_pages_stop; ++k) {
-        if (kEntries[row].show == ShowBenchmark) {
+        if (std::strcmp(kEntries[row].route, "hw.benchmark") == 0) {
             row = (row + 1) % kRows;
         }
         ESP_LOGI(kTag, "pages: %d of %d, %s", k + 1, count, kEntries[row].label);
         if (lvgl_display::Lock()) {
-            kEntries[row].show();
+            router::PopToRoot();
+            router::PushRoute(kEntries[row].route);
             lvgl_display::Unlock();
         }
         vTaskDelay(pdMS_TO_TICKS(kPageDwellMs));
         if (lvgl_display::Lock()) {
-            ShowHome();
+            router::PopToRoot();
             lvgl_display::Unlock();
         }
         if (s_pages_stop) {
@@ -1817,6 +1848,7 @@ void StartPages(const char *arg)
 void Install()
 {
     app_hooks::OnHomeBuilt(BuildHome);
+    app_hooks::OnBoot(app_hooks::Phase::kBoardUp, AddRoutes);
     app_hooks::OnBoot(app_hooks::Phase::kReady, NoteStart);
     app_hooks::OnBoot(app_hooks::Phase::kReady, StartConsole);
 }

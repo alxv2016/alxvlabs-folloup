@@ -41,7 +41,7 @@ heading path for why. Do not renumber; add new material under the next free numb
 | 9 | [The ring outside and the ported widgets](#9-the-ring-outside-and-the-ported-widgets) | What the agent deck is and where its source lives; the one focus ring and the editing ring, a segment's ring in its track, every ported widget's sizes against the deck's |
 | 10 | [Paging and the swipe](#10-paging-and-the-swipe) | How a list view, a text view and a horizontal pager turn a page: the pages, the swipe's thresholds and window, the lift, the ends and who owns a drag |
 | 11 | [The keyboard](#11-the-keyboard) | The pages and keys, the key-by-key walk, how a press types, the typing-only partial count, and what the field component will take over |
-| 12 | [The select sheet](#12-the-select-sheet) | The bottom sheet a dropdown opens: its height, how many rows a page, how it takes and gives back focus and the back handler |
+| 12 | [The select sheet](#12-the-select-sheet) | The bottom sheet a dropdown opens: its height, how many rows a page, and the overlay that takes and gives back focus |
 
 ---
 
@@ -256,6 +256,8 @@ their value on each refresh — the design check reads them (§7).
 | `kWaitIndicatorDelayMs` | 1000 ms | Declared for DESIGN.md's rule — a wait's indicator drawn only once the wait has run this long, `motion.wait-indicator`; no screen has a wait indicator yet |
 | `kSelfUpdateMinMs` | 5000 ms | The period of the hardware-test screens' self-updates (Sensors, Battery and power) — DESIGN.md's floor between two self-driven redraws of an area, `motion.self-update`, which no code enforces |
 | `kClockTickMs` | 60000 ms | Declared for DESIGN.md's clock redraw, `motion.clock-tick`; the firmware has no clock yet |
+| `kMotionKeyRepeatDelayMs` | 600 ms | How long UP or DOWN is held before it steps again, `motion.key-repeat-delay` — `kKeyRepeatDelayUs` in `key_rules.h`, which also lets a step that drew nothing be followed this long after it |
+| `kMotionKeyRepeatPeriodMs` | 500 ms | How often a held UP or DOWN steps after that, `motion.key-repeat-period` — `kKeyRepeatPeriodUs` in `key_rules.h` |
 
 - **A full refresh is drawn for**: the first frame after boot or wake; a full a screen asks for (`RequestFull`, the
   hardware-test screens'); the update after `kRefreshPartialLimit` partials; the one-bit frame after a greyscale
@@ -266,8 +268,9 @@ their value on each refresh — the design check reads them (§7).
   for a still screen showing an image (DESIGN → Colors → The four levels); no product screen has one yet, and the
   hardware-test Four greys screen draws one as a fixture.
 - **DESIGN.md also keeps a full refresh for closing a full-glass overlay and for the frame left before sleep** (DESIGN →
-  Motion → Nothing animates): the keyboard sets one when it closes (`lvgl_display::RequestFull`), and no screen has that last
-  frame yet. A bottom sheet and a dialog are part of the page and open and close on a partial; the ghost the sheet's inverted
+  Motion → Nothing animates): the router sets one as a full-glass overlay closes — the keyboard is the one —
+  (`router::CloseOverlay` calls `lvgl_display::RequestFull`), and no screen has that last frame yet. A bottom sheet and a dialog
+  are part of the page and open and close on a partial, and the router asks no full refresh for them; the ghost the sheet's inverted
   chosen row may leave after its close is judged on the glass `[?]`.
 - **While the keyboard is open only the presses that type, and a page switch, count toward the twenty** (the person's decisions): the keyboard sets
   `lvgl_display::SetPartialCounting(PartialCounting::kTypingOnly)` as it opens and `kEvery` as it closes, and calls
@@ -282,7 +285,7 @@ their value on each refresh — the design check reads them (§7).
   both rules against a counter `[HOST]`. What the moves leave is the dither and the black rings, which build up between
   those fulls `[?]`: a gate 3 look at the glass after a long entry sets the 60. Opening the keyboard's screen is not a typing
   press; its close is a full refresh.
-  **On the V1.0 the ceiling is qualified.** Its default preset is `Scan 2 x 12` (`kDefaultTuning1677`, `scan_budget` 2), so a frame that
+  **On the V1.0 the ceiling is qualified.** Its default preset is `Scan 3 x 10` (`kDefaultTuning1677`: `scan_frames` 3, `scan_budget` 10), so a frame that
   changes at most 15 % of the glass (`kScanMaxChanged`) — a ring move, a typed character — is drawn by scans, and `Send` returns
   from `SendByScans` before either count: it adds to neither `s_stats.partials` nor `s_uncounted`, a typing press's frame included.
   The bound on a long walk there is the scan rule's own: after `kScanFramesBeforeFull` (150) scan frames the next pause of
@@ -305,14 +308,32 @@ their value on each refresh — the design check reads them (§7).
   and the touch panel every 10 ms, ticks on each press, and queues each press and release; LVGL replays the queue when
   the refresh ends, so a short press inside a refresh is never lost and moves focus once. An OK pressed before the frame
   the last OK caused has been drawn is ignored, though it ticks; a queued OK acts where the moves queued before it
-  left focus, and a double tap is replayed as two taps (the person's choice, from the glass); a held UP or DOWN
-  repeats its move after LVGL's long-press time, `LV_INDEV_DEF_LONG_PRESS_TIME` (400 ms), each repeat a frame. A press
-  or a move is queued only with room left for its release, so a release is never lost; holding OK for 1 s goes back,
-  whether or not LVGL saw the hold begin. The tick sounded at once during a full refresh `[SEEN]`.
+  left focus, and a double tap is replayed as two taps (the person's choice, from the glass). A press
+  or a move is queued only with room left for its release, so a release is never lost; holding OK for 1 s runs the escape
+  chain ([DESIGN → Focus and input](../DESIGN.md#focus-and-input)), once a hold, whether or not LVGL saw the hold begin (`OkHold` in `key_rules.h`). The tick sounded at once during a full refresh `[SEEN]`.
+- **A held UP or DOWN steps again by `KeyRepeat` in `key_rules.h`, at the glass's pace** (DESIGN → Focus and input; the
+  person's decisions: 600 ms, then every 500 ms, and every step ticks). LVGL's own repeat is off —
+  `lv_indev_set_long_press_time` and `lv_indev_set_long_press_repeat_time` at `UINT16_MAX` on the keypad — since it stepped
+  every 100 ms after 400 ms and turned a control's editing off on each repeat. When the queue is empty and the key is still
+  down by the watcher's word too (`s_step_held`), the keypad read asks `KeyRepeat::Step`: a step is due once the key has been
+  held `kMotionKeyRepeatDelayMs`, `kMotionKeyRepeatPeriodMs` after the last step, with the SSD1677's scans no longer driving
+  the last frame (`RefreshBusy`) and the last step's frame landed (`LastRefreshEndUs` after it) — or, for a step that drew
+  nothing, `kMotionKeyRepeatDelayMs` after it. A frame being drawn needs no test of its own: the flush runs on LVGL's task,
+  the task that reads the keys, so no read runs during one, and the landed-frame test is what holds a step back until its
+  frame is on the glass. The read then sends a release and a press, the press
+  through `KeySeen` and the tick, and mapped to the editing keys when a control is open for editing. The release stops it
+  at once and nothing is queued; OK never repeats (`KeyRepeats`). The last step is timed from when LVGL acted on it, not from
+  when the watcher saw the press, so a press replayed after a refresh waits for its own frame. `tests/host/key_rules_test.cpp`
+  checks the delay, the period, both gates, the no-frame wait, the release and one escape per hold `[HOST]`.
+- **With no ring on the glass the first press only rings** — the rule is [DESIGN → Focus and input](../DESIGN.md#focus-and-input), the mechanics the router's key read hook
+  ([APP_ARCHITECTURE §7](APP_ARCHITECTURE.md#7-screens-routes-and-focus)). On the glass: the press ticks at once, as every press does, and its frame is the ring's partial. `ok_gate` in
+  `ReadKeys`, which drops an OK pressed before the last OK's frame has landed, treats that frame as the OK's, so an OK pressed
+  once the ring is on the glass acts. A held UP or DOWN whose press only rang steps at `kMotionKeyRepeatDelayMs`.
 - **An open overlay holds the screen under it, by DESIGN.md's rule** — what changes underneath is kept in state and
-  drawn when the overlay closes, so the overlay's own refresh is never queued behind the page's; the keyboard is a screen of its
-  own and the select sheet an object on the screen that takes the focus group while it is open (§12), until the interaction
-  framework's overlay stack lands.
+  drawn when the overlay closes, so the overlay's own refresh is never queued behind the page's. The select sheet, the dialog
+  and the keyboard are overlays on the router's stack (APP_ARCHITECTURE §7): the screen under one hears `OnCovered(true)` as the
+  first opens and `OnCovered(false)` as the last closes, and the hardware-test screens that update themselves (Sensors, Battery
+  and power) pause their timer meanwhile and, uncovered, read at once (`lv_timer_ready`).
 - **Which refresh a frame gets is the display's policy** — a refresh by the controller's own waveform, or, on the
   SSD1677, scans for a small change; scans never count toward `kRefreshPartialLimit`, and after 150 scan frames the next
   pause of 2 s gets the full refresh ([STICKY_EPAPER_WAVEFORMS §3.4](STICKY_EPAPER_WAVEFORMS.md#34-which-refresh-a-frame-gets)).
@@ -348,9 +369,7 @@ their value on each refresh — the design check reads them (§7).
 | A script that compares DESIGN.md's front matter with §2's tables | Open | The token header, which a third copy would make worth checking |
 | The glyph ranges beyond ASCII and · ° × – — ’ • … — a name with an accent, a currency — and what a character outside them draws: LVGL's placeholder box is on (`CONFIG_LV_USE_FONT_PLACEHOLDER`) | Open | An out-of-range character drawn on the glass; the first strings that need more |
 | The glass's real white and black, against the levels' nominal 21 : 1 | Open | A reading with a light meter on a V1.0 and a V2.0 board |
-| The dither over many partials — whether it ghosts before the full refresh clears it | Open | A long page walk over a dithered fill |
 | Whether a disabled control's words, in the two sparse dithers, read on a V1.0 and a V2.0 (1.23 : 1 and 1.14 : 1 against their ground), and whether a disabled checkbox's check and speaker-off glyph are legible at all | Open | The kit page's disabled samples, seen on both boards |
-| The first button press showing the focus ring and moving nothing (DESIGN → Focus and input) — `input.cpp` has no state for a ring not yet shown | Open | The person's choice, with the focus walk on the glass |
 | Whether an offset reads on the glass: elevation 2's light dither over a dithered field, the eighth (level 1, no surface yet), and the 2 px keyline, on a V1.0 and a V2.0 (§4.1) | Open | Open and close a sheet ten times over the disabled Alert field and look at the offset and where it was |
 | Whether the sheet's close on a partial leaves a ghost where its inverted chosen row stood, and whether the keyboard's ring moves, uncounted, leave one (§5) | Open | The kit page's dropdown and keyboard samples walked ten times on a V1.0 |
 | The unlit bars of the signal glyph, 3 to 4 px arcs in a dither, read as faint grey strokes on the glass (DESIGN → Exceptions) | Open | The kit page's network rows seen on both boards; the way out is a 2 px outline |
@@ -575,7 +594,10 @@ their value on each refresh — the design check reads them (§7).
   what the glass then does is for the device walk `[?]`.
 - **Who owns a drag** — the band owns a vertical drag that starts on it, on a row or between rows: the tap is cancelled
   and the page turns on lift. A slider has no drag of its own: a vertical drag that starts on one is the page's, and the
-  slider's release after it sets nothing (below); a horizontal drag on a slider is its value, landing on lift. The page
+  slider's release after it sets nothing (below); a horizontal drag on a slider is its value, landing on lift — on the track,
+  its hit area or within `spacing.md` of them. A lift farther off is slide-off: the router cancels the press
+  (`router::CancelOnSlideOff`, [APP_ARCHITECTURE §7](APP_ARCHITECTURE.md#7-screens-routes-and-focus)), the slider hears `LV_EVENT_PRESS_LOST` and keeps the value it had when the finger went
+  down (saved on `LV_EVENT_PRESSED`). `tests/host/slide_off_lvgl_test.cpp` checks both `[HOST]`. The page
   behind a view — the kit page, which scrolls by pixel beneath them — never takes a drag that starts on a view, and takes
   any other.
 - **A slider's release is not a tap after a drag** — a touch that scrolled anything leaves the track's value alone
@@ -597,23 +619,19 @@ their value on each refresh — the design check reads them (§7).
   character is on a page, and that no page types one character twice `[HOST]`.
 ### 11.2 The walk
 
-- **A key is the focus stop, a row is not** (the person's decision: no row level): `widgets::MakeKeyboardScreen` makes each key a
+- **A key is the focus stop, a row is not** (the person's decision: no row level): `widgets::OpenKeyboard` makes each key a
   plain object with `ui::RingOutside`'s one ring, `spacing.stroke.focus` 4 px and `spacing.focus-offset` out, so a key's ring reaches
   8 px and leaves 4 px of the 12 px `spacing.key-gap` clear; no key is ever `LV_STATE_EDITED`, and the group is never put to editing, so
   `input.cpp` sends UP and DOWN as focus moves. `BuildWalk` puts the stops in the group in the order of the glass: the field, its
   button, every key row by row from the left, Cancel, the action. A page switch makes the keys again, so it makes the walk again
-  and puts the focus back on the key of the same row at the nearest slot — the place is kept; `ClearGroup` first takes the old
-  keys out of the group, so none is deleted while focused.
-- **Hold OK, and `input.cpp` unchanged**: holding OK for a second calls the back handler `input.cpp` keeps, in the LVGL task through
-  `lv_async_call`, and never types. The keyboard screen sets `KeyboardEscape` as that handler (the caller does, as `hw_test` does for
-  its kit screen), and it cancels at once: there is no row to leave. The page's own handler returns when the page
-  is built again, so Back works as before everywhere else, and the escape chain the person agreed — leave the edit, close the
-  overlay, go back — is the same function once the framework lands. `lvgl_display::BackHandler()` reads the handler set, so an
-  overlay can put it back.
+  and puts the focus back on the key of the same row at the nearest slot — the place is kept; the old keys first leave the
+  keyboard's own group (`lv_group_remove_all_objs` on its overlay's group), so none is deleted while focused.
+- **Hold OK** runs the escape chain — what it does is [DESIGN → Focus and input](../DESIGN.md#focus-and-input), how is the `Escape` row of [APP_ARCHITECTURE §7](APP_ARCHITECTURE.md#7-screens-routes-and-focus) — and never types; the
+  keyboard's part is its overlay `escape`, which cancels at once, with no row to leave, and answers Cancel.
 ### 11.3 Typing and the field
 
-- **A press types once however long it is held**: the keypad read sends a key on release and a hold goes to the back handler, so a
-  hold never repeats a character; a touch on any key types it on `LV_EVENT_CLICKED`, the release on the key, and a finger that slides off sends
+- **A press types once however long it is held**: the keypad read sends a key on release and a hold goes to the escape chain (§11.2), so a
+  hold never repeats a character; a touch on any key types it on `LV_EVENT_CLICKED`, the release on the key, and a finger that slides off, past the key's hit area and `spacing.md`, gets the router's slide-off and sends
   `LV_EVENT_PRESS_LOST`, which cancels it (WCAG 2.5.2); the tick still sounds on contact, in the input task. Shift, 123, ABC and #+=
   act the same way. Delete removes one character; a press past `max_length` ticks and types
   nothing.
@@ -624,8 +642,11 @@ their value on each refresh — the design check reads them (§7).
   ("3 of 8 characters needed", then "9 characters"), the action is disabled (the one disabled look) until `min_length`. The 88 px between the
   last key row and the footer is white (DESIGN → Components → The kit: no hint line), which keeps the keys' rings clear of the
   footer's.
-- **The typing-only partial count is §5's**; the keyboard is built as a screen of its own that a page replaces and builds again,
-  as the Display opens its sub-screens, and becomes an overlay with the framework.
+- **The typing-only partial count is §5's**; the keyboard is a full-glass overlay (APP_ARCHITECTURE §7): `OpenKeyboard` makes its
+  screen, opens it on the router's overlay stack — which loads it, a page change, two partials through white on the V1.0 —
+  and builds the keys into the overlay's group. Closing it — the action, Cancel, holding OK — sets the counting back to every
+  partial, closes the overlay, which brings back the page it opened over as one full refresh and focus on what opened it,
+  ringed if it was, deletes its screen after the event, and then answers `done`. The page under it is kept, not built again.
 
 ### 11.4 The field
 
@@ -705,12 +726,15 @@ their value on each refresh — the design check reads them (§7).
   row is 64 px for one or two lines (2 × 24 and 8 above and below) and 88 for three (§9's centring rule and test). The chosen row is
   inverted with the check at its right end, white, 28 × 20, and no word (DESIGN → Exceptions); a page holds the whole rows that
   fit, so a three-line option can cost a page a row (§10.1).
-- **It takes the focus group and the back handler and gives them back**: opening saves the page's focus stops, clears the group,
-  adds the sheet's rows and Cancel, focuses the chosen row and sets `CloseSelectSheet` as the back handler, holding the handler
-  the page had; closing clears the group, puts the stops back in order, restores the handler, focuses the field, and then reports
-  a choice. A screen deleted while the sheet is open takes the sheet's objects with it, which free their state. A full-screen
-  transparent catcher under the sheet is clickable and does nothing, so a touch above the sheet is eaten and a drag does not reach
-  the page behind. The framework's overlay stack replaces this by owning the group and the handler.
+- **It is an overlay on the router's stack** (APP_ARCHITECTURE §7): opening calls `router::OpenOverlay` before a row is made, so
+  the rows and Cancel are its own group's only stops, and focuses the chosen row; the field under it keeps the page's focus with
+  its ring off. Closing calls `router::CloseOverlay` — the page's group bound again, the field's ring back if it showed — then
+  deletes the sheet's objects and reports a choice. Its overlay `escape` is Cancel, which holding OK reaches through the escape
+  chain ([DESIGN → Focus and input](../DESIGN.md#focus-and-input); [APP_ARCHITECTURE §7](APP_ARCHITECTURE.md#7-screens-routes-and-focus)). A screen deleted while the sheet is open
+  takes the sheet's objects with it, and their delete event closes the overlay first. A full-screen transparent catcher under the
+  sheet is clickable and does nothing, so a touch above the sheet is eaten and a drag does not reach the page behind.
+- **A dialog opens over it the same way** (`widgets::OpenDialog`): its two buttons are the only stops, and closing it gives the
+  buttons back to the sheet's chosen row, ringed if it was.
 - **The kit page** shows a dropdown of three options, one of eight whose last option is two lines, and a disabled one; opening
   the sheet and walking it is a gate 3 look for the scrolled page behind and the partial refreshes.
 

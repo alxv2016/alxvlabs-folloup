@@ -11,5 +11,6 @@ esp_err_t StartDisplay(const board::Display &display);
 void FirstFrame();  // the next frame is the first the glass shows
 esp_err_t StartInput(bool *touch_ok);
 int64_t LastRefreshEndUs();  // when the last refresh or scan ended, from esp_timer
+bool RefreshBusy();          // the SSD1677's scans are still driving the last frame
 
 }  // namespace lvgl_display

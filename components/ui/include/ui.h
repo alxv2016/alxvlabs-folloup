@@ -36,6 +36,7 @@ lv_color_t Fill(uint8_t level);
 
 // The components, built from DESIGN.md's tokens. Each returns the object to place; a control is added to lvgl_display::Group().
 lv_obj_t *NewScreen();                                         // the glass, no scrolling
+void StyleScreen(lv_obj_t *screen);                            // an empty screen object as NewScreen's glass: a router's root
 lv_obj_t *NewStatusBar(lv_obj_t *parent, const char *title);   // status-bar: caption, 44 px, a hairline below
 lv_obj_t *NewLabel(lv_obj_t *parent, Type role, const char *text, bool secondary = false);
 // FitLineBox (line_box.h) with the role's line height token as the line box (STICKY_DESIGN_TOKENS §3, §9).

@@ -173,6 +173,8 @@ inline constexpr uint32_t kMotionWaitIndicatorDelayMs = 1000;
 inline constexpr uint32_t kMotionSelfUpdateDelayMs = 5000;
 inline constexpr uint32_t kMotionClockTickDelayMs = 60000;
 inline constexpr uint32_t kMotionPasswordRevealDelayMs = 1500;  // a password's last typed character shows this long, then a bullet
+inline constexpr uint32_t kMotionKeyRepeatDelayMs = 600;   // a held UP or DOWN steps again once held this long
+inline constexpr uint32_t kMotionKeyRepeatPeriodMs = 500;  // then this often while held, each step's frame landed first
 
 // --- Refresh and feedback (STICKY_DESIGN_TOKENS §5) ------------------------------------------------------------------
 

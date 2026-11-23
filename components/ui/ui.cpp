@@ -198,10 +198,15 @@ lv_color_t Fill(uint8_t level)
 lv_obj_t *NewScreen()
 {
     lv_obj_t *screen = lv_obj_create(nullptr);
+    StyleScreen(screen);
+    return screen;
+}
+
+void StyleScreen(lv_obj_t *screen)
+{
     lv_obj_add_style(screen, &s_screen, 0);
     NoScroll(screen);
     lv_obj_set_flex_flow(screen, LV_FLEX_FLOW_COLUMN);
-    return screen;
 }
 
 lv_obj_t *NewStatusBar(lv_obj_t *parent, const char *title)

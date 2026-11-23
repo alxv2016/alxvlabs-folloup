@@ -82,23 +82,30 @@ const uint8_t *GlassFrame();
 
 // --- Input -------------------------------------------------------------------------------------------------------
 
-// The group UP, DOWN and OK move through; a screen adds its controls in focus order after Clear.
+// The group UP, DOWN and OK move through — the one bound now; a screen adds its controls in focus order after Clear.
 lv_group_t *Group();
 void ClearGroup();
+// Binds `group` to the buttons and makes it LVGL's default group, so a control LVGL adds to the default group as it is made
+// joins it. The router calls it for each screen it shows (APP_ARCHITECTURE §7); until it first does, the group made at Start
+// is bound. nullptr binds that one again.
+void SetGroup(lv_group_t *group);
 
-// Holding OK for a second goes back: the handler the screen set runs under the lock. nullptr does nothing.
+// Holding OK for a second runs `back` under the lock: the router's escape chain, which router::Init sets and nothing else
+// does (APP_ARCHITECTURE §7). nullptr does nothing.
 void SetBackHandler(void (*back)());
-// The handler set now, so an overlay that takes holding OK for itself — the keyboard, a select sheet — can put it back when it
-// closes. nullptr when none is set.
-void (*BackHandler())();
 
 // Runs within kFeedbackTickMs of every accepted press — touch or button — before its frame is queued, on the input
 // task, so it must be safe to call from any task.
 void SetPressFeedback(void (*tick)());
 
-// Runs on every button press — LV_KEY_PREV for UP, LV_KEY_NEXT for DOWN, LV_KEY_ENTER for OK — under the lock, before
-// LVGL moves focus. nullptr stops it.
+// Runs on every button press — LV_KEY_PREV for UP, LV_KEY_NEXT for DOWN, LV_KEY_ENTER for OK, and each step of a held UP or
+// DOWN — under the lock, before LVGL moves focus. nullptr stops it.
 void SetKeyObserver(void (*seen)(uint32_t key));
+
+// Run on every read of the buttons, and of the touch panel, after the read has filled `data` and before LVGL acts on it, on
+// LVGL's task: for a caller that must see each read as LVGL will — the router's focus rules. nullptr stops it.
+void SetKeyReadHook(void (*hook)(lv_indev_t *indev, lv_indev_data_t *data));
+void SetTouchReadHook(void (*hook)(lv_indev_t *indev, lv_indev_data_t *data));
 
 enum class Button : uint8_t { kUp, kDown, kOk };
 // Presses a button as a finger would, through the same queue, tick and OK gates as the pins: down, then up after a short
