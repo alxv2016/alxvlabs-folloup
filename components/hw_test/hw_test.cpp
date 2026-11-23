@@ -528,35 +528,6 @@ void OnKitChip(lv_event_t *e)
     }
 }
 
-void OnKitRadio(lv_event_t *e)
-{
-    lv_obj_t *chosen = lv_event_get_target_obj(e);
-    lv_obj_t *group = static_cast<lv_obj_t *>(lv_event_get_user_data(e));
-    const uint32_t n = lv_obj_get_child_count(group);
-    for (uint32_t i = 0; i < n; ++i) {
-        lv_obj_t *row = lv_obj_get_child(group, static_cast<int32_t>(i));
-        widgets::SetRadioChosen(row, row == chosen);
-    }
-}
-
-// One choice of a set of choice cards, as a radio mark says.
-void OnKitCard(lv_event_t *e)
-{
-    lv_obj_t *chosen = lv_event_get_target_obj(e);
-    lv_obj_t *group = static_cast<lv_obj_t *>(lv_event_get_user_data(e));
-    const uint32_t n = lv_obj_get_child_count(group);
-    for (uint32_t i = 0; i < n; ++i) {
-        lv_obj_t *card = lv_obj_get_child(group, static_cast<int32_t>(i));
-        widgets::SetChoiceChosen(card, card == chosen);
-    }
-}
-
-void OnKitChoice(lv_event_t *e)
-{
-    lv_obj_t *card = lv_event_get_target_obj(e);
-    widgets::SetChoiceChosen(card, !widgets::ChoiceChosen(card));
-}
-
 // Step advances the progress bar by ten per cent and the step bar by a step, failing the fourth once, so every state shows.
 struct KitProgress {
     widgets::ProgressBar bar;
@@ -822,8 +793,7 @@ void CreateKit(lv_obj_t *screen, lv_group_t *, void *)
     widgets::MakeSectionHeading(content, "Radio rows");
     lv_obj_t *sizes = KitColumn(content);
     for (const char *size : {"Small", "Medium", "Large"}) {
-        lv_obj_t *row = widgets::MakeRadioRow(sizes, size);
-        lv_obj_add_event_cb(row, OnKitRadio, LV_EVENT_CLICKED, sizes);
+        widgets::MakeRadioRow(sizes, size);  // the rows that share a parent are one group: choosing one clears the others
     }
     widgets::SetRadioChosen(lv_obj_get_child(sizes, 1), true);
     lv_obj_add_state(widgets::MakeRadioRow(sizes, "Huge"), LV_STATE_DISABLED);  // disabled: the dither, no edge, its words faint
@@ -836,16 +806,13 @@ void CreateKit(lv_obj_t *screen, lv_group_t *, void *)
     };
     for (const Kind &kind : {Kind{"Idea", "something to think about"}, Kind{"To-do", "something to do"},
                              Kind{"Note", nullptr}}) {
-        lv_obj_t *card = widgets::MakeChoiceCard(kinds_cards, kind.name, false, kind.meaning);
-        lv_obj_add_event_cb(card, OnKitCard, LV_EVENT_CLICKED, kinds_cards);
+        widgets::MakeChoiceCard(kinds_cards, kind.name, false, kind.meaning);
     }
     widgets::SetChoiceChosen(lv_obj_get_child(kinds_cards, 0), true);
     lv_obj_t *keeps = KitColumn(content);
     lv_obj_t *keep = widgets::MakeChoiceCard(keeps, "Keep the recording after it is transcribed", true);
-    lv_obj_add_event_cb(keep, OnKitChoice, LV_EVENT_CLICKED, nullptr);
-    widgets::SetChoiceChosen(keep, true);
-    lv_obj_t *share = widgets::MakeChoiceCard(keeps, "Share follow-ups with my phone", true, "Only on your Wi-Fi");
-    lv_obj_add_event_cb(share, OnKitChoice, LV_EVENT_CLICKED, nullptr);
+    widgets::SetChoiceChosen(keep, true);  // a card of any number flips itself
+    widgets::MakeChoiceCard(keeps, "Share follow-ups with my phone", true, "Only on your Wi-Fi");
     lv_obj_add_state(widgets::MakeChoiceCard(keeps, "Back up to the card", true, "No card inserted"), LV_STATE_DISABLED);
 
     widgets::MakeSectionHeading(content, "Sliders: OK opens, UP raises, DOWN lowers, OK closes");
@@ -1659,8 +1626,57 @@ void CreateMicrophone(lv_obj_t *screen, lv_group_t *, void *)
     EndScreen(screen);
 }
 
+// --- Reminders ------------------------------------------------------------------------------------------------
+
+// A screen with one task: a choice that applies at once. The rows are one group (they share a parent), so choosing one clears the
+// others and says so with one change; the screen stays, the status line says what is set, and there is no Save: choosing another
+// is the undo (DESIGN → Components → The kit, Radio row). Nothing is stored — this is a bench screen — so the choice lasts until
+// the next boot. The status words are placeholders for the ux-content-writer.
+struct Reminder {
+    const char *name;
+    const char *said;
+};
+constexpr Reminder kReminders[] = {
+    {"Never", "Reminders are off."},
+    {"Every day", "Reminders repeat every day."},
+    {"Every week", "Reminders repeat every week."},
+    {"Every two weeks, on a Monday", "Reminders repeat every two weeks, on a Monday."},
+    {"Every month", "Reminders repeat every month."},
+};
+size_t s_reminder = 2;  // the row chosen: every week to begin with
+
+void OnReminder(lv_event_t *e)
+{
+    const Reminder *chosen = static_cast<const Reminder *>(lv_event_get_user_data(e));
+    s_reminder = static_cast<size_t>(chosen - kReminders);
+    router::Say(router::StatusKind::kSuccess, chosen->said);
+}
+
+void CreateReminders(lv_obj_t *screen, lv_group_t *, void *)
+{
+    lv_obj_t *content = BeginScreen(screen, "Reminders", true);
+    widgets::MakeSectionHeading(content, "How often?");
+    lv_obj_t *rows = KitColumn(content);
+    for (const Reminder &reminder : kReminders) {
+        lv_obj_t *row = widgets::MakeRadioRow(rows, reminder.name);
+        lv_obj_add_event_cb(row, OnReminder, LV_EVENT_VALUE_CHANGED, const_cast<Reminder *>(&reminder));
+    }
+    widgets::SetRadioChosen(lv_obj_get_child(rows, static_cast<int32_t>(s_reminder)), true);  // sends nothing: the screen opens quietly
+    EndScreen(screen);
+}
+
 // --- About ----------------------------------------------------------------------------------------------------
 
+// A fact is a name in `caption` over its value in `label` between `spacing.sm` above and below: the detail row's own height when
+// each takes one line, six to a page; a longer value takes more room and the page, fewer rows (DESIGN → Layout → Paging).
+constexpr int32_t kAboutRowsPerPage = 6;
+int32_t AboutRowHeight()
+{
+    return 2 * dt::kSpacingSm + ui::LineBox(Type::kCaption) + ui::LineBox(Type::kLabel);
+}
+
+// The facts the firmware knows about itself and the board, a name over its value, as many pages as they take: no row takes the
+// focus, so each page is one stop with the ring round its facts, and "1 of 2" says the page.
 void CreateAbout(lv_obj_t *screen, lv_group_t *, void *)
 {
     lv_obj_t *content = BeginScreen(screen, "About");
@@ -1669,15 +1685,39 @@ void CreateAbout(lv_obj_t *screen, lv_group_t *, void *)
     esp_chip_info(&chip);
     uint8_t mac[6] = {};
     esp_read_mac(mac, ESP_MAC_WIFI_STA);
-    const lvgl_display::Stats s = lvgl_display::GetStats();
-    lv_obj_t *about = Value(content, "");
-    lv_label_set_text_fmt(about,
-                          "%s %s\nESP-IDF %s\n%s rev %d.%d\nMAC %02X:%02X:%02X:%02X:%02X:%02X\n%s, touch %s\n"  // ux-exception: names
-                          "Turned 180°: %s",
-                          app->project_name, app->version, app->idf_ver, CONFIG_IDF_TARGET, chip.revision / 100,
-                          chip.revision % 100, mac[0], mac[1], mac[2], mac[3], mac[4], mac[5],
-                          s.ssd2677 ? "SSD2677 (V2.0)" : "SSD1677 (V1.0)", lvgl_display::TouchReady() ? "ok" : "absent",
-                          lvgl_display::Turned180() ? "yes" : "no");
+    const lvgl_display::Stats stats = lvgl_display::GetStats();
+    uint32_t flash = 0;
+    esp_flash_get_size(nullptr, &flash);
+
+    const widgets::ListView list =
+        widgets::MakeListView(content, kAboutRowsPerPage, AboutRowHeight(), widgets::IndicatorCentre::kView, widgets::PageWords::kUnder);
+    char built[40], address[24], flash_size[16], psram_size[16], chip_rev[40];
+    std::snprintf(built, sizeof built, "%s %s", app->date, app->time);
+    std::snprintf(address, sizeof address, "%02X:%02X:%02X:%02X:%02X:%02X", mac[0], mac[1], mac[2], mac[3], mac[4], mac[5]);
+    std::snprintf(flash_size, sizeof flash_size, "%" PRIu32 " MB", flash / (1024 * 1024));  // ux-exception: units
+    std::snprintf(psram_size, sizeof psram_size, "%u MB", static_cast<unsigned>(esp_psram_get_size() / (1024 * 1024)));  // ux-exception: units
+    std::snprintf(chip_rev, sizeof chip_rev, "%s, revision %d.%d", CONFIG_IDF_TARGET, chip.revision / 100, chip.revision % 100);
+    const struct {
+        const char *name;
+        const char *value;
+    } facts[] = {
+        {"Product", app->project_name},
+        {"Firmware", app->version},
+        {"Built", built},
+        {"Board", stats.ssd2677 ? "reTerminal Sticky V2.0" : "reTerminal Sticky V1.0"},
+        {"Panel", stats.ssd2677 ? "SSD2677, 480 x 800" : "SSD1677, 480 x 800"},
+        {"Chip", chip_rev},
+        {"ESP-IDF", app->idf_ver},
+        {"Wi-Fi address", address},
+        {"Flash", flash_size},
+        {"PSRAM", psram_size},
+        {"Touch", lvgl_display::TouchReady() ? "Ready" : "Not found"},
+        {"Turned 180°", lvgl_display::Turned180() ? "Yes" : "No"},  // ux-exception: the board's own name for it
+    };
+    for (const auto &fact : facts) {
+        widgets::MakeDetailRow(list.root, fact.name, fact.value);
+    }
+    widgets::UpdateListView(list);  // before the footer: the pages' stops come first in the walk, Back last
     EndScreen(screen);
 }
 
@@ -1999,6 +2039,7 @@ std::unique_ptr<router::Screen> PowerScreen() { return TestScreen(CreatePower, E
 std::unique_ptr<router::Screen> StorageScreen() { return TestScreen(CreateStorage); }
 std::unique_ptr<router::Screen> MicrophoneScreen() { return TestScreen(CreateMicrophone); }
 std::unique_ptr<router::Screen> AboutScreen() { return TestScreen(CreateAbout); }
+std::unique_ptr<router::Screen> RemindersScreen() { return TestScreen(CreateReminders); }
 
 constexpr router::Route kRoutes[] = {
     {"hw.display", router::NoParam<DisplayScreen>},
@@ -2015,6 +2056,7 @@ constexpr router::Route kRoutes[] = {
     {"hw.storage", router::NoParam<StorageScreen>},
     {"hw.microphone", router::NoParam<MicrophoneScreen>},
     {"hw.about", router::NoParam<AboutScreen>},
+    {"hw.reminders", router::NoParam<RemindersScreen>},
 };
 
 // A kBoardUp step, before anything is drawn: the routes are reachable by the time home is (APP_ARCHITECTURE §3).
@@ -2041,6 +2083,7 @@ constexpr Entry kEntries[] = {
     {"Battery and power", "Gauge, charger, sleep, power off", "hw.power"},
     {"Storage", "Flash, PSRAM and the card", "hw.storage"},
     {"Microphone", "A second of sound level", "hw.microphone"},
+    {"Reminders", "A choice that applies at once", "hw.reminders"},
     {"About", "Firmware and board", "hw.about"},
 };
 

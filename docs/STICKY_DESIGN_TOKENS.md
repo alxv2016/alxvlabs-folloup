@@ -402,6 +402,7 @@ their value on each refresh — the design check reads them (§7).
 
 | Item | Status | Unblocked by |
 | --- | --- | --- |
+| A focus ring's outer corner: the host render measures radius 16 round every rounded control (a value row, a radio row, a choice card, a facts page), where DESIGN → Shapes gives the control's radius plus the gap out to it, 12 + 4 + 4 = 20 — whether LVGL's outline radius counts the offset and the stroke | Open | The code made to draw 20, or the rule restated as drawn, by the person's choice |
 | Generating the token header's symbols from DESIGN.md's front matter, instead of by hand | Open | A second change to the tokens, which makes a generator worth it |
 | A script that compares DESIGN.md's front matter with §2's tables | Open | The token header, which a third copy would make worth checking |
 | The glyph ranges beyond ASCII and · ° × – — ’ • … — a name with an accent, a currency — and what a character outside them draws: LVGL's placeholder box is on (`CONFIG_LV_USE_FONT_PLACEHOLDER`) | Open | An out-of-range character drawn on the glass; the first strings that need more |
@@ -571,6 +572,34 @@ their value on each refresh — the design check reads them (§7).
   checkbox and radio button rows (one line, two, disabled with a reason), value rows, the dropdown, home rows, radio rows, choice
   cards, radio rows of one to four lines and detail rows of one to three, a list view's band cut to its page's rows, network rows (in a list view too) and the select sheet's options (one line, two, three) `[HOST]`. Every row measured an offset of 0 px on
   2026-11-21, and an option row whose column lost its minimum height measured −12 px — the test sees it.
+- **A page with no row in the focus group has a stop of its own** (`list_view.cpp`'s `BuildStops`, called by `UpdateListView`; DESIGN →
+  Components → The kit). The stop is a `detail::Bare` child of the list's frame — not of the band, so a row's index is still its place in
+  the pages — with `rounded.lg` corners and `ui::RingOutside`, joined to the group by `detail::JoinGroup(stop, frame)`, so the page
+  brings the view and the ring into view as a row's does; it draws nothing at rest. It is never hidden, since LVGL's focus step skips a
+  hidden object: while its page shows it has the box of the page's rows (`ShowStops`, from the first row's top to the last row's bottom,
+  in the frame's own coordinates, 432 × 480 for five facts of the About screen's and 432 × 352 for four) and every other stop is 0 × 0, so
+  none of it is ever on the glass and the router's "first control in view" never lands on it. Its `LV_EVENT_FOCUSED` turns to its page
+  (`OnStopFocused`), as a row's does. It takes no touch (`Bare` clears `LV_OBJ_FLAG_CLICKABLE`: a swipe goes to the band as before), OK sends
+  it a click nothing hears, and `LV_OBJ_FLAG_SCROLL_WITH_ARROW` is off on it and on the band. LVGL has a swap and no insert, so
+  `PlaceStop` adds it at the end of the group and swaps it down to its page's place — before the first row of a later page that takes
+  focus, else after the last row or stop before it. A second `UpdateListView` makes the stops anew — the old ones leave `State::stops`
+  before they are deleted, since deleting a focused one refocuses another whose handler reads it — and a list of facts only puts them back
+  where its first old stop stood; the first call of such a list has nothing to stand by and adds them at the end, so it is made before the
+  footer's Back. A swipe moves the focus from a row or stop of the list to the new page's first row that takes focus, or its stop
+  (`FocusOnPage`). `PageWords::kUnder` adds a `caption` `text-secondary` label to the frame at `spacing.md` under the view's whole height and
+  makes the frame that line taller, only while there is more than one page; `ListView::words` is nullptr when not asked. The About
+  screen's host render beside the draft is pixel for pixel the same on all fifteen frames `[HOST]`; the real About, twelve facts, is two pages of six, 536 px each. `tests/host/facts_page_lvgl_test.cpp`
+  walks a facts screen of two pages and a mixed list of three by UP and DOWN, round the wrap, and checks the box, the ring's width, reach and
+  colour against a button's, OK doing nothing, the words, that LVGL's arrow scroll stays off (the same key does scroll the band with the flag put back),
+  and a second `UpdateListView` after the footer and with a stop focused.
+- **A radio row's and choice card's group is the siblings that share a parent** (`choice_card.cpp`'s `detail::MakeChoice`, shared by
+  `radio_row.cpp`): the one `LV_EVENT_CLICKED` listener, added first so a caller's own sees the group settled, carries a tag as its
+  user data — one-of-a-set or any-number — and a sibling is told by finding that listener, so the object's own user data stays the
+  caller's; it chooses it: a disabled one is ignored, the chosen
+  one sends nothing, another clears the group's other tagged children and then sends `LV_EVENT_VALUE_CHANGED` on itself; a card of any
+  number flips and sends each time. `SetRadioChosen` and `SetChoiceChosen` set the state, clearing the group when they choose, and send
+  nothing. The hardware test's hand-clearing of both is gone; its Reminders screen listens for the change and says the choice in the
+  status line (`router::Say`). `tests/host/choice_group_lvgl_test.cpp` drives OK and a tap through the real input.
 - **The kit page shows every widget on the glass** (`UI kit` on the hardware-test home): buttons, buttons with a glyph,
   icon buttons, toggle rows, toggle icon rows, checkbox rows, radio button rows, rows, chips, segments, progress, step and
   page dots, radio rows, choice cards, sliders, a paged list view and text view, Wi-Fi network rows, the failed-join dialog,

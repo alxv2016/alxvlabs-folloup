@@ -627,7 +627,7 @@ components:
   sheet-option-chosen:
     backgroundColor: "{colors.surface-chosen}"
     textColor: "{colors.text-on-fill}"
-  horizontal-pager:  # a strip of chips that turns by page, with its page in words ("1 of 2") under it
+  horizontal-pager:  # a strip of chips that turns by page, with its page in words ("1 of 2") under it — a list view's, when its screen asks, is the same words
     backgroundColor: "{colors.band}"
     textColor: "{colors.text-primary}"
     typography: "{typography.label}"
@@ -850,6 +850,8 @@ At 235 ppi a pixel is 0.108 mm and a point is 3.26 px.
   first row never shows in what is left: a list's band is cut to the page's last row and the focus ring's reach under it.
 - **Focus wraps across pages** — DOWN on the last row of the last page goes to the first row of the first page, a page
   turn like any other.
+- **A page with nothing to focus is still a stop** — a page of facts takes UP and DOWN as a page of rows does, one press
+  a page, and the ring round it shows where the person is. Focus wraps over it like any other stop.
 
 ## Elevation & Depth
 
@@ -1168,12 +1170,24 @@ At 235 ppi a pixel is 0.108 mm and a point is 3.26 px.
   name wrapping to 18 characters a line and never cut, `spacing.xs` above and below so one line and two both stand 80, three
   116 and four 152, with no detail line; a choice card at least the mark and two `spacing.md` high with a `caption` name in bold over its detail.
   Chosen is the mark alone: the ring's `spacing.mark-dot` dot, the box's check — the card does not change.
+  A group is the rows and one-choice cards that share a parent, as a radio button row's. Choosing one — OK on it, or a tap
+  on the lift — clears the rest of its group and sends `LV_EVENT_VALUE_CHANGED` on it, after they are cleared; a chosen
+  row chosen again sends nothing (a radio never unchooses itself), and the programmatic set sends nothing. A many-choice
+  card is a group of one and sends it on each flip. Moving the focus never chooses. A choice that is the screen's one task
+  applies at once: the screen stays, its status line says what is set, and there is no Save; choosing another is the undo.
 - **List view, text view, scroll indicator** — rows or `caption-loose` text taller than their band, no box (the ring
   alone shows a text view, and its words stand `spacing.sm` inside the view on every side, so the first glyph is 12 px
   from the ring's inner edge and a page never shows a part of the line beside it), turn a
   page, never scroll by pixel: a list's band holds whole rows `spacing.md` apart and turns when the focus leaves it, a text
   view's when OK has opened it for reading and UP or DOWN is pressed, the last line of one page the first of the next;
-  a swipe up or down turns one page in either, and the page behind does not move. The scroll indicator is the deck's lane:
+  a swipe up or down turns one page in either, and the page behind does not move. A page with no row that takes focus — a
+  page of detail rows or plain text — is **one stop**: the ring, as every control's, round the page's rows from the first
+  row's top to the last row's bottom, in the screen's focus order beside the real rows. UP or DOWN leaving it turns the
+  page as leaving a row does; OK on it ticks and does nothing; it is no mode and takes no press and no touch. A page that
+  holds a row that takes focus has no stop of its own, and its facts show with it. The page in words ("1 of 2", `caption`,
+  `text-secondary`, at the rows' left edge, `spacing.md` under the view's whole height so it stands in one place on every
+  page) shows when a list view has more than one page and its screen asks for it, as the horizontal pager's does. The
+  scroll indicator is the deck's lane:
   `spacing.scroll-thumb` wide and `spacing.scroll-length` long at most, `spacing.scroll-x` from the glass's left, of
   separate round-capped pieces — a short track piece in the light dither, `spacing.sm` of white, a black thumb
   (`surface-on`) for the view's share (never under a dot; the first page at the top end and the last at the bottom end,
@@ -1209,7 +1223,7 @@ At 235 ppi a pixel is 0.108 mm and a point is 3.26 px.
 - **Focused** — the `spacing.stroke.focus` ring on every control, always (open for editing, below, is the one
   exception): `spacing.focus-offset` outside its outer edge, following its corners, black, with white between — a button,
   a chip, a row, a card, a toggle, the control of a checkbox or radio row, an icon button, a range slider, a text
-  view, a text input — its ring round the whole frame; the icon button inside it has its own ring, inside the frame. A segment's ring is round the focused item, inside its
+  view, a text input — its ring round the whole frame, and a page of facts — its ring round the page's rows, the same ring at the same offset; the icon button inside it has its own ring, inside the frame. A segment's ring is round the focused item, inside its
   track: the track's `spacing.sm` is the ring's reach, so its outer edge is the track's. A focused, chosen control shows
   both: its chosen mark and the ring round it. Focus stops sit `spacing.md` apart or more, and a container that holds one
   lets its ring out; the footer's 16 px over and under its buttons keep it off the glass's edge.
@@ -1255,6 +1269,7 @@ At 235 ppi a pixel is 0.108 mm and a point is 3.26 px.
   are its own until OK closes it, keeping the change, and the screen says so in words. Holding OK closes it instead and
   puts back what it had when OK opened it: the slider's value, the roller's value, the text view's page. The Cancel a roller's
   footer shows while it is open is a touch stop only.
+- **A page of facts is one stop** — UP and DOWN leaving it turn the page, OK on it ticks (Components → The kit → List view).
 - **The AI button records** — a hold records and its release saves; a press-to-start, press-to-stop way, the hold's
   length, and how a hold is told from OK, a wake and power-off are open (DESIGN → Open items).
 - **The first button press shows the focus ring and moves nothing**; the next moves it, and focus wraps at the ends of
@@ -1315,6 +1330,8 @@ At 235 ppi a pixel is 0.108 mm and a point is 3.26 px.
   is an open item, and the product's own outcomes — a capture saved, a sync — have none until they exist.
 - **The status line is a fixed band under the title, not near the focused control** — it keeps a ring from being covered
   (WCAG 2.4.11), and what a control did is also in place.
+- **A page of facts has a stop, so the keys reach every page** — WCAG 2.1.1; the ring is the ordinary one, black on
+  white at 21 : 1, round the page, never covered by the status band above or the footer below (2.4.7, 2.4.11).
 - **Contrast** — DESIGN → Colors → Contrast floors, on both refreshes.
 - **Text size** — nothing under `caption`; a larger text setting that steps every role up one is open.
 - **No time limits** — nothing leaves on a timer, but for a password's last typed character, which is feedback and

@@ -191,6 +191,10 @@ skill's.
 
 - **One base, a few steps** — a 4 px or 8 px base. How the steps are applied — proximity, margins, gutters, gaps,
   density — is the `layout` skill's.
+- **Name spacing tokens by role** — inset (with squish and stretch), stack, inline, pair gap, group gap, section gap
+  and layout margin — each a step of the scale, with pair gap < inset ≤ group gap < section gap (LAYOUT §7.1, §7.2).
+- **No one-off values** — a value used once is mapped onto the scale or registered as an exception with its reason
+  (§14; LAYOUT §7.5).
 - **A minimum hit area as a token** (`size.target`), at or above WCAG's 24 px; a small control grows its hit area
   without growing its drawing, and two hit areas never overlap.
 - **Everything that arrives late has its box reserved** — media with a known aspect ratio, a deferred component with a

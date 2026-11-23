@@ -36,13 +36,19 @@ lv_obj_t *MakeRadioRow(lv_obj_t *parent, const char *text)
     detail::LetRingOut(words);  // the 1 px a glyph hangs left of its cell is outside the column, and a child is clipped to its parent
     detail::WrapWords(words, text, ui::Type::kLabel);
     detail::MakeMark(row, false);
+    detail::MakeChoice(row, false);
     detail::Focusable(row);
     return row;
 }
 
 void SetRadioChosen(lv_obj_t *row, bool chosen)
 {
-    lv_obj_set_state(row, LV_STATE_CHECKED, chosen);
+    detail::SetChoice(row, chosen);
+}
+
+bool RadioChosen(lv_obj_t *row)
+{
+    return lv_obj_has_state(row, LV_STATE_CHECKED);
 }
 
 }  // namespace widgets

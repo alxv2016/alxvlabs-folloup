@@ -8,6 +8,73 @@ namespace widgets {
 namespace dt = design_tokens;
 
 namespace detail {
+namespace {
+// A choice says what it is by its own listener: the one `OnClicked` is added with a tag as its user data — one-of-a-set or any
+// number — so the object's own user data stays the caller's. A group is the choices of the one-of-a-set tag that share a parent.
+int s_one_tag;
+int s_many_tag;
+void OnClicked(lv_event_t *e);
+
+bool IsOne(lv_obj_t *obj)
+{
+    const uint32_t n = lv_obj_get_event_count(obj);
+    for (uint32_t i = 0; i < n; ++i) {
+        lv_event_dsc_t *dsc = lv_obj_get_event_dsc(obj, i);
+        if (lv_event_dsc_get_cb(dsc) == OnClicked) {
+            return lv_event_dsc_get_user_data(dsc) == &s_one_tag;
+        }
+    }
+    return false;
+}
+
+void ClearSiblings(lv_obj_t *chosen)
+{
+    lv_obj_t *group = lv_obj_get_parent(chosen);
+    const uint32_t n = lv_obj_get_child_count(group);
+    for (uint32_t i = 0; i < n; ++i) {
+        lv_obj_t *other = lv_obj_get_child(group, static_cast<int32_t>(i));
+        if (other != chosen && IsOne(other)) {
+            lv_obj_remove_state(other, LV_STATE_CHECKED);
+        }
+    }
+}
+
+// OK on it, or a tap on its lift: it is chosen, its group's others are cleared, and then the change is sent on it. Choosing
+// the chosen one sends nothing (a radio never unchooses itself); a card of any number flips and says so each time. The focus
+// never chooses: nothing here listens for it.
+void OnClicked(lv_event_t *e)
+{
+    lv_obj_t *obj = lv_event_get_current_target_obj(e);
+    if (lv_obj_has_state(obj, LV_STATE_DISABLED)) {
+        return;
+    }
+    if (lv_event_get_user_data(e) == &s_one_tag) {
+        if (lv_obj_has_state(obj, LV_STATE_CHECKED)) {
+            return;
+        }
+        ClearSiblings(obj);
+        lv_obj_add_state(obj, LV_STATE_CHECKED);
+    } else {
+        lv_obj_set_state(obj, LV_STATE_CHECKED, !lv_obj_has_state(obj, LV_STATE_CHECKED));
+    }
+    lv_obj_send_event(obj, LV_EVENT_VALUE_CHANGED, nullptr);
+}
+}  // namespace
+
+void MakeChoice(lv_obj_t *obj, bool many)
+{
+    // First, so a caller's own listener sees the group settled; the object's user data is left to the caller.
+    lv_obj_add_event_cb(obj, OnClicked, LV_EVENT_CLICKED, many ? static_cast<void *>(&s_many_tag) : static_cast<void *>(&s_one_tag));
+}
+
+void SetChoice(lv_obj_t *obj, bool chosen)
+{
+    if (chosen && IsOne(obj)) {
+        ClearSiblings(obj);
+    }
+    lv_obj_set_state(obj, LV_STATE_CHECKED, chosen);
+}
+
 lv_obj_t *MakeMark(lv_obj_t *parent, bool many)
 {
     constexpr lv_style_selector_t kOnDisabled = static_cast<lv_style_selector_t>(LV_STATE_DISABLED) | LV_STATE_CHECKED;
@@ -76,13 +143,14 @@ lv_obj_t *MakeChoiceCard(lv_obj_t *parent, const char *text, bool many, const ch
         detail::WrapWords(words, text, ui::Type::kCaption);
     }
     detail::MakeMark(card, many);
+    detail::MakeChoice(card, many);
     detail::Focusable(card);
     return card;
 }
 
 void SetChoiceChosen(lv_obj_t *card, bool chosen)
 {
-    lv_obj_set_state(card, LV_STATE_CHECKED, chosen);
+    detail::SetChoice(card, chosen);
 }
 
 bool ChoiceChosen(lv_obj_t *card)

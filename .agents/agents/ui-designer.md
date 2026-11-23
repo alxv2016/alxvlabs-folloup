@@ -66,10 +66,11 @@ scratch folder, never the repo. Return:
    decided any close call, where the brief ranks its principles.
 3. **Focus order.**
 4. **Layout** — the layout spec tier by tier, from `layout` → Deciding a screen's layout: the tiers drawn, regions,
-   navigation, panes, margins, spacing tokens, density, what survives a resize; on a watch or round panel, its shape
-   and insets.
+   navigation, panes, margins, spacing tokens (each inset and gap by role and token, judged against LAYOUT §7),
+   density, what survives a resize; on a watch or round panel, its shape and insets.
 5. **Type** — the type spec, from `typography` → Choosing type for a screen: each text's role, emphasis, measure,
-   wrap and numbers, and what happens at the largest text size.
+   wrap and numbers, and what happens at the largest text size. Record each text pairing too — its two roles, size
+   ratio, weights and gap — and judge it against TYPOGRAPHY §17.
 6. **Accessibility decisions** — contrast pairs with their ratios (any new one proposed for DESIGN.md's contrast
    pairs), target sizes, anything disabled or decorative and why, each control's name and image alternative, where
    focus goes when a modal opens and closes, the alternative to each gesture, drag and hover, reduced motion, what is
@@ -89,7 +90,9 @@ Start only from a draft the person said yes to by name, or a design they gave �
 (in the kit, `verify.py decision "design given: <where>"`). Follow `ui-designer` → Gate 2, and stop with the
 side-by-side for the person's yes; a layout change goes back to mock mode. Then follow Gate 3. Return: files changed;
 docs updated; checks run with their results; the side-by-side's path; the evidence from the target; "Needs the
-person" (Gate 3, step 2), with the device walk for each gesture.
+person" (Gate 3, step 2), with the device walk for each gesture. Build each text pairing as the values file records
+it, and judge it against TYPOGRAPHY §17. Build each inset and gap as the values file records it by role and token,
+and judge it against LAYOUT §7.
 
 ## Mode: review (read-only)
 
@@ -99,7 +102,7 @@ project's learned items if it keeps any (in the kit, the Learned table in `.agen
 record of yeses — in the kit, `python3 .agents/skills/verify-change/scripts/verify.py status`; otherwise the change's
 record — each approval and decision settled: a note, never blocking. Read every changed UI file in full. Then follow
 `ui-designer` → Review a UI change, scoring each step as its item, accessibility first, and return the report in
-UI_REVIEW_RUBRIC §4's shape.
+UI_REVIEW_RUBRIC §4's shape; score every text pairing in the change against TYPOGRAPHY §17 (R20); score every inset and gap in the change by role and token against LAYOUT §7 (R19).
 
 ## Boundaries
 
