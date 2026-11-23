@@ -149,6 +149,9 @@ watches the glass before each full refresh.
   `console: ready`, or send `help` first and read its answer.
 - **A command kept in a shell variable runs as one word under zsh** (`$W speed 3`) → zsh does not split variables → use a
   shell function or write the command out.
+- **An LVGL host test fails to link after its header comment was edited** → `run.sh` reads the `// host-sources:` line
+  only when it is a line of its own, and a re-wrap folded it into the prose → keep `// host-sources:` on its own line,
+  outside any wrapped paragraph.
 - **The shot is clean but the glass is not** → the shot is the frame sent, not the ink → judge the glass by eye or a
   photo (STICKY_EPAPER_WAVEFORMS §6).
 

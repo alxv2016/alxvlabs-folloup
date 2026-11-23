@@ -101,7 +101,9 @@ void SetPressFeedback(void (*tick)());
 // A sound a control asks for beyond the press's tick, by its word in DESIGN.md's sound tokens: a widget asks PlayCue, and the
 // shell sets the player that sounds it (devices), so no widget reaches the buzzer itself (STICKY_DESIGN_TOKENS §5).
 enum class Cue : uint8_t {
-    kAtEnd,  // a step that can go no further: a page turned past the last or first, a slider stepped past its end
+    kAtEnd,    // a step that can go no further: a page turned past the last or first, a slider stepped past its end
+    kSuccess,  // news of a thing done, said as its words are drawn: the router's status line (`sound.success`)
+    kError,    // news of a thing that failed, likewise (`sound.error`)
 };
 void SetCuePlayer(void (*play)(Cue cue));
 // From LVGL's task, under the lock — a widget's event; nothing plays until the shell sets the player.

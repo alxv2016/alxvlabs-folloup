@@ -172,7 +172,7 @@ typography:
     fontSize: 20px
     fontWeight: 600
     lineHeight: 30px
-  caption-strong:  # = typography.scale-20-bold: a Wi-Fi network's name, a choice card's name, a select sheet's options
+  caption-strong:  # = typography.scale-20-bold: a Wi-Fi network's name, a choice card's name, a select sheet's options; the status band's news
     fontFamily: Bitcount Single
     fontSize: 20px
     fontWeight: 700
@@ -613,10 +613,12 @@ components:
     rounded: "{rounded.lg}"
     height: "{spacing.target}"
     padding: "{spacing.md}"
-  status-line:
+  status-line:  # plain words between two rules, no box: the lower rule shows only while news does
     backgroundColor: "{colors.background}"
     textColor: "{colors.text-primary}"
-    typography: "{typography.label}"
+    typography: "{typography.caption-strong}"
+    height: "{spacing.list-row-height}"
+    padding: "{spacing.edge}"
   divider:
     backgroundColor: "{colors.divider}"
     height: "{spacing.stroke.hairline}"
@@ -775,9 +777,9 @@ At 235 ppi a pixel is 0.108 mm and a point is 3.26 px.
 | `headline` | `scale-40-bold` | 40 px, 12.3 pt | A screen's title |
 | `body` | `scale-30-semibold` | 30 px, 9.2 pt | Everything people read: a transcript, a summary, a note |
 | `label` | `scale-30-bold` | 30 px, 9.2 pt | Buttons, hints, tags, a row's title, a field's typed text — `body`'s size, in bold |
-| `caption` | `scale-20-semibold` | 20 px, 6.1 pt | The status bar and timestamps, a field's placeholder — the smallest words on the glass |
+| `caption` | `scale-20-semibold` | 20 px, 6.1 pt | The status bar's title and timestamps, a field's placeholder — the smallest words on the glass |
 | `caption-loose` | `scale-20-semibold` on a 30 px line | 20 px, 6.1 pt | A text view's lines: `caption` on a line 1.5 em apart, easy to follow back |
-| `caption-strong` | `scale-20-bold` | 20 px, 6.1 pt | A row's name one role under `label`: a Wi-Fi network's, a choice card's, a select sheet's options — 12 px a character |
+| `caption-strong` | `scale-20-bold` | 20 px, 6.1 pt | A row's name one role under `label`: a Wi-Fi network's, a choice card's, a select sheet's options; the status band's news — 12 px a character |
 
 ### Reading
 
@@ -792,15 +794,18 @@ At 235 ppi a pixel is 0.108 mm and a point is 3.26 px.
 ### The one glass
 
 - **480 × 800 portrait, one to one** — the 3.97-inch 800 × 480 panel turned on its side, at 235 ppi. Nothing adapts,
-  because the glass never changes size; every screen keeps the same regions in the same places.
+  because the glass never changes size; every screen keeps the same regions in the same places, but for the optional status band.
 - **A mock is drawn at 480 × 800 px in both its full-refresh and its partial-refresh form**, and judged on the glass of
   a V1.0 and a V2.0 board.
 
 ### Regions
 
-- **The status bar** — `spacing.status-bar` along the top edge: the time, battery, Wi-Fi, storage and recording state,
-  on white over a hairline; charging and a low battery are said in words, since the charge light speaks only in
-  colour.
+- **The status bar** — `spacing.status-bar` along the top edge: the screen's title, on white over a hairline; the
+  device's own state has no place on the glass yet (Open items).
+- **The status band** — optional: a screen that can get news reserves `spacing.list-row-height` between its title bar and its
+  content, and leaves it white until news comes, so nothing moves when it does; its words stand between the title bar's
+  rule above and a `spacing.stroke.hairline` rule below that shows only with news, no box and no fill. A screen that
+  cannot get news has none; it is the one region on some screens and not others, by the person's decision.
 - **The content** — one column inside `spacing.edge` margins, `spacing.content` wide, one primary item per screen.
 - **The footer** — `spacing.footer` along the bottom edge: the screen's touch buttons, and what UP, DOWN and OK do
   here, 96 px so a 64 px button has 16 over and under it and its ring leaves 8 px to the glass's edge. The action
@@ -844,7 +849,7 @@ At 235 ppi a pixel is 0.108 mm and a point is 3.26 px.
 | Level | Surface | Offset's dither | Black share |
 | --- | --- | --- | --- |
 | `elevation.0` flat | everything on the page: rows, cards, buttons, fields, chips | none; the `spacing.stroke.default` outline where the control has one | — |
-| `elevation.1` raised | reserved: the first surface that floats over the page without taking it over — a popover, a menu, a toast; none exists yet | `shadow-1`, the eighth | 12.5 % |
+| `elevation.1` raised | reserved: the first surface that floats over the page without taking it over — a popover or a menu; none exists yet | `shadow-1`, the eighth | 12.5 % |
 | `elevation.2` anchored | the select list's bottom sheet, and any surface anchored to the glass's edge | `shadow-2`, the light dither | 25 % |
 | `elevation.3` floating | the dialog, and any surface that interrupts | `shadow-3`, the dark dither | 75 % |
 
@@ -931,7 +936,7 @@ At 235 ppi a pixel is 0.108 mm and a point is 3.26 px.
   `motion.password-reveal`, once per character (Exceptions → A password's last character).
 - **A covered screen stops updating itself** — while a sheet, a dialog or the keyboard stands over it, its own updates wait,
   and when it is uncovered it reads again at once.
-- **Nothing leaves on a timer** — a message stays until the next change of screen. One exception: a masked field's last
+- **Nothing leaves on a timer** — a message stays until the next change of screen or its caller retracts it. One exception: a masked field's last
   typed character (Exceptions → A password's last character, `motion.password-reveal`).
 
 ### Sound
@@ -946,7 +951,9 @@ At 235 ppi a pixel is 0.108 mm and a point is 3.26 px.
   its tick within one read of the buttons, a swipe's at the lift.
 - **An outcome sounds as its words are set** — `sound.success` only once the action has succeeded, `sound.error` when it
   failed, never for a request merely sent; the sound comes as the words are set, so on e-ink it leads them by the
-  refresh that draws them. A destructive action confirmed has the press's tick alone.
+  refresh that draws them. A destructive action confirmed has the press's tick alone. News the status line says with no
+  press sounds `sound.success` or `sound.error` by its kind, as its words are drawn, and info is silent; it adds no seventh
+  sound.
 - **A recording opens on `sound.recording-start` and closes on `sound.recording-stop`**, and the start sound is never
   in the recording; a recording that fails closes on `sound.error`.
 
@@ -988,7 +995,7 @@ At 235 ppi a pixel is 0.108 mm and a point is 3.26 px.
 
 ### The kit
 
-- **Status bar, footer** — the fixed regions (DESIGN → Layout → Regions).
+- **Status bar, status band, footer** — the regions; the status band only where a screen gets news (DESIGN → Layout → Regions).
 - **Button** — the action button (black, one per screen, `button-action`), the outline button (`button-outline`), the
   tonal button (the light dither, black words, `button-tonal`) for a second action that is not Cancel, and the ghost
   button (words alone, `button-ghost`) for a third; a compact button is any of them as wide as its words; the standard
@@ -1112,7 +1119,14 @@ At 235 ppi a pixel is 0.108 mm and a point is 3.26 px.
   and off, a check, the microphone and a refresh for the buttons, and a signal in three strengths, a padlock, a check for a row's
   facts line, a select chevron and the open and slashed eye, each cut to a box of its own — each in its words' colour or a button's, never a grey; any other
   glyph needs the person's yes and a place here.
-- **Status line** — news that asks nothing, until the next change of screen.
+- **Status line** — news that asks nothing, as plain words under the title: `spacing.list-row-height` high and
+  `spacing.content` wide, in `caption-strong`, left, wrapped to two lines and never cut, 60 characters at most (past them
+  LVGL ends the second line in dots and the log says so), with no glyph, no box, no fill and no edge, so nothing about it can
+  be taken for a control; a `spacing.stroke.hairline` rule closes it while news shows. Info, success and error look alike: the
+  words, and the sound, tell them apart. Only a screen that can get news reserves it. It is no stop, takes no press and no
+  focus, and never covers a control. The newest replaces the one showing in one partial refresh; the same words again redraw
+  nothing but still sound their kind, so a press always hears its outcome. It leaves at the next change of screen or when its caller retracts it, never on a timer. News that arrives while a
+  dialog, sheet or the keyboard is open is held and drawn, and sounded, when it closes.
 - **Wait indicator** — still words and a segmented progress bar, stepping no faster than every 5 s.
 - **Progress bar, step bar, page dots** — round-capped pieces `spacing.progress` high (the one that runs out first
   `spacing.progress-lead`): a black fill from the left, `spacing.sm` of white, the rest of the track in the light dither;
@@ -1251,10 +1265,12 @@ At 235 ppi a pixel is 0.108 mm and a point is 3.26 px.
 - **WCAG 2.2 AA where it applies, and EN 301 549's closed functionality where the hardware allows** — the device has
   a buzzer and no speaker, so it cannot speak, and a person who cannot see the glass is not served today.
 - **Every outcome in words, and the ones Motion → Sound lists in sound too** — a success, a failure, a wait and a
-  recording's start and stop each have words on the glass. Sounding today: every press's tick; the end of a list,
-  text view, pager and slider; a recording's start and stop and its failure; and reading the card's success and
-  failure on the bench. A wait's sound is an open item, and the product's own outcomes — a capture saved, a sync — have none
-  until they exist.
+  recording's start and stop each have words on the glass, and so has a status line's news, in the band a screen that
+  can get it reserves. Sounding today: every press's tick; the end of a list, text view, pager and slider; a recording's
+  start and stop and its failure; and a status line's success and failure — reading the card's, on the bench. A wait's sound
+  is an open item, and the product's own outcomes — a capture saved, a sync — have none until they exist.
+- **The status line is a fixed band under the title, not near the focused control** — it keeps a ring from being covered
+  (WCAG 2.4.11), and what a control did is also in place.
 - **Contrast** — DESIGN → Colors → Contrast floors, on both refreshes.
 - **Text size** — nothing under `caption`; a larger text setting that steps every role up one is open.
 - **No time limits** — nothing leaves on a timer, but for a password's last typed character, which is feedback and
@@ -1397,10 +1413,17 @@ The chosen option of a select sheet is marked by the check, without its word.
 - **The elevation scale** — the dither of an overlay's offset by elevation level; the dialog's and the sheet's are both the dark
   dither until it is decided.
 - **The clock's cost** — a minute tick makes a full refresh every twenty minutes on a still screen — and whether the
-  lock screen's clock is 24-hour or shows AM and PM in the status bar.
+  lock screen's clock is 24-hour or shows AM and PM, wherever the device's own state is said.
 - **A spoken mode** — none is possible on this hardware; who that leaves out, and what would serve them.
 - **A press answered without sound** — how a muted device, or a person who cannot hear the tick, knows a press landed
-  before the next frame does.
+  before the next frame does; and the news sound with nobody pressing, which has no mute.
+- **Where the device's own state is said** — the time, battery, Wi-Fi, storage, recording state, charging and a low
+  battery in words have no place on the glass; the status bar holds the title alone, and the low battery said before sleep (Accessibility →
+  Sleep never loses work) has no home yet.
+- **A status line left up** — it stays until the next change of screen or its caller retracts it, so on a device that sits on
+  one screen for days it can read as current when it is not; whether that is acceptable, or a caller's `Clear` is enough.
+- **A hairline cleared from a band** — whether the status line's lower rule leaves a ghost when news is retracted, and so
+  whether it is always drawn, judged on a V1.0 and a V2.0.
 - **The glass's real contrast** — its white and black measured against the nominal 21 : 1.
 - **Whether a 2 px hairline and `caption` at 20 px read from a metre away** — on a V1.0 and a V2.0 board.
 - **How many times a full refresh flashes**, against WCAG's three a second.

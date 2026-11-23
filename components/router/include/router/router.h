@@ -19,6 +19,7 @@
 #include "esp_err.h"
 #include "router/route.h"
 #include "router/screen.h"
+#include "router/status_rules.h"
 
 namespace router {
 
@@ -149,6 +150,30 @@ void Hold(lv_obj_t **slot, lv_obj_t *obj);
 // button and every focus stop (the rows, the keys); this opts in another — the range slider, whose lift sets its value. A
 // contact a scroll has taken is the scroll's, and never cancelled here.
 void CancelOnSlideOff(lv_obj_t *obj);
+
+// --- The status line ------------------------------------------------------------------------------------------------
+//
+// News that asks nothing, as plain words in the band a screen reserves under its title (DESIGN → Components → The kit). The
+// router keeps the state — which line is up, which is waiting — and draws it into the band of the screen on top, which
+// widgets::MakeStatusLine built and handed to AttachStatusLine from OnCreate. A screen with no band has no news: Say there says
+// nothing, logs it for the developer, and returns 0 — a line never seen sounds nothing either. All under the LVGL lock.
+//
+// The line leaves with the screen: Push, Pop, GoTo and PopToRoot clear it, and nothing else does but a replacement or its
+// caller's Clear — never a timer. While an overlay is open the band holds still; news said then is drawn, and sounded, as the
+// last overlay closes. The rules are status_rules.h's, and tested on the computer.
+
+// Says `words` as news of `kind`, replacing the line showing; the sound of success and error plays as the words are set
+// (lvgl_display::Cue). The same words and kind again draw nothing and keep the id, but sound their kind again: a press hears
+// its outcome. The words are copied, and cut at kStatusBytes. Returns the line's id, for Clear; 0 when nothing was said: no band,
+// no words, or no screen entered — Say from OnEnter or later, never from OnCreate (the screen is not on top yet) or OnExit (it
+// has left).
+StatusId Say(StatusKind kind, const char *words);
+// Retracts the line `id` named, if it is still the one wanted: a stale id, a line replaced since, or one said on another screen
+// does nothing. The band goes white in one partial refresh (or when the last overlay closes).
+void Clear(StatusId id);
+// From a screen's OnCreate only (widgets::MakeStatusLine): `words` is the band's label and `rule` the divider that shows only
+// while news does — both the screen's own objects. Not hidden by the router otherwise; ignored outside OnCreate.
+void AttachStatusLine(lv_obj_t *words, lv_obj_t *rule);
 
 // --- Routes (route.h) ------------------------------------------------------------------------------------------------
 

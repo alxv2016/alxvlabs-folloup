@@ -43,6 +43,8 @@ void PlayCue(lvgl_display::Cue cue)
 {
     switch (cue) {
     case lvgl_display::Cue::kAtEnd: devices::Play(devices::sound::Word::kAtEnd); break;
+    case lvgl_display::Cue::kSuccess: devices::Play(devices::sound::Word::kSuccess); break;
+    case lvgl_display::Cue::kError: devices::Play(devices::sound::Word::kError); break;
     }
 }
 

@@ -36,6 +36,7 @@
 #include "widgets/select_sheet.h"      // OpenSelectSheet, CloseSelectSheet, SelectSheetOpen, SelectSheetRowsPerPage
 #include "widgets/segment.h"           // MakeSegment, SegmentChosen, SetSegmentChosen, SetSegmentEnabled
 #include "widgets/status_block.h"      // MakeStatusBlock, StatusMark
+#include "widgets/status_line.h"       // MakeStatusLine
 #include "widgets/step_bar.h"          // StepBar, StepState, MakeStepBar, SetStep
 #include "widgets/text_input.h"        // TextInput, MakeTextInput, MakePasswordInput, InputText, SetInputText, InputAppend, InputErase, SetInputShown, SetInputEnabled, SetInputActivateHandler, InputKeyboardTarget
 #include "widgets/text_view.h"         // TextView, MakeTextView, SetTextView, TextViewPage, TextViewPages

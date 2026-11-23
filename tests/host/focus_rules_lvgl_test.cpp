@@ -7,7 +7,7 @@
 // APP_ARCHITECTURE §7).
 // run.sh builds LVGL's sources from managed_components once, into build/host/lvgl, and the sources named below, against stand-ins
 // for the ESP-IDF headers (tests/host/stubs).
-// host-sources: components/router/router.cpp components/router/overlays.cpp components/router/focus.cpp components/router/touch.cpp components/router/routes.cpp components/router/screen.cpp
+// host-sources: components/router/router.cpp components/router/overlays.cpp components/router/focus.cpp components/router/touch.cpp components/router/routes.cpp components/router/screen.cpp components/router/status.cpp
 // Build and run: bash tests/host/run.sh
 
 #include <cstdio>
@@ -43,6 +43,7 @@ void (*s_touch_hook)(lv_indev_t *, lv_indev_data_t *) = nullptr;
 void SetKeyReadHook(void (*hook)(lv_indev_t *, lv_indev_data_t *)) { s_key_hook = hook; }
 void SetTouchReadHook(void (*hook)(lv_indev_t *, lv_indev_data_t *)) { s_touch_hook = hook; }
 void RequestFull() {}
+void PlayCue(Cue) {}  // the status line asks a sound as its news is drawn; these tests do not listen
 }  // namespace lvgl_display
 
 namespace {

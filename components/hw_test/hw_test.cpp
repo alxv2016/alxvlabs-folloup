@@ -85,11 +85,15 @@ void OnPushRoute(lv_event_t *e)
     router::PushRoute(static_cast<const char *>(lv_event_get_user_data(e)));
 }
 
-// Starts a test screen in the router's root: the glass, its status bar, and a content column, returned.
-lv_obj_t *BeginScreen(lv_obj_t *screen, const char *title)
+// Starts a test screen in the router's root: the glass, its status bar, the status line's band when the screen can get news
+// (`news`, DESIGN → Layout → Regions), and a content column, returned.
+lv_obj_t *BeginScreen(lv_obj_t *screen, const char *title, bool news = false)
 {
     ui::StyleScreen(screen);
     ui::NewStatusBar(screen, title);
+    if (news) {
+        widgets::MakeStatusLine(screen);
+    }
     lv_obj_t *column = lv_obj_create(screen);
     lv_obj_remove_style_all(column);
     lv_obj_set_width(column, lv_pct(100));
@@ -1441,25 +1445,25 @@ void OnProbeCard(lv_event_t *)
     lv_refr_now(nullptr);  // on the glass before the mount blocks
     devices::Card card;
     const esp_err_t err = devices::ProbeCard(&card);
-    // The outcome in words and in sound (DESIGN → Accessibility): success once the card was read, the error otherwise.
+    // The label keeps the facts, in place; the outcome is news, said in the status line under the title, which sounds
+    // success or error as its words are drawn (DESIGN → Accessibility → Every outcome in words). The words start on the outcome.
     if (!card.inserted) {
-        lv_label_set_text(s_card_label, "No card. Insert one and try again.");
-        devices::Play(devices::sound::Word::kError);
+        lv_label_set_text(s_card_label, "MicroSD: no card");
+        router::Say(router::StatusKind::kError, "No card. Insert one to read it.");
     } else if (err != ESP_OK) {
-        lv_label_set_text_fmt(s_card_label, "The card did not mount (%s). Check it is FAT32, then try again.",
-                              esp_err_to_name(err));
-        devices::Play(devices::sound::Word::kError);
+        lv_label_set_text_fmt(s_card_label, "MicroSD: did not mount (%s)", esp_err_to_name(err));
+        router::Say(router::StatusKind::kError, "The card did not mount. Check it is FAT32, then try again.");
     } else {
         lv_label_set_text_fmt(s_card_label, "%s · %llu MiB\n%d entries in the root%s", card.name,
                               static_cast<unsigned long long>(card.capacity_mib), card.entries,
                               card.entries >= 99 ? " or more" : "");
-        devices::Play(devices::sound::Word::kSuccess);
+        router::Say(router::StatusKind::kSuccess, "Card read.");
     }
 }
 
 void CreateStorage(lv_obj_t *screen, lv_group_t *, void *)
 {
-    lv_obj_t *content = BeginScreen(screen, "Storage");
+    lv_obj_t *content = BeginScreen(screen, "Storage", true);
     uint32_t flash = 0;
     esp_flash_get_size(nullptr, &flash);
     lv_obj_t *mem = Value(content, "");

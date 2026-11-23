@@ -7,7 +7,7 @@
 // screen change closes what stands on the screen (APP_ARCHITECTURE §7).
 // run.sh builds LVGL's sources from managed_components once, into build/host/lvgl, and the sources named below, against stand-ins
 // for the ESP-IDF headers (tests/host/stubs).
-// host-sources: components/ui/ui.cpp components/ui/line_box.cpp components/ui/fonts/bitcount/*.c components/widgets/marks/marks.c components/widgets/src/*.cpp components/widgets/src/internal/*.cpp components/router/router.cpp components/router/overlays.cpp components/router/focus.cpp components/router/touch.cpp components/router/routes.cpp components/router/screen.cpp
+// host-sources: components/ui/ui.cpp components/ui/line_box.cpp components/ui/fonts/bitcount/*.c components/widgets/marks/marks.c components/widgets/src/*.cpp components/widgets/src/internal/*.cpp components/router/router.cpp components/router/overlays.cpp components/router/focus.cpp components/router/touch.cpp components/router/routes.cpp components/router/screen.cpp components/router/status.cpp
 // Build and run: bash tests/host/run.sh
 
 #include <cstdio>

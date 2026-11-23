@@ -255,8 +255,8 @@ their value on each refresh — the design check reads them (§7).
 | `kFeedbackTickMs` | 100 ms | The buzzer tick sounds as the input watcher reads a press — one poll, 10 ms (`kWatchMs`), after it — even during a refresh: `devices::Tick` plays `sound.tick` (`kSoundTick`), 30 ms of the full square at 4 kHz, through the buzzer's note player, whose task runs above the watcher and cuts whatever sound is playing, so a tick never waits behind another sound ([STICKY_HARDWARE_SPECS §4.2](STICKY_HARDWARE_SPECS.md#42-devices)) |
 | `kSoundTick` | 4 kHz, the full square, 30 ms | `sound.tick`: every press and every repeated step — `devices::Tick`, which `lvgl_display::SetPressFeedback` runs |
 | `kSoundAtEnd` | 2637 Hz twice, 25 ms each, 45 ms apart | `sound.at-end`: a step that can go no further — `lvgl_display::PlayCue(Cue::kAtEnd)` from the list view, the text view, the horizontal pager and the range slider (below) |
-| `kSoundError` | 4186, 3322, then 2794 sliding to 2093 Hz; 600 ms | `sound.error`: that did not work — `devices::Play(sound::Word::kError)` |
-| `kSoundSuccess` | 3136 then 4186 Hz on the 25 % pulse; 260 ms | `sound.success`: only once the action succeeded — `devices::Play(sound::Word::kSuccess)` |
+| `kSoundError` | 4186, 3322, then 2794 sliding to 2093 Hz; 600 ms | `sound.error`: that did not work — `devices::Play(sound::Word::kError)`, and the status line's error news (`Cue::kError`) |
+| `kSoundSuccess` | 3136 then 4186 Hz on the 25 % pulse; 260 ms | `sound.success`: only once the action succeeded — `devices::Play(sound::Word::kSuccess)`, and the status line's success news (`Cue::kSuccess`) |
 | `kSoundRecordingStart` | 3520, then 5274 Hz on the 25 % pulse; 235 ms | `sound.recording-start` — before the recording, never in it |
 | `kSoundRecordingStop` | 5274, then 3520 Hz on the 25 % pulse; 235 ms | `sound.recording-stop` |
 | `kSoundBandLowHz`, `kSoundBandHighHz` | 2000, 6000 Hz | `sound.band-low`, `sound.band-high`: every pitch between, round the buzzer's 4 kHz resonance; `tests/host/sound_rules_test.cpp` holds the six to it `[HOST]` |
@@ -281,10 +281,21 @@ their value on each refresh — the design check reads them (§7).
   `tests/host/slide_off_lvgl_test.cpp` and `swipe_lvgl_test.cpp` count the cue `[HOST]`.
 - **Outcomes sound where they happen** — the hardware test's Microphone screen plays `sound.recording-start` at the press,
   lets the microphone settle at least as long as the sound has left, so the recording never holds it, and closes on
-  `sound.recording-stop`, or `sound.error` when the read failed; its Storage screen's Read card plays `sound.success`
-  once the card was read and `sound.error` when there was none or it did not mount. The kit page's keyboard and dialog
+  `sound.recording-stop`, or `sound.error` when the read failed; its Storage screen's Read card says its outcome in the
+  status line — "Card read." sounds `sound.success`, "No card. Insert one to read it." and the mount failure sound
+  `sound.error` — while its label keeps the facts (the next bullet). The kit page's keyboard and dialog
   are samples with no real outcome — Join with too short a password is a disabled action, which gets the tick alone, and
   a destructive action confirmed gets the press's tick (DESIGN → Motion → Sound) — so they sound none.
+- **The status line sounds by cue and refreshes the band alone** — `router::Say` asks `lvgl_display::PlayCue(Cue::kSuccess)`
+  or `Cue::kError` just before it sets the band's words, and the shell's cue player (`app_shell`) maps them to
+  `devices::Play(Word::kSuccess)` and `kError`; info asks nothing. Held under an overlay, the news sounds when it is drawn,
+  as the overlay closes. The band is a fixed 80 px zone (`spacing.list-row-height`, y 44 to 123), so a line shown, replaced
+  or retracted is one partial refresh of that zone, 480 × 80, and nothing below it changes — checked on the render, where every
+  pixel from y 124 down is identical empty, with one line and with two. Each counts toward `kRefreshPartialLimit`; a line
+  that leaves with its screen costs no refresh of its own. The same words again are no refresh, but success and error sound again. The lower
+  rule, a 2 px hairline drawn only while news shows, is the thinnest feature on the glass and the one thing a retraction can
+  leave a faint trace of; judged on a V1.0 and a V2.0, and an always-drawn rule is the way out `[?]`.
+  `tests/host/status_rules_test.cpp` and `status_line_lvgl_test.cpp` hold the rules and the layout `[HOST]`.
 - **A full refresh is drawn for**: the first frame after boot or wake; a full a screen asks for (`RequestFull`, the
   hardware-test screens'); the update after `kRefreshPartialLimit` partials; the one-bit frame after a greyscale
   refresh; on the V1.0, the pause of 2 s after 150 frames by scans; and, as a recovery, a partial that fails — drawn
@@ -401,6 +412,7 @@ their value on each refresh — the design check reads them (§7).
 | The unlit bars of the signal glyph, 3 to 4 px arcs in a dither, read as faint grey strokes on the glass (DESIGN → Exceptions) | Open | The kit page's network rows seen on both boards; the way out is a 2 px outline |
 | The text field's eye and clear button, square inside the field's `rounded.xl` corner, and its ring's white gap to the outline, read on the glass (§11.4) | Open | The kit page's text and password inputs seen on both boards |
 | Whether the at-end sound cutting a key's tick, and the outcome sounds, read on the board — heard through a refresh in flight | Open | The Buttons and buzzer screen's rows, a list, a slider and the text view walked to their ends on a V1.0 and a V2.0 |
+| Whether the status line's lower rule, a 2 px hairline drawn only while news shows, leaves a faint trace in the band when news is retracted, and whether it is noticed as plain words with no box (§5) | Open | The hardware test's Storage screen: Read card with no card, then with one, ten times on a V1.0 and a V2.0 |
 | The swipe's thresholds, 64 px, and a flick of 24 px with 12 px in the last 100 ms (§10) — proposed, never judged under a finger | Open | A device walk on the glass: a slow long swipe, a flick, a short flick under the limit, a pull-back, a rest before the lift |
 
 ## 9. The ring outside and the ported widgets

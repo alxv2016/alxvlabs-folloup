@@ -109,6 +109,9 @@ void CloseOverlay(Overlay *overlay)
     if (covered_before && Covering() == 0) {
         TellCovered(false);
     }
+    if (s_count == 0) {
+        detail::StatusOverlaysClosed();  // the news held while it stood is drawn, and sounded, now
+    }
 }
 
 void DismissOverlays()

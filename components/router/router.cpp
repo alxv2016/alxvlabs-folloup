@@ -20,6 +20,7 @@ struct Entry {
     std::unique_ptr<Screen> screen;
     lv_obj_t *root = nullptr;
     lv_group_t *group = nullptr;
+    detail::StatusBand band;  // the screen's status line, if it reserved one (status.cpp)
 };
 
 Entry s_stack[kMaxDepth];
@@ -98,12 +99,14 @@ bool MakeEntry(std::unique_ptr<Screen> screen, Entry *out)
     lv_group_set_wrap(group, true);  // UP past the first control reaches the last, DOWN past the last the first
     lv_group_set_editing(group, false);
     lvgl_display::SetGroup(group);
+    detail::BeginStatusBand();
     screen->OnCreate(root, group);
+    const detail::StatusBand band = detail::TakeStatusBand();
     lv_obj_t *named = lv_group_get_focused(group);
     if (named != nullptr) {
         lv_obj_remove_state(named, LV_STATE_FOCUS_KEY);
     }
-    *out = Entry{std::move(screen), root, group};
+    *out = Entry{std::move(screen), root, group, band};
     return true;
 }
 
@@ -180,6 +183,7 @@ esp_err_t SetRoot(std::unique_ptr<Screen> screen)
     }
     s_stack[s_depth++] = std::move(entry);
     Show(Top());
+    detail::StatusEntered(Top().band);
     Top().screen->OnEnter();
     return ESP_OK;
 }
@@ -190,16 +194,19 @@ esp_err_t Push(std::unique_ptr<Screen> screen)
     if (check != ESP_OK) {
         return check;
     }
+    detail::StatusLeaving();  // before the overlays close, so news held under one is dropped, not drawn
     DismissOverlays();
     LogHeap(s_depth + 1);
     Entry entry;
     if (!MakeEntry(std::move(screen), &entry)) {
         lvgl_display::SetGroup(Top().group);
+        detail::StatusEntered(Top().band);
         return ESP_ERR_NO_MEM;
     }
     Top().screen->OnExit();
     s_stack[s_depth++] = std::move(entry);
     Show(Top());
+    detail::StatusEntered(Top().band);
     Top().screen->OnEnter();
     return ESP_OK;
 }
@@ -213,11 +220,13 @@ esp_err_t GoTo(std::unique_ptr<Screen> screen)
     if (check != ESP_OK) {
         return check;
     }
+    detail::StatusLeaving();
     DismissOverlays();
     LogHeap(2);
     Entry entry;
     if (!MakeEntry(std::move(screen), &entry)) {
         lvgl_display::SetGroup(Top().group);
+        detail::StatusEntered(Top().band);
         return ESP_ERR_NO_MEM;
     }
     Top().screen->OnExit();
@@ -227,6 +236,7 @@ esp_err_t GoTo(std::unique_ptr<Screen> screen)
         Retire(std::move(s_stack[--s_depth]));
     }
     s_stack[s_depth++] = std::move(entry);
+    detail::StatusEntered(Top().band);
     Top().screen->OnEnter();
     return ESP_OK;
 }
@@ -236,10 +246,12 @@ void Pop()
     if (!s_ready || s_depth < 2) {
         return;
     }
+    detail::StatusLeaving();
     DismissOverlays();
     Entry top = std::move(s_stack[--s_depth]);
     top.screen->OnExit();
     Show(Top());
+    detail::StatusEntered(Top().band);
     Top().screen->OnEnter();
     Retire(std::move(top));
 }
@@ -249,12 +261,14 @@ void PopToRoot()
     if (!s_ready || s_depth < 2) {
         return;
     }
+    detail::StatusLeaving();
     DismissOverlays();
     Top().screen->OnExit();
     Show(s_stack[0]);
     while (s_depth > 1) {
         Retire(std::move(s_stack[--s_depth]));
     }
+    detail::StatusEntered(Top().band);
     Top().screen->OnEnter();
 }
 

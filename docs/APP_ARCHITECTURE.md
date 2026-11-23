@@ -131,7 +131,8 @@ E1–E5.**
 **A screen is a `router::Screen` on one stack: the router makes its root and its focus group, drives its lifecycle, and loads
 it with no transition — on e-paper the refresh is the motion (DESIGN → Motion).** Home is the root; a feature pushes its
 screens by route id, and Back and holding OK pop. Over the top screen stand its overlays — a select sheet, a dialog, the
-keyboard — each with its own focus group. `components/router` holds it: `router.h`, `screen.h` and `route.h`.
+keyboard — each with its own focus group. A screen that can get news reserves a band under its title, which the router draws
+the status line into. `components/router` holds it: `router.h`, `screen.h`, `route.h` and `status_rules.h`.
 
 ### The lifecycle
 
@@ -220,6 +221,35 @@ opened, up to `router::kMaxOverlays` (four); it builds and draws nothing of them
 - **A covered screen stops what it does on its own**: hw_test's Sensors and Battery and power screens pause their timer in
   `OnCovered(true)` and, uncovered, resume it and read at once (`lv_timer_ready`).
 
+### The status line
+
+**News that asks nothing — "Card read.", "No card." — is said with `router::Say(kind, words)`, which draws it in the band the
+top screen reserved and sounds it by its kind; the router keeps the state and the screen only opts in** (DESIGN → Components →
+The kit; DESIGN → Layout → Regions).
+
+| Call | What the router does |
+| --- | --- |
+| `widgets::MakeStatusLine(parent)` | A screen's opt-in, called in `OnCreate` after its title bar: the band's zone (`spacing.list-row-height`, no stop, no press, no fill), its words label and its lower rule, which it hands to `router::AttachStatusLine`; the router keeps them with the screen's entry. A screen with none has no band |
+| `Say(kind, words) -> StatusId` | Replaces the line showing — the newest wins, no queue — with the words copied (cut at `kStatusBytes`) and sets the band: the label's text, the rule shown, one partial refresh. `kSuccess` and `kError` play `lvgl_display::Cue::kSuccess` and `kError` first, as the words are set; `kInfo` is silent. The same words and kind again draw nothing and return the same id, but still sound their kind: a press always hears its outcome. Returns 0, logged, when the top screen has no band or the words are empty |
+| `Clear(id)` | Retracts the line that id names, if it is still the one wanted: a stale id, a replaced line or another screen's does nothing. The band goes white, silently |
+| `Push`, `Pop`, `GoTo`, `PopToRoot` | Clear the line first — the band of the screen on top is left white, and held news is dropped — then enter the new top's band, so a screen comes back white. No refresh of its own: the screen change is one |
+
+- **An overlay holds the band still.** While any overlay is open `Say` and `Clear` only change the wanted line; when the last one
+  closes (`CloseOverlay`) the band is brought to it — drawn and sounded then, not when raised. A line said and retracted under
+  an overlay is never drawn nor heard; one said under an overlay that a screen change dismisses is dropped, since the change
+  clears before it dismisses.
+- **A screen with no band ignores news**, and says so in the log: nothing is drawn and no sound is made for a line never seen.
+  The band is a screen's own, not a global one, since DESIGN → Layout → Regions reserves its 80 px only on the screens that can
+  get news. `Say` from a screen's `OnCreate`, or from the one leaving in its `OnExit`, returns 0 and logs that no screen is entered: the
+  change clears the line before either runs, and the new screen is not on top yet. Say from `OnEnter` or later. The log prints
+  the length and kind of a line, never its words.
+- **The sound crosses `lvgl_display`**, as the at-end sound does: the router cannot reach `devices` (E1–E5), so it asks
+  `PlayCue`, and `app_shell`'s cue player maps `kSuccess` and `kError` to `devices::Play(Word::kSuccess)` and `kError`.
+- **The rules need no LVGL**: `status_rules.h` (`StatusState`) holds the wanted and the drawn line, the ids and the copy cap
+  (`kStatusMaxChars`, 60, counted in characters) and answers each step as draw, blank or nothing, with the sound; `status.cpp`
+  applies it to the band's objects. `tests/host/status_rules_test.cpp` checks the rules and
+  `tests/host/status_line_lvgl_test.cpp` the band's layout and the router's behaviour on LVGL's real objects.
+
 ### Routes
 
 - **A route is an id and a factory** (`route.h`): `{"hw.display", router::NoParam<DisplayScreen>}`. Ids are lowercase, unique
@@ -231,9 +261,9 @@ opened, up to `router::kMaxOverlays` (four); it builds and draws nothing of them
 
 ### Who calls it
 
-- **app_shell** calls `Init` and `SetRoot` for home; **features** push and pop their screens and register their routes;
-  **widgets** open and close their overlays. The router reaches `lvgl_display` to bind a group, take holding OK and ask a full
-  refresh, and never `ui` or `widgets`: a screen styles its own root, an overlay builds its own objects.
+- **app_shell** calls `Init` and `SetRoot` for home; **features** push and pop their screens, register their routes and say
+  their news (`Say`, `Clear`); **widgets** open and close their overlays and make the status line's band. The router reaches `lvgl_display` to bind a group, take holding OK, ask a full
+  refresh and sound the status line's news, and never `ui` or `widgets`: a screen styles its own root, an overlay builds its own objects.
 - **Never `lvgl_display`, `ui`, `board`, `devices` or `app_hooks`** — `lvgl_display` reaches the router only through the
   back handler and the read hooks it is given (`SetKeyReadHook`, `SetTouchReadHook`), and `app_hooks` carries no router
   type (E2).
