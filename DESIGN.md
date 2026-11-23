@@ -828,10 +828,9 @@ At 235 ppi a pixel is 0.108 mm and a point is 3.26 px.
   rule above and a `spacing.stroke.hairline` rule below that shows only with news, no box and no fill. A screen that
   cannot get news has none; it is the one region on some screens and not others, by the person's decision.
 - **The content** — one column inside `spacing.edge` margins, `spacing.content` wide, one primary item per screen.
-- **The footer** — `spacing.footer` along the bottom edge: the screen's touch buttons, and what UP, DOWN and OK do
-  here, 96 px so a 64 px button has 16 over and under it and its ring leaves 8 px to the glass's edge. The action
-  button sits where OK's hint is; the buttons sit `spacing.md` apart. A bottom sheet covers the footer, and its own foot —
-  Cancel and what the buttons do in words — stands in the footer's place.
+- **The footer** — `spacing.footer` along the bottom edge: the screen's action buttons, 96 px so a 64 px button has 16 over and under it and its ring leaves 8 px to the glass's edge. The action
+  button sits in the footer's centre; the buttons sit `spacing.md` apart. A bottom sheet covers the footer, and its own foot,
+  Cancel, stands in the footer's place. A footer holds no legend of what UP, DOWN and OK do (Accessibility); until the Help screen ships, the roller's and the dropdown sheet's footers still carry one (Open items).
 
 ### Spacing
 
@@ -1003,8 +1002,8 @@ At 235 ppi a pixel is 0.108 mm and a point is 3.26 px.
 - **A button's words fit it on one line** — at `label`'s 18 px a character, a full-width button holds 22, a half
   button 10 and a third 6 (19 and 7 beside a glyph, and a third none); a longer name is shortened, never cut off or
   wrapped.
-- **An empty screen says what goes there and how to add it** — "No follow-ups yet. Hold AI or press Record to add
-  one."
+- **An empty screen says what goes there, and how to add it only where the way is not implied** — "No follow-ups yet. Hold AI or press Record to add
+  one." — the way to add is said only where it is not implied (Accessibility)
 - **An error says what happened and what to do next** — "Couldn't reach Wi-Fi. Check the network in Settings."
 - **A wait says what is happening** — "Transcribing…", never "Loading".
 - **An ellipsis is the one character "…", never three full stops** — the fonts hold U+2026, and every word the firmware writes
@@ -1129,15 +1128,14 @@ At 235 ppi a pixel is 0.108 mm and a point is 3.26 px.
   width, anchored to the glass's bottom and hanging off its sides and bottom, so only its top edge shows: a
   `spacing.stroke.strong` outline round the top edge and its `rounded.2xl` corners, and the offset rising from it in
   `shadow-2`, elevation 2 (Elevation & Depth). From its top: the outline, `spacing.md`, the field's name in `label`, `spacing.md`, a list view of
-  rows `spacing.md` apart, `spacing.md`, and its foot, `spacing.footer` high, in the footer's place — Cancel at left and, at
-  right, "UP or DOWN picks. OK chooses." in `caption`. A row is an option in `caption-strong`, 30 characters to a line,
+  rows `spacing.md` apart, `spacing.md`, and its foot, `spacing.footer` high, in the footer's place. It holds Cancel and, until the Help screen ships, a key legend (Open items). A row is an option in `caption-strong`, 30 characters to a line,
   wrapping to a second line and growing — never cut — with 64 px as its floor; the chosen row is the inversion with the
   check at its right end (DESIGN → Exceptions). A page holds four whole rows, or three when four would cover the field that
-  opened it (the field's bottom, the ring, white and the offset above the sheet's top: a field ending at y 290 or higher takes
-  four, one lower takes three, never fewer), the sheet keeping its height; the scroll indicator shows from the second page.
-  It opens with focus on the chosen row, on its page; the page behind is out of the walk and a touch above the sheet is
-  eaten; OK on a row chooses it and closes, the field reporting one change; Cancel, holding OK, or the chosen row closes with
-  nothing changed; focus goes back to the field. It appears and closes on a partial refresh.
+  opened it. The test is the field's bottom, the ring, white and the offset above the sheet's top: a field ending at y 290
+  or higher takes four, one lower takes three, never fewer. The sheet keeps its height, and the scroll indicator shows from the second page.
+  It opens with focus on the chosen row, on its page. The page behind is out of the walk, and a touch above the sheet is
+  eaten. OK on a row chooses it and closes, the field reporting one change. Cancel, holding OK, or the chosen row closes
+  with nothing changed. Focus goes back to the field. It appears and closes on a partial refresh.
 - **Horizontal pager** — a strip of chips, or any focus stop, that turns by page, never by pixel: a page is the whole items
   that fit `spacing.content`, `spacing.md` apart, the next page starting with the next item, so no item is cut at the edge;
   the page in words alone ("1 of 2", `caption` in `text-secondary`, left-aligned at the strip's left edge) sits `spacing.md`
@@ -1205,11 +1203,11 @@ At 235 ppi a pixel is 0.108 mm and a point is 3.26 px.
   which stand as still words (`caption`, `text-secondary`, never a grey or a fade); at an end of a list that does not wrap the
   missing neighbour is a blank row. Its name stands in `caption` `spacing.md` above it, always, and it is as wide as its widest
   value and `spacing.lg` either side, `spacing.target` at least, inside a `spacing.stroke.hairline` outline, `rounded.lg`. OK or a
-  tap opens it; UP steps to the value above and DOWN to the one below, one partial refresh a step; OK keeps, the field reporting
-  one change; holding OK, or the Cancel the footer shows while it is open, puts the value back; a press that takes the focus
-  elsewhere — a tap on another control — closes it keeping the value, as the range slider's edit does. Open, the ring is
-  `spacing.stroke.edit` and the middle row is the chosen inversion — the value OK will keep — and the footer says in words what
-  the buttons do ("UP or DOWN steps. OK keeps. Hold OK cancels."). A roller its caller marks circular (hours, minutes, months)
+  tap opens it. UP steps to the value above and DOWN to the one below, one partial refresh a step. OK keeps, the field
+  reporting one change. Holding OK, or the Cancel the footer shows while it is open, puts the value back. A press that
+  takes the focus elsewhere — a tap on another control — closes it keeping the value, as the range slider's edit does.
+  Open, the ring is `spacing.stroke.edit` and the middle row is the chosen inversion — the value OK will keep. The
+  footer holds Cancel and, until the Help screen ships, a key legend (Open items). A roller its caller marks circular (hours, minutes, months)
   wraps with the tick alone; any other stops at its ends with `sound.at-end`. A tap on a neighbour steps one, one vertical swipe
   steps one on the lift, and nothing follows a finger. Use it for one value in a list of up to about 60; under about eight named
   options use the select list, for a level the range slider.
@@ -1229,8 +1227,8 @@ At 235 ppi a pixel is 0.108 mm and a point is 3.26 px.
   lets its ring out; the footer's 16 px over and under its buttons keep it off the glass's edge.
 - **Open for editing** — a control that takes UP and DOWN as its own, a range slider, a roller or a text view open for reading,
   draws its ring at `spacing.stroke.edit`, 6 px, still `spacing.focus-offset` outside it: the weight says the buttons
-  now change the value or turn the page. The screen says what they do in words, in its footer's hints or its heading; a roller's
-  middle row is inverted too, and its footer shows Cancel.
+  now change the value or turn the page. The look says it, not words: the heavier ring, and a roller's
+  inverted middle row; its footer shows Cancel (and, until the Help screen ships, a roller's key legend; Open items).
 - **Chosen** — inverted: `surface-chosen` with `text-on-fill` on a segment's item and a home row; a chip is chosen by
   a black edge, a card or radio row by the dot or check in its mark, a checkbox or radio by its black fill and its
   white check or dot, never a grey alone.
@@ -1266,7 +1264,7 @@ At 235 ppi a pixel is 0.108 mm and a point is 3.26 px.
 
 - **UP and DOWN move focus, OK acts** — on every screen, including the overlays; anything touchable is reachable this
   way. The one exception is a control OK has opened for editing — a range slider, a roller, a text view being read: UP and DOWN
-  are its own until OK closes it, keeping the change, and the screen says so in words. Holding OK closes it instead and
+  are its own until OK closes it, keeping the change; the open look says so. Holding OK closes it instead and
   puts back what it had when OK opened it: the slider's value, the roller's value, the text view's page. The Cancel a roller's
   footer shows while it is open is a touch stop only.
 - **A page of facts is one stop** — UP and DOWN leaving it turn the page, OK on it ticks (Components → The kit → List view).
@@ -1321,8 +1319,20 @@ At 235 ppi a pixel is 0.108 mm and a point is 3.26 px.
 
 ## Accessibility
 
+- **The interface implies its interactions; no screen carries running instructions** — a button looks pressable, a
+  roller shows its neighbours, an open control has its heavier ring and, on a roller, an inverted middle row. A screen
+  names things and says outcomes; it does not say which key does what. A closed device has no screen reader, and words
+  on the glass do not stand in for one (EN 301 549 5.1.3.1 asks for speech or touch, not text).
+- **The key conventions are taught once** — UP and DOWN move or step, OK presses, hold OK goes back, held keys repeat,
+  the first press shows the ring and moves nothing. The rule is to teach them once, at first run in the Welcome
+  carousel, and keep them on one Help screen, always in the same place (WCAG 3.2.6). No other screen restates them.
+  Welcome and Help do not exist yet (Open items → The key legends).
+- **A hint stands only where an interaction is unusual for this product and not implied** — one short line, beside its
+  control, never restating a convention above. Today's candidates: the Asleep, Off and timed turn-on words on the
+  leaving screens, and the empty state's "Hold AI or press Record.", which name hardware keys the glass cannot show.
 - **WCAG 2.2 AA where it applies, and EN 301 549's closed functionality where the hardware allows** — the device has
-  a buzzer and no speaker, so it cannot speak, and a person who cannot see the glass is not served today.
+  a buzzer and no speaker, so it cannot speak, and a person who cannot see the glass is not served today. What is not
+  met is declared in the conformance table below, not worked round.
 - **Every outcome in words, and the ones Motion → Sound lists in sound too** — a success, a failure, a wait and a
   recording's start and stop each have words on the glass, and so has a status line's news, in the band a screen that
   can get it reserves. Sounding today: every press's tick; the end of a list, text view, pager and slider; a recording's
@@ -1341,6 +1351,31 @@ At 235 ppi a pixel is 0.108 mm and a point is 3.26 px.
 - **Plain language** — one task per screen, and a destructive action asks first in a dialog.
 - **Sleep never loses work** — the device does not sleep while an overlay, a typed entry or a recording is open, except
   on a low battery, when it says so in words, keeps what is open, and then sleeps.
+
+### Conformance
+
+Ratings, in the style of an accessibility conformance report (VPAT 2.x): Supports, Partially supports, Does not
+support, Not applicable, with a reason on every row. A closed device is rated by WCAG2ICT and EN 301 549 clause 11.
+
+| Criterion | Rating | Reason |
+| --- | --- | --- |
+| WCAG 1.1.1 Non-text content | Partially supports | Icons and marks have visible words or are conventional; no programmatic or spoken alternative exists on a closed device |
+| 1.3.1 Info and relationships | Partially supports | Structure is shown by titles, groups, the ring and the chosen inversion; it is not exposed programmatically and there is no audio |
+| 2.4.2, 2.4.3, 2.4.6, 2.4.7, 2.4.11 | Supports | A title on every screen, one focus order, descriptive labels, a ring on every stop never covered by a pinned bar (ACCESSIBILITY §5, FOCUS §6) |
+| 1.3.3 Sensory characteristics | Supports | Keys are named ("UP", "OK"), never by their position or shape |
+| 2.5.1, 2.5.2, 2.5.7, 2.5.8 Pointer inputs and target size | Supports | Every gesture has a key alternative; a touch target is at least `spacing.target` |
+| 3.3.1 Error identification | Partially supports | An error is said in words on the glass; there is no spoken form (EN 301 549 5.1.3.15) |
+| 3.2.6 Consistent help | Partially supports | Optional; one Help screen is planned and not built (Open items → The key legends) |
+| 2.5.3 Label in name | Not applicable | There is no programmatic name; the visible label is the name |
+| 3.3.2 Labels or instructions | Partially supports | Every input has a label, and instructions stand only where input is unusual (Accessibility, above). Welcome and Help are not built, so the conventions are not taught yet, and some strings restate them (Open items → The key legends) |
+| 4.1.2 Name, role, value | Not applicable | Closed software with no assistive technology (EN 301 549 11.4.1.2.2); state is drawn |
+| 4.1.3 Status messages | Not applicable | EN 301 549 11.4.1.3.2; the status line and its sounds are good design, not a claim |
+| EN 301 549 5.1.3.1 Non-visual access | Does not support | No speech or tactile output; the buzzer sounds event tones only, with no labels. 5.1.3.2 to 5.1.3.16 follow: not applicable |
+| EN 301 549 5.1.4 Closed functionality: text size | Partially supports | The smallest role is `caption`, 20 px; the visual angle at a stated viewing distance is not computed (Open items → The viewing distance) |
+| EN 301 549 5.1.5 Visual identification of audio | Partially supports | Every outcome sound has words on the glass. A press's tick and the end-of-list double tick have nothing on it (Open items → A press answered without sound) |
+| EN 301 549 5.5.2 Identification of controls | Partially supports | The three keys are found by touch; the touch screen and the AI button's role are not |
+| EN 301 549 5.7 Key repeat | Does not support | A held UP or DOWN repeats after `motion.key-repeat-delay`, 600 ms, then every `motion.key-repeat-period`, 500 ms, and neither can be adjusted or turned off (Open items → A setting for the keys' repeat) |
+| Section 508 402.2 Speech output | Does not support | A display screen with no speech output; not a status-indicator-only screen |
 
 ## Exceptions
 
@@ -1384,9 +1419,9 @@ The deck's lone glyph on a button, and the toggle with a glyph for each state.
   and Voice & Content Strategy → Labels and states' "a button names what happens".
 - **Why:** the deck's kit has it — a Back in a bar, a player's controls — where a word would crowd a row that holds
   little else, and these glyphs are widely understood conventions, so the shape is the name. The device has no screen
-  reader (DESIGN → Accessibility), so what the glass shows is a button's only name: the exception holds only where the
-  glyph alone is that name, and the footer's hint for OK names the focused icon button's action in words — on a screen that has a footer hint; the
-  keyboard has none, and its eye and cross are known by their glyphs alone.
+  reader (DESIGN → Accessibility), so what the glass shows is a button's only name. The exception holds only where the
+  glyph alone is that name. The focused icon button's action is told in words where a screen has room, such as its
+  title or status line. The keyboard has none, and its eye and cross are known by their glyphs alone.
 - **Where it stops:** a closed set, which grows only here —
   - Back (an arrow pointing left), and Close (a cross), which only dismisses what holds no unsaved work, such as a
     notice; Close never deletes, and an overlay still closes with Cancel or Back (Focus and input → Buttons and touch) —
@@ -1463,7 +1498,13 @@ The chosen option of a select sheet is marked by the check, without its word.
 ## Open items
 
 - **A setting for the keys' repeat** — holding UP or DOWN repeats after `motion.key-repeat-delay` every
-  `motion.key-repeat-period`, with no setting to slow or stop it; EN 301 549 5.7 asks for one where a key repeats.
+  `motion.key-repeat-period`, with no setting to slow or stop it; EN 301 549 5.7 asks for one where a key repeats, so the
+  conformance table rates it Does not support. Add the setting once a Settings screen exists.
+- **The key legends** — the code still draws a legend in the roller's and the dropdown sheet's footers
+  (`roller.h`, `select_sheet.h`), and the kit page's strings restate conventions: "Sliders: OK opens, UP raises, DOWN
+  lowers, OK closes" and "Keyboard: OK opens it" (`hw_test.cpp`). All go against the Accessibility rule that no screen
+  restates the key conventions; they go with the Help screen and the Welcome teaching, which are not built yet, and
+  until then 3.3.2 is rated Partially supports.
 - **The frame left on the glass while the device sleeps** — the stickies, the lock screen or a blank glass — decided
   with the designs.
 - **The viewing distance** the sizes are set for — `hero`'s 60 px figures read at about 35 cm and `display` at about

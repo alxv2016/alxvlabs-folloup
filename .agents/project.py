@@ -29,6 +29,7 @@ PROJECT_WIDE_DOCS = ("docs/AGENT_HARNESS.md", ".agents/skills/docs-authoring-and
                      ".agents/skills/touch-and-gesture/references/feedback.md",
                      ".agents/skills/secrets-handling/references/secrets.md",
                      ".agents/skills/ux-content/references/ux-content.md",
+                     ".agents/skills/ux-content/references/rubric.md",
                      ".agents/skills/design-system/references/brief.md",
                      ".agents/skills/motion/references/motion.md",
                      ".agents/skills/touch-and-gesture/references/touch.md",
@@ -325,6 +326,29 @@ GATES = [
     # a screen or two before and after) and approved before the token files change.
     ("a design token or principle", (DESIGN_FILE,) + TOKEN_FILES, ("mock",)),
 ]
+
+# The quality bar: each judge's quality score, 0–100 from its dimensions in .agents/evals/weights.json, that
+# `verify.py finish` asks for beside its pass — below it, the hand-over waits until the score is raised or the person
+# accepts it by name (`verify.py accept <judge> "<their words>"`; .agents/HARNESS.md §12).
+QUALITY_BAR = 75
+
+# Each judge's measured proxies: judge → the command, as a list run from the repo root, that writes
+# .cache/harness/proxies/<judge>.json as
+#   {"judge": J, "at": iso, "scope": "change" | "product",
+#    "metrics": [{"dimension": D, "name": str, "value": num, "range": [lo, hi], "ok": bool, "where": str}]}
+# Run bare, the command measures only what the change touched — `verify.py review` runs it so; with `--all` it
+# measures the whole product — `verify.py audit` adds it. A metric with ok false caps its dimension at 2, from results
+# of the scope asked for, newer than every changed file, from a run that exited 0. A command still in `<…>`, or whose
+# script does not exist, is "not built yet": the judge scores on its reading alone, and `verify.py doctor` notes it.
+PROXIES = {
+    # The screen audit draws every screen on the host (tests/host/screen_audit_lvgl_test.cpp) and writes both the
+    # ui-designer's and the ux-designer's JSON in one run; a later run reuses the compiled LVGL, about 10 s.
+    "ui-designer": ("python3", ".agents/skills/ui-designer/scripts/screen_audit.py"),
+    "ux-designer": ("python3", ".agents/skills/ui-designer/scripts/screen_audit.py"),
+    "code-reviewer": ("python3", ".agents/skills/verify-change/scripts/code_proxies.py"),
+    "doc-reviewer": ("python3", ".agents/skills/docs-authoring-and-sync/scripts/doc_proxies.py"),
+    "ux-content-writer": ("python3", ".agents/skills/ux-content/scripts/ux_proxies.py"),
+}
 
 # Where the change finally runs, in a few words — the Verified block names it.
 #   "the app in a browser at localhost:3000"  "the iOS simulator"  "a phone over USB"  "the staging site"

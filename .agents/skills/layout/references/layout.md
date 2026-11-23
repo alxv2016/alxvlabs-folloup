@@ -232,15 +232,20 @@ point to it.** Keys in round brackets are listed with their URLs in §7.8. Value
 
 | Rung | Spaces | Range (Source) |
 | --- | --- | --- |
-| Pair gap | The text lines of one pair, a label over its description | 0–4: the lines touch or nearly touch in M3's two-line row (M3-list); Atlassian's card title to description sits in its 0–8 band (Atl) |
+| Pair gap | The two texts of one pair, a label over its description, set between the texts' own boxes — the font's height with no leading | 0–4 between line boxes with their leading (M3's lines touch, M3-list; Atlassian's 0–8, Atl), the same white as 8 between the font's own boxes; check the ink gap, and keep it under the ink gap of wrapped lines `[D]`; it grows with the larger text's size (below) |
 | Label gap | A label to its own control or value | about 8: "8 px inside a setting" (RUI) |
 | Inset | Padding inside a box | small 4–8; card 16 (Atl), (Polaris-space), (Carbon-2x) |
 | Group gap | Between settings, pairs or cards | 16–24: 24 against the label's 8 is 1 : 3 (RUI); at least 2× the pair gap (Carbon-2x) |
 | Section gap | Between sections | 32–80 (Atl), (Carbon) |
 
-- **Read it as pair gap < label gap ≤ inset ≤ group gap < section gap**, internal never more than external — the
+- **Read it as pair gap ≤ label gap ≤ inset ≤ group gap < section gap**, internal never more than external — the
   proximity rule in §7 — and each level 2–3× the one inside it (RUI), (Carbon-2x). Equal — Polaris's 16 inside a card
   and 16 between cards (Polaris-space) — is the floor the rule allows, not the aim.
+- **The pair gap is a function of the larger text's size, not one number** `[J]` — a display heading over its body,
+  or a modal title over its description, takes a larger gap than a label over its caption; set one pair-gap token per
+  size class of the larger text. The person's reason: larger text needs more space below it to its description than
+  smaller text. It stays under the group gap, so the pair still reads as glued. No source set here gives the
+  size-to-gap ratio; the brief records the values.
 - **A heading sits nearer its own text than the section above it**, with more space above than below (NNG-prox), (RUI).
 - **Give the important thing more room** (Carbon), and start with too much white space, then remove it (RUI).
 - **TYPOGRAPHY §17 holds only what is type's** — the line height inside the pair; its gaps are the table's.
@@ -257,7 +262,7 @@ point to it.** Keys in round brackets are listed with their URLs in §7.8. Value
 | Stack | Children in a column | condensed 8, normal 16, spacious 24 (Primer) |
 | Inline | Children in a row, wrapping | icon to label 4–8; button group 8 (Atl), (Polaris-space) |
 | Gap | Repeated items | 4–8 small; cards 16; segmented 2 (Atl), (Polaris-space), (M3-list) |
-| Pair gap | The text lines of one pair | 0–4 (M3-list), (Atl) |
+| Pair gap | The two texts of one pair | §7.1's range, by the larger text's size |
 | Label gap | A label to its control or value | about 8 (RUI) |
 | Group gap | Between pairs or settings | 16–24 (RUI), (Carbon-2x) |
 | Section gap | Between sections | 32–80 (Atl), (Carbon) |

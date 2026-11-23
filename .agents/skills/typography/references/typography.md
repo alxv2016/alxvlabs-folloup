@@ -408,8 +408,8 @@ smaller, or the line height over the size.
 - **De-emphasise the key, never the value** — make the label smaller, lower in contrast or lighter, since "the data
   itself is what matters" (RUI-labels). Emphasise the key instead where people scan for it, as on a spec sheet
   (RUI-labels).
-- **Take the pair's gap from LAYOUT §7.1** — the ladder from the pair's glued lines to the group gap, with its
-  numbers, lives there; type owns the line height below.
+- **Take the pair's gap from LAYOUT §7.1** — the ladder from a pair's glued texts to the group gap lives there.
+  The gap grows with the larger text's size: a display heading takes more than a label. Type owns the line height below.
 - **Set line height by role, as §6** `[D]` — pairing numbers: one-line label 1.29–1.5 over body 1.43–1.5, small text
   1.33–1.45, display 1.12–1.2, headline 1.25–1.29 (M3), (Carbon), (HIG), (PT-keys).
 - **Space paragraphs by half to a full line, as §6** — Atlassian 12 px on 14/20 and 16 px on 16/24 (Atl); 4–10 pt

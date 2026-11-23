@@ -111,6 +111,8 @@ Everything is plain files and Python's standard library: no package to install, 
 
 ## Documentation
 
+**Each doc below holds one topic; read the one the task matches.**
+
 | Doc | What it holds |
 | --- | --- |
 | [AGENT_HARNESS](docs/AGENT_HARNESS.md) | What an agent harness is and how each part works — the rules, the loop, the guard, the reviewers, the design gates, memory, token use, and the bootstrap prompt. Generic: any project, any stack |
@@ -132,6 +134,7 @@ Everything is plain files and Python's standard library: no package to install, 
 | [HCI](.agents/skills/ux-designer/references/hci.md) | The principles, models and laws of human–computer interaction, with every law on Laws of UX and the decision it informs. Generic: any project, any stack |
 | [UX_METHODS](.agents/skills/ux-designer/references/methods.md) | How experience work is done and checked: the human-centred process, research and evaluation methods, severity, measures and the UX brief. Generic: any project, any stack |
 | [UX_REVIEW_RUBRIC](.agents/skills/ux-designer/references/rubric.md) | How an experience is scored in a UX review, X1–X14. Generic: any project, any stack |
+| [UX_CONTENT_RUBRIC](.agents/skills/ux-content/references/rubric.md) | How an interface's words are scored in a content review, C1–C6, with the quality score. Generic: any project, any stack |
 | [MOTION](.agents/skills/motion/references/motion.md) | How motion is decided, drafted, debugged and reviewed, with a glossary. Generic: any project, any stack |
 | [FOCUS](.agents/skills/accessibility/references/focus.md) | The focus model every input shares — touch, mouse, keyboard, an encoder and buttons — from WCAG 2.2, the WAI-ARIA Authoring Practices and the HTML Standard. Generic: any project, any stack |
 | [FEEDBACK](.agents/skills/touch-and-gesture/references/feedback.md) | Haptics, sound and a device's status lights as one small vocabulary, when feedback fires, and pending, done and failed. Generic: any project, any stack |

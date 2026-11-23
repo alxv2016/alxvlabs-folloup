@@ -50,6 +50,8 @@ components (`router` among them); `widgets` → `router`; `router` → `lvgl_dis
 7. **Commit only when the person asks**, in the repo's format ([`commit-message`](.agents/skills/commit-message/SKILL.md)).
 8. **Keep a lesson in the repo** — `verify.py finding`, routed to a check, a rubric, a guard rule, a skill or a doc;
    never only in an agent's own memory ([AGENT_HARNESS §19](docs/AGENT_HARNESS.md#19-memory)).
+   The person's aesthetic feedback is recorded with `verify.py taste`, in their words, so it moves the judges' anchors
+   and weights ([HARNESS §12](.agents/HARNESS.md#12-quality-taste-and-weights)).
 9. **Ask the person whether a new skill or agent is `portable` or `project` before creating it**, and write their answer
    as `metadata: scope:` — the guard holds the file until it has one
    ([AGENT_HARNESS §7.3](docs/AGENT_HARNESS.md#73-the-harnesss-skills)).
@@ -183,6 +185,8 @@ not of the product: the target and the person's sign-off are what show it works.
 
 ## Documentation
 
+**Each doc below owns one topic; read the one the task matches.**
+
 | Doc | Owns |
 | --- | --- |
 | [AGENT_HARNESS](docs/AGENT_HARNESS.md) | What an agent harness is and how each part works — generic, any project |
@@ -200,6 +204,7 @@ not of the product: the target and the person's sign-off are what show it works.
 | [HCI](.agents/skills/ux-designer/references/hci.md) | The principles, models and laws of human–computer interaction, every law on Laws of UX with the decision it informs — generic, any project; kept in the ux-designer skill |
 | [UX_METHODS](.agents/skills/ux-designer/references/methods.md) | The human-centred process, research and evaluation methods, severity, measures and the UX brief — generic, any project; kept in the ux-designer skill |
 | [UX_REVIEW_RUBRIC](.agents/skills/ux-designer/references/rubric.md) | How an experience is scored, X1–X14 — generic, any project; kept in the ux-designer skill |
+| [UX_CONTENT_RUBRIC](.agents/skills/ux-content/references/rubric.md) | How an interface's words are scored, C1–C6, with the quality score — generic, any project; kept in the ux-content skill |
 | [MOTION](.agents/skills/motion/references/motion.md) | How motion is decided, drafted, debugged and reviewed — generic, any project; kept in the motion skill so it travels with it |
 | [ACCESSIBILITY](.agents/skills/accessibility/references/criteria.md) | The WCAG 2.2 AA floors and how to meet and test each per platform — generic, any project; kept in the accessibility skill so it travels with it |
 | [FOCUS](.agents/skills/accessibility/references/focus.md) | The focus model every input shares — the ring apart from the position, where the next step starts, overlays, keeping focus in view, the ring's craft, the input mapping — generic, any project; kept in the accessibility skill |

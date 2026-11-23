@@ -3,7 +3,7 @@
 # board and no ESP-IDF. Each tests/host/*_test.cpp is one program; the run fails if any fails to build or any check
 # fails. A test named *_lvgl_test.cpp links LVGL's real sources, taken from managed_components (a firmware build fetches
 # them) and compiled once, with LVGL's own default configuration, into build/host/lvgl. The binaries go to build/host/,
-# which is never committed. Run from anywhere: bash tests/host/run.sh
+# which is never committed. Run from anywhere: bash tests/host/run.sh [part of a test's name]
 set -euo pipefail
 cd "$(dirname "$0")/../.."
 
@@ -42,7 +42,8 @@ build_lvgl() {
 
 status=0
 shopt -s nullglob
-tests=(tests/host/*_test.cpp)
+# An argument runs only the tests whose name holds it: bash tests/host/run.sh screen_audit
+tests=(tests/host/*${1:-}*_test.cpp)
 if [ ${#tests[@]} -eq 0 ]; then
     echo "host tests: none in tests/host/"
     exit 1
@@ -63,7 +64,8 @@ for test in "${tests[@]}"; do
         fi
         # The widgets' headers, and stand-ins for the ESP-IDF headers the theme includes (tests/host/stubs).
         flags+=(-Wno-deprecated-declarations -DLV_CONF_SKIP=1 -isystem "$LVGL" -isystem "$LVGL/src"
-                -I components/widgets/include -I tests/host/stubs)
+                -I components/widgets/include -I components/app_hooks/include -I components/devices/include
+                -I tests/host/stubs)
         for src in $(sed -n 's#^// host-sources:##p' "$test"); do
             if [[ "$src" == *.c ]]; then
                 mkdir -p "$OUT/c"

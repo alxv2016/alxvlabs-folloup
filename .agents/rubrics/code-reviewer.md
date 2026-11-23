@@ -46,3 +46,34 @@ A result without evidence counts as unsure.
 | L3 | 2026-11-20 | The code reviewer, before the glass: compiled fonts dropped the → and … the run-time font drew | A change to a compiled font's glyph range, or a new drawn string: every character of every string the UI draws, checked against the range the font was compiled with |
 | L4 | 2026-11-20 | The code reviewer, before the battery test: a failed power-off fell back to deep sleep with the RTC countdown still running | A sequence that powers something down or leaves (sleep, power off, a fallback between them): each step's result checked, every wake source the next step does not arm cleared, and the glass promising only what was set |
 | L5 | 2026-11-20 | The code reviewer, before the glass: a flick counted the whole drag, and a widget's scroll-on-focus animated on screens that had not replaced it | A gesture's time window or a widget's stock LVGL behaviour: the window taken from samples at the lift, not reset on a pause, with a host test; a stock flag that animates (scroll on focus, scroll to) replaced by the widget itself, not left to each screen; a scrollable widget that takes UP and DOWN in an edit with `LV_OBJ_FLAG_SCROLL_WITH_ARROW` removed and a host test that its scroll stays put (the roller, 2026-11-22, as `text_view` before it) |
+
+## Quality
+
+The code-reviewer scores its dimensions as [HARNESS §12](../HARNESS.md#12-quality-taste-and-weights) says; its anchors are in `.agents/evals/anchors/code-reviewer/`. The code-reviewer's review scores what the change touches, and `verify.py audit` scores the whole product.
+
+| Dimension | What it scores | Anchors: a 0, 2 and 4 |
+| --- | --- | --- |
+| `correctness` | Correctness beyond the tests, edge cases (R1) | [correctness.md](../evals/anchors/code-reviewer/correctness.md) |
+| `simplicity` | Simplicity, smallest change | [simplicity.md](../evals/anchors/code-reviewer/simplicity.md) |
+| `robustness` | Robustness, error paths, resources on the chip (R5, L1, L2, L4) | [robustness.md](../evals/anchors/code-reviewer/robustness.md) |
+| `tests` | Test quality, a test that fails without the fix (R6) | [tests.md](../evals/anchors/code-reviewer/tests.md) |
+| `fit` | Fit with the codebase (R2, R8) | [fit.md](../evals/anchors/code-reviewer/fit.md) |
+
+The report adds this block after its findings; `verify.py review code-reviewer <verdict> --score dim=n,… --note "dim: why;
+…"` records it and computes the score.
+
+```text
+## Score — quality <n>/100 (bar <bar>)
+| Dimension | Weight | Score | Evidence |
+| --- | --- | --- | --- |
+| correctness … fit | <weight> | 0–4 / na (capped: <metric>) | <quoted line, output or measured value; the anchor held against> |
+
+To raise: <dimension> — <what would lift it>   (below the bar only)
+```
+
+## Taste
+
+The code-reviewer reads every row below before it scores; [HARNESS §12.3](../HARNESS.md#123-the-persons-taste) says how a row is recorded and promoted.
+
+| Item | Since | From the person | Dimension | Anchor |
+| --- | --- | --- | --- | --- |

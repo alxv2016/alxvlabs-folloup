@@ -65,6 +65,8 @@ change's record by hand (DESIGN_GATES §3), and the same steps apply.
     `ux-content-writer` agent writes and reviews them); a change to meaning is the person's.
 12. **Ask the open questions with concrete outcomes** — "a sheet or a full screen?", with a draft of each when it
     matters; never guess a behaviour the target can show.
+13. **Draw spacing overlays on every mock, built sheet and review specimen**, on a copy beside the clean frame
+    (DESIGN_GATES §4).
 
 ### Never
 
@@ -72,6 +74,8 @@ change's record by hand (DESIGN_GATES §3), and the same steps apply.
   yes, naming the draft, approves (DESIGN_GATES §2).
 - **Write production code just to get the first picture, or put a draft in the repo** — the draft lives in the
   scratchpad.
+- **Change a layer the person did not ask for** — a request for one layer (type, spacing, colour) leaves every
+  other layer pixel-identical, and the mock proves it with a per-control pixel diff against today.
 - **Change a value at gate 2 that the draft fixed** — a different layout is a new draft and a new yes.
 - **Claim how it feels on the target from reading code or a screenshot** — touch, speed, motion and the real screen
   are the person's to judge at gate 3.
