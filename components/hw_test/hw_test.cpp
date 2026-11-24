@@ -745,24 +745,29 @@ void CreateKit(lv_obj_t *screen, lv_group_t *, void *)
     widgets::SetCheckboxRowEnabled(widgets::MakeCheckboxRow(content, "Back up the notes", true), false,
                                    "Turn Wi-Fi on first");
     widgets::MakeSectionHeading(content, "Radio button rows");
-    ui::NewLabel(content, Type::kCaption, "Repeat", true);
+    // A group's name stands `group` under its heading and over the group before it (the page's gap and the margin), its rows
+    // an `item` apart.
+    lv_obj_t *repeat_name = ui::NewLabel(content, Type::kCaption, "Repeat", true);
+    lv_obj_set_style_margin_top(repeat_name, dt::kSpacingGroup - dt::kSpacingItem, 0);
     lv_obj_t *repeat = KitColumn(content);
-    lv_obj_set_style_pad_row(repeat, 0, 0);  // a group's rows stand spacing.target apart with no gap
+    lv_obj_set_style_pad_row(repeat, dt::kSpacingItem, 0);
     widgets::MakeRadioButtonRow(repeat, "Every day", true);
     widgets::MakeRadioButtonRow(repeat, "Every week", false);
     widgets::MakeRadioButtonRow(repeat, "Never", false);
-    ui::NewLabel(content, Type::kCaption, "Send by", true);
+    lv_obj_t *send_name = ui::NewLabel(content, Type::kCaption, "Send by", true);
+    lv_obj_set_style_margin_top(send_name, dt::kSpacingGroup - dt::kSpacingItem, 0);
     lv_obj_t *send = KitColumn(content);
-    lv_obj_set_style_pad_row(send, 0, 0);
+    lv_obj_set_style_pad_row(send, dt::kSpacingItem, 0);
     widgets::MakeRadioButtonRow(send, "Email", false);
     widgets::MakeRadioButtonRow(send, "Text message", true);
     widgets::SetRadioButtonRowEnabled(widgets::MakeRadioButtonRow(send, "Push", false), false, "Turn notifications on first");
-    widgets::MakeSectionHeading(content, "Rows");
+    widgets::MakeSectionHeading(content, "Rows", widgets::HeadingX::kRowWords);
     lv_obj_t *rows = KitColumn(content);
     widgets::MakeValueRow(rows, "Language", "English (United Kingdom)");
     lv_obj_add_state(widgets::MakeValueRow(rows, "Backup", "Off").root, LV_STATE_DISABLED);
     KitReason(content, "Turn Wi-Fi on first");
-    widgets::MakeDetailRow(content, "Serial number", "FU-0001-2026");
+    lv_obj_t *serial = widgets::MakeDetailRow(content, "Serial number", "FU-0001-2026").root;
+    lv_obj_set_style_margin_top(serial, dt::kSpacingGroup - dt::kSpacingItem, 0);  // a detail row stands `group` under the rows above
 
     widgets::MakeSectionHeading(content, "Chips");
     lv_obj_t *chips = ButtonRow(content);
@@ -832,7 +837,7 @@ void CreateKit(lv_obj_t *screen, lv_group_t *, void *)
 
     s_kit_paged = {};
     KitPaged &paged = s_kit_paged;
-    widgets::MakeSectionHeading(content, "List view: a swipe or DOWN turns a page");
+    widgets::MakeSectionHeading(content, "List view: a swipe or DOWN turns a page", widgets::HeadingX::kRowWords);
     paged.list_words = ui::NewLabel(content, Type::kCaption, "", true);
     paged.list = widgets::MakeListView(content, 4, dt::kSpacingTarget);
     char name[16];
@@ -855,7 +860,7 @@ void CreateKit(lv_obj_t *screen, lv_group_t *, void *)
     ShowKitPages(nullptr);
 
     // Wi-Fi network rows: the network in use, then the networks in range as a list view three a page.
-    widgets::MakeSectionHeading(content, "Wi-Fi network rows");
+    widgets::MakeSectionHeading(content, "Wi-Fi network rows", widgets::HeadingX::kRowWords);
     widgets::MakeNetworkRow(content, "HomeNet", true, 3, widgets::NetworkState::kConnected);
     widgets::MakeNetworkRow(content, "Office", true, 2, widgets::NetworkState::kConnecting);
     lv_obj_t *networks_words = ui::NewLabel(content, Type::kCaption, "Networks in range", true);
@@ -882,7 +887,7 @@ void CreateKit(lv_obj_t *screen, lv_group_t *, void *)
 
     // Dropdowns: OK opens the select sheet over the lower part of the page. Three options, eight (one a long one, which
     // wraps), and a disabled field with its reason.
-    widgets::MakeSectionHeading(content, "Dropdowns: OK opens the sheet");
+    widgets::MakeSectionHeading(content, "Dropdowns: OK opens the sheet", widgets::HeadingX::kRowWords);
     static const char *const kRepeat[] = {"Never", "Every day", "Every week"};
     static const char *const kRemind[] = {"Never", "In an hour", "This afternoon", "This evening", "Tomorrow", "In 2 days",
                                           "Next week", "On the first Monday of next month, in the morning"};
@@ -941,7 +946,7 @@ void CreateKit(lv_obj_t *screen, lv_group_t *, void *)
     HalfButton(keyboards, "Name", false, OnKitKeyboard, nullptr);
     s_kit_result_label = ui::NewLabel(content, Type::kCaption, s_kit_result.c_str(), true);
 
-    widgets::MakeSectionHeading(content, "Status blocks");
+    widgets::MakeSectionHeading(content, "Status blocks", widgets::HeadingX::kRowWords);
     lv_obj_t *statuses = KitColumn(content);
     lv_obj_set_style_pad_row(statuses, dt::kSpacingXl, 0);
     widgets::MakeStatusBlock(statuses, "Allowed", "Your answer reached the agent.", widgets::StatusMark::kCheck);
@@ -1431,6 +1436,7 @@ void CreateLeave(lv_obj_t *screen, lv_group_t *, void *user)
     ui::StyleScreen(screen);
     lv_obj_set_flex_align(screen, LV_FLEX_ALIGN_CENTER, LV_FLEX_ALIGN_CENTER, LV_FLEX_ALIGN_CENTER);
     lv_obj_set_style_pad_hor(screen, dt::kSpacingEdge, 0);
+    lv_obj_set_style_pad_row(screen, dt::kSpacingPairLg, 0);  // the display over its hint
     lv_obj_t *title = ui::NewLabel(screen, Type::kDisplay, power_off ? "Off" : "Asleep");
     lv_obj_set_style_text_align(title, LV_TEXT_ALIGN_CENTER, 0);
     char timed[64];

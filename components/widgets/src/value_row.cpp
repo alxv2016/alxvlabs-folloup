@@ -24,7 +24,7 @@ ValueRow MakeValueRow(lv_obj_t *parent, const char *name, const char *value)
     lv_obj_set_style_border_opa(row.root, LV_OPA_TRANSP, 0);
     detail::DitherWhenDisabled(row.root);
     row.label = detail::Line(row.root, ui::Type::kLabel, name, false);
-    row.value = detail::Line(row.root, ui::Type::kLabel, value, true);
+    row.value = detail::Line(row.root, ui::Type::kBody, value, true);
     // The value is text-secondary on white and `text-disabled` on the disabled row's dither (DESIGN → Components → States):
     // the row passes its state to its label, whose own colour would otherwise outrank the row's.
     lv_obj_add_flag(row.root, LV_OBJ_FLAG_STATE_TRICKLE);

@@ -2,6 +2,7 @@
 
 #include "design_tokens.h"
 #include "internal/base.h"
+#include "internal/glue.h"
 #include "internal/marks.h"
 
 namespace widgets {
@@ -30,9 +31,10 @@ lv_obj_t *MakeStatusBlock(lv_obj_t *parent, const char *heading, const char *des
     lv_obj_set_flex_flow(words, LV_FLEX_FLOW_COLUMN);
     lv_obj_set_flex_grow(words, 1);
     lv_obj_set_size(words, 1, LV_SIZE_CONTENT);  // the grow takes the room the mark leaves; the words wrap inside it
-    lv_obj_set_style_pad_row(words, dt::kSpacingSm, 0);
-    detail::Words(words, ui::Type::kLabel, heading);
-    detail::Words(words, ui::Type::kCaption, description, true);
+    lv_obj_set_style_pad_row(words, dt::kSpacingPairMd, 0);  // a title over a wrapped description, between their own boxes
+    lv_obj_t *title = detail::Words(words, ui::Type::kLabel, heading);
+    lv_obj_t *lines = detail::Words(words, ui::Type::kBody, description, true);
+    detail::Glue(title, lines);
     return block;
 }
 

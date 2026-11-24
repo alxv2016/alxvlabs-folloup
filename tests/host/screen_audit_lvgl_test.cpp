@@ -5,8 +5,8 @@
 // its range caps its quality dimension):
 //   hierarchy    distinct type sizes on a view (at most 3, TYPOGRAPHY §17.1); each text pair's size ratio (1.0–1.5: the
 //                1.0–1.17 of TYPOGRAPHY §17.1 is out of reach on a pixel font, whose smallest step here is 30/20, TYPOGRAPHY
-//                §17.3) and weight order (the secondary never heavier), and that the pair differs by size or weight at all
-//                (both TYPOGRAPHY §17.1)
+//                §17.3) and weight order (the secondary never heavier, and at most 400 lighter: body 400 under label 700), and
+//                that the pair differs by size or weight at all (both TYPOGRAPHY §17.1)
 //   spacing      a pair's gap between the two texts' own font boxes (the font's height, no leading) in the range its larger
 //                text's size allows (LAYOUT §7.1); the pair's ink gap never more than the ink gap round its group (internal
 //                ≤ external, LAYOUT §7.1), ink being the first and last inked rows of a text, or of the words a group holds
@@ -384,14 +384,13 @@ void MapFaces()
 std::string RoleOf(Face f)
 {
     struct R { int size, weight; const char *name; };
-    // The roles as the token header sets them, so a role moved to another face follows; caption-strong by its face.
+    // The roles as the token header sets them, so a role moved to another face follows.
     static const R kRoles[] = {{dt::kTypographyHero.size_px, dt::kTypographyHero.weight, "hero"},
                                {dt::kTypographyDisplay.size_px, dt::kTypographyDisplay.weight, "display"},
                                {dt::kTypographyHeadline.size_px, dt::kTypographyHeadline.weight, "headline"},
                                {dt::kTypographyBody.size_px, dt::kTypographyBody.weight, "body"},
                                {dt::kTypographyLabel.size_px, dt::kTypographyLabel.weight, "label"},
-                               {dt::kTypographyCaption.size_px, dt::kTypographyCaption.weight, "caption"},
-                               {20, 700, "caption-strong"}};
+                               {dt::kTypographyCaption.size_px, dt::kTypographyCaption.weight, "caption"}};
     for (const R &r : kRoles) {
         if (r.size == f.size && r.weight == f.weight) {
             return r.name;
@@ -848,7 +847,7 @@ void CheckPairs(View &v)
     if (v.specimen) return;
     for (const auto &[roles, w] : found.worst) {
         Add("hierarchy", "pair size ratio " + roles, w.ratio, 1.0, 1.5, v.name + ": " + w.ratio_at);
-        Add("hierarchy", "pair weight order " + roles + " (secondary − primary)", w.order, -100, 0, v.name + ": " + w.order_at);
+        Add("hierarchy", "pair weight order " + roles + " (secondary − primary)", w.order, -400, 0, v.name + ": " + w.order_at);
         Add("hierarchy", "pair differs by size or weight " + roles, w.contrast, 1, 1, v.name + ": " + w.contrast_at);
         if (w.glue_seen) Add("spacing", "pair gap / group gap by ink " + roles, w.glue, 0, 1, v.name + ": " + w.glue_at);
     }
@@ -1234,7 +1233,7 @@ void CheckAcross()
         face_screens.insert(screen);
     }
     Add("consistency", "type faces that are no DESIGN.md role", static_cast<double>(s_off_role.size()), 0, 0,
-        faces.empty() ? std::string("every text is a role: hero, display, headline, body, label, caption, caption-strong")
+        faces.empty() ? std::string("every text is a role: hero, display, headline, body, label, caption")
                       : Join(faces, 4), face_screens);
     std::map<std::string, std::pair<int, int>> spread;  // roles -> min, max pair gap
     std::map<std::string, std::pair<std::string, std::string>> at;

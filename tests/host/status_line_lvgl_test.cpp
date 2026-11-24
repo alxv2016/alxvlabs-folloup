@@ -1,6 +1,6 @@
 // Host test of the status line (components/widgets/src/status_line.cpp and components/router/status.cpp) on LVGL's real
 // objects, the real fonts and the real router, on the computer with no board: the band is `spacing.list-row-height` high and
-// its content stands at the same y empty, with one line, with two, and with more; its words stand in `caption-strong`, centred
+// its content stands at the same y empty, with one line, with two, and with more; its words stand in `caption`, centred
 // in the band, wrapped on words and ended by LVGL's dots past two lines; its lower rule shows only while news does; it is no
 // stop, no press and no scroll; Say draws and sounds success and error, never info, and the same words again draw nothing and
 // still sound; Clear retracts its own line only; a screen with no band says nothing; a change of screen — Push, Pop, GoTo,
@@ -166,7 +166,7 @@ void TestBandLayout()
     router::StatusId id = router::Say(router::StatusKind::kInfo, kOneLine);
     lv_obj_update_layout(page.root);
     const lv_obj_t *words = Words(page);
-    const int32_t line = ui::LineBox(ui::Type::kCaptionStrong);
+    const int32_t line = ui::LineBox(ui::Type::kCaption);
     Check(id != 0 && Text(page) == kOneLine && RuleShows(page), "one line: the words, and the rule beneath them");
     Check(lv_obj_get_height(words) == line, "one line is one line box tall");
     lv_area_t area;
@@ -176,7 +176,7 @@ void TestBandLayout()
     const int32_t centre = lv_obj_get_y(page.band) + lv_obj_get_y(words) + lv_obj_get_height(words) / 2 - lv_obj_get_y(page.band);
     const int32_t middle = (dt::kSpacingListRowHeight - dt::kSpacingStrokeHairline) / 2;
     Check(centre - middle >= -1 && centre - middle <= 1, "they are centred above the rule");
-    Check(lv_obj_get_style_text_font(words, LV_PART_MAIN) == ui::Font(ui::Type::kCaptionStrong), "in caption-strong");
+    Check(lv_obj_get_style_text_font(words, LV_PART_MAIN) == ui::Font(ui::Type::kCaption), "in caption");
     Check(lv_obj_get_height(Rule(page)) == dt::kSpacingStrokeHairline && lv_obj_get_width(Rule(page)) == dt::kSpacingContent &&
               lv_obj_get_y(Rule(page)) == dt::kSpacingListRowHeight - dt::kSpacingStrokeHairline,
           "the rule is a hairline, spacing.content wide, in the band's last two pixels");

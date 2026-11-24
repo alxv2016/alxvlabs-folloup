@@ -14,7 +14,7 @@ namespace widgets {
 enum class NetworkState : uint8_t { kRest, kConnected, kConnecting };
 
 // A row `spacing.list-row-height` high, full width, `rounded.lg`, in the focus group with its ring outside it: the name in
-// `caption-strong`, up to 28 characters and then three full stops; under it the facts line in `caption` — an open network says
+// `caption`, up to 28 characters and then three full stops; under it the facts line in `caption` — an open network says
 // "Open", a secured one carries the lock before "Locked", the connected one a check before "Connected" and then its lock
 // or "Open", the joining one "Connecting…" — and, at the right end, the signal: its glyph alone, centred on the row's height, with no
 // word. `signal` is 0 to 3 bars lit; the unlit bars stay in the light dither (the dark dither on an inverted row),

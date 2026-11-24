@@ -35,7 +35,9 @@ colors:
   shadow-3: "{colors.scale.primary.1}"  # elevation 3's offset, a dialog's: the dark dither
   keyline: "{colors.white}"  # the line round an offset's outer edge, so it keeps an edge over a dithered ground
 typography:
-  # The primitives: Bitcount Single at one bit a pixel, each size a multiple of 10 px, its line 1.2 em.
+  # The primitives: Bitcount Single at one bit a pixel, each size a multiple of 10 px. Its line is 1.2 em to 40 px, then tapers,
+  # each step on the 4 px grid and never under the font's own height: 56 at 50, 64 at 60, 72 at 70, 80 at 80; the figures,
+  # 100 px and up, take the height of their digits.
   scale-20-semibold:
     fontFamily: Bitcount Single
     fontSize: 20px
@@ -46,6 +48,11 @@ typography:
     fontSize: 20px
     fontWeight: 700
     lineHeight: 24px
+  scale-30-regular:  # the only regular weight: body
+    fontFamily: Bitcount Single
+    fontSize: 30px
+    fontWeight: 400
+    lineHeight: 36px
   scale-30-semibold:
     fontFamily: Bitcount Single
     fontSize: 30px
@@ -70,93 +77,93 @@ typography:
     fontFamily: Bitcount Single
     fontSize: 50px
     fontWeight: 600
-    lineHeight: 60px
+    lineHeight: 56px
   scale-50-bold:
     fontFamily: Bitcount Single
     fontSize: 50px
     fontWeight: 700
-    lineHeight: 60px
+    lineHeight: 56px
   scale-60-semibold:
     fontFamily: Bitcount Single
     fontSize: 60px
     fontWeight: 600
-    lineHeight: 72px
+    lineHeight: 64px
   scale-60-bold:
     fontFamily: Bitcount Single
     fontSize: 60px
     fontWeight: 700
-    lineHeight: 72px
+    lineHeight: 64px
   scale-70-semibold:
     fontFamily: Bitcount Single
     fontSize: 70px
     fontWeight: 600
-    lineHeight: 84px
+    lineHeight: 72px
   scale-70-bold:
     fontFamily: Bitcount Single
     fontSize: 70px
     fontWeight: 700
-    lineHeight: 84px
+    lineHeight: 72px
   scale-80-semibold:
     fontFamily: Bitcount Single
     fontSize: 80px
     fontWeight: 600
-    lineHeight: 96px
+    lineHeight: 80px
   scale-80-bold:
     fontFamily: Bitcount Single
     fontSize: 80px
     fontWeight: 700
-    lineHeight: 96px
+    lineHeight: 80px
   scale-100-semibold:  # figures only
     fontFamily: Bitcount Single
     fontSize: 100px
     fontWeight: 600
-    lineHeight: 120px
+    lineHeight: 68px
   scale-100-bold:  # figures only
     fontFamily: Bitcount Single
     fontSize: 100px
     fontWeight: 700
-    lineHeight: 120px
+    lineHeight: 68px
   scale-120-semibold:  # figures only
     fontFamily: Bitcount Single
     fontSize: 120px
     fontWeight: 600
-    lineHeight: 144px
+    lineHeight: 80px
   scale-120-bold:  # figures only
     fontFamily: Bitcount Single
     fontSize: 120px
     fontWeight: 700
-    lineHeight: 144px
+    lineHeight: 80px
   scale-160-semibold:  # figures only
     fontFamily: Bitcount Single
     fontSize: 160px
     fontWeight: 600
-    lineHeight: 192px
+    lineHeight: 108px
   scale-160-bold:  # figures only
     fontFamily: Bitcount Single
     fontSize: 160px
     fontWeight: 700
-    lineHeight: 192px
+    lineHeight: 108px
   # The roles: each is one primitive, named beside it.
   hero:  # = typography.scale-60-bold
     fontFamily: Bitcount Single
     fontSize: 60px
     fontWeight: 700
-    lineHeight: 72px
+    lineHeight: 64px
   display:  # = typography.scale-50-bold
     fontFamily: Bitcount Single
     fontSize: 50px
     fontWeight: 700
-    lineHeight: 60px
+    lineHeight: 56px
   headline:  # = typography.scale-40-bold
     fontFamily: Bitcount Single
     fontSize: 40px
     fontWeight: 700
     lineHeight: 48px
-  body:  # = typography.scale-30-semibold
+  body:  # = typography.scale-30-regular on a 40 px line
     fontFamily: Bitcount Single
     fontSize: 30px
-    fontWeight: 600
-    lineHeight: 36px
+    fontWeight: 400
+    lineHeight: 40px
   label:  # = typography.scale-30-bold
     fontFamily: Bitcount Single
     fontSize: 30px
@@ -172,11 +179,6 @@ typography:
     fontSize: 20px
     fontWeight: 600
     lineHeight: 30px
-  caption-strong:  # = typography.scale-20-bold: a Wi-Fi network's name, a choice card's name, a select sheet's options; the status band's news
-    fontFamily: Bitcount Single
-    fontSize: 20px
-    fontWeight: 700
-    lineHeight: 24px
 rounded:
   none: 0px
   sm: 4px
@@ -192,7 +194,7 @@ spacing:
   lg: 24px
   xl: 32px
   2xl: 48px
-  edge: 24px
+  edge: "{spacing.lg}"  # the screen's side margins
   focus-offset: 4px
   target: 64px
   content: 432px
@@ -221,6 +223,14 @@ spacing:
   status-mark: 85px
   overlay-offset: 6px  # how far an offset stands from its box, at every elevation level
   key-gap: 12px  # between the keyboard's keys, across and down: a key's 4 px ring 4 px out leaves 4 px
+  # The gaps by role, each a step of the scale. A pair's gap is measured between the two texts' own boxes (the font's height, no leading).
+  pair-sm: "{spacing.sm}"  # a row's label over its one line
+  pair-md: "{spacing.md}"  # a title over a wrapped description; a headline over body
+  pair-lg: "{spacing.lg}"  # a display or a hero over body
+  pair-xl: "{spacing.xl}"  # a modal's title over its message
+  item: "{spacing.md}"  # row to row, button to button
+  group: "{spacing.lg}"  # a dialog's message to its buttons; a group's name under a heading and over the group before it
+  section: "{spacing.2xl}"  # above a section heading
   stroke:
     hairline: 2px
     default: 3px
@@ -314,7 +324,7 @@ components:
   status-bar:
     backgroundColor: "{colors.background}"
     textColor: "{colors.text-primary}"
-    typography: "{typography.caption}"
+    typography: "{typography.label}"
     height: "{spacing.status-bar}"
   footer:
     backgroundColor: "{colors.background}"
@@ -559,7 +569,7 @@ components:
   network-row:  # a Wi-Fi network: its name over its facts, its signal at the right end
     backgroundColor: "{colors.background}"
     textColor: "{colors.text-primary}"
-    typography: "{typography.caption-strong}"
+    typography: "{typography.caption}"
     rounded: "{rounded.lg}"
     height: "{spacing.list-row-height}"
     padding: "{spacing.md}"
@@ -620,7 +630,7 @@ components:
   sheet-option:  # a row of the sheet's list view, 64 px at least and growing with its words
     backgroundColor: "{colors.background}"
     textColor: "{colors.text-primary}"
-    typography: "{typography.caption-strong}"
+    typography: "{typography.body}"   # the chosen one `label`
     rounded: "{rounded.lg}"
     height: "{spacing.target}"
     padding: "{spacing.md}"
@@ -637,7 +647,7 @@ components:
   status-line:  # plain words between two rules, no box: the lower rule shows only while news does
     backgroundColor: "{colors.background}"
     textColor: "{colors.text-primary}"
-    typography: "{typography.caption-strong}"
+    typography: "{typography.caption}"
     height: "{spacing.list-row-height}"
     padding: "{spacing.edge}"
   divider:
@@ -775,8 +785,10 @@ When two pull against each other, the earlier wins — between options that both
 
 - **Bitcount Single, compiled into the firmware** — a pixel font, each letter built from square cells, under the SIL
   Open Font License; at one bit a pixel its strokes are the glass's own pixels.
-- **Weights 600 and 700 only.** A lighter weight breaks up at one bit a pixel; hierarchy comes from size and weight,
-  never from grey alone. Below 50 px the two weights look alike, so size carries the hierarchy there.
+- **Weights 600 and 700, and one 400.** A lighter weight breaks up at one bit a pixel, so the regular weight is cut at
+  one size only: `body`, 30 px, whose 3 px strokes keep its gaps open at 40 px of line. Hierarchy comes from size and weight,
+  never from grey alone. Below 50 px the 600 and 700 look alike, so size carries the hierarchy there, and `body`'s 400
+  against `label`'s 700 is the one pair at 30 px that differs by weight.
 - **Every size is a multiple of 10 px** — the font's cell is a tenth of the em, so each cell is whole pixels.
 - **Glyphs are drawn at one bit a pixel** on every refresh, so a stroke is solid black, never a grey edge that
   thresholds into a ragged one — a disabled control's words are the one text in a dither (`text-disabled`), and
@@ -787,8 +799,11 @@ When two pull against each other, the earlier wins — between options that both
 At 235 ppi a pixel is 0.108 mm and a point is 3.26 px.
 
 - **The scale is the primitives** — 20 to 80 px in steps of 10, and 100, 120 and 160 px for figures, each at 600 and
-  700, its lines 1.2 em apart (`typography.scale-30-semibold` and its siblings). A screen takes a role, never a
-  primitive; only the hardware test's type scale page shows the primitives themselves (DESIGN → Exceptions).
+  700 (`typography.scale-30-semibold` and its siblings). Lines are 1.2 em apart up to 40 px and closer as the size
+  grows: 56 px at 50, 64 at 60, 72 at 70 and 80 at 80, each on the 4 px grid and never under the font's own height.
+  Figures sit on the height of their digits: 68 px at 100, 80 at 120 and 108 at 160. Thirty px also comes at 400,
+  `typography.scale-30-regular`, and `body` sets it on a 40 px line. A screen takes a role, never a primitive. Only the
+  hardware test's type scale page shows the primitives themselves (DESIGN → Exceptions).
 - **A role is one primitive:**
 
 | Role | Primitive | Size | Use |
@@ -796,17 +811,17 @@ At 235 ppi a pixel is 0.108 mm and a point is 3.26 px.
 | `hero` | `scale-60-bold` | 60 px, 18.4 pt | A figure or a word taken in at a glance — never the clock, which has a size of its own |
 | `display` | `scale-50-bold` | 50 px, 15.3 pt | One per screen at most: a sticky's words |
 | `headline` | `scale-40-bold` | 40 px, 12.3 pt | A screen's title |
-| `body` | `scale-30-semibold` | 30 px, 9.2 pt | Everything people read: a transcript, a summary, a note |
-| `label` | `scale-30-bold` | 30 px, 9.2 pt | Buttons, hints, tags, a row's title, a field's typed text — `body`'s size, in bold |
-| `caption` | `scale-20-semibold` | 20 px, 6.1 pt | The status bar's title and timestamps, a field's placeholder — the smallest words on the glass |
+| `body` | `scale-30-regular` on a 40 px line | 30 px, 9.2 pt | Everything people read: a transcript, a summary, a note; a row's state and value words; a dropdown's options; a status block's description |
+| `label` | `scale-30-bold` | 30 px, 9.2 pt | The status bar's title, buttons, hints, tags, a row's title, a choice card's name, the chosen dropdown option, a field's typed text — `body`'s size, in bold |
+| `caption` | `scale-20-semibold` | 20 px, 6.1 pt | Timestamps, a field's placeholder, a Wi-Fi network's name and its facts, the status band's news — the smallest words on the glass, 12 px a character |
 | `caption-loose` | `scale-20-semibold` on a 30 px line | 20 px, 6.1 pt | A text view's lines: `caption` on a line 1.5 em apart, easy to follow back |
-| `caption-strong` | `scale-20-bold` | 20 px, 6.1 pt | A row's name one role under `label`: a Wi-Fi network's, a choice card's, a select sheet's options; the status band's news — 12 px a character |
 
 ### Reading
 
 - **24 characters of `body` a line** across the content width — wrap, never truncate, words people read.
 - **Truncate only a label whose full words are one press away.**
 - **`hero` and `display` are large text** for contrast — WCAG's 14 pt bold.
+- **`hero` and `display` set one or two lines** — a third line is `body`.
 - **Figures keep their width** — every character is the same width — so a changing number, the clock, the battery, a
   recording's timer, "3 of 5", redraws the same area.
 
@@ -835,6 +850,16 @@ At 235 ppi a pixel is 0.108 mm and a point is 3.26 px.
 ### Spacing
 
 - **A 4 px base** — `xs` 4, `sm` 8, `md` 16, `lg` 24, `xl` 32, `2xl` 48 px. Related things sit closer than groups.
+- **A pair's gap is measured between the two texts' own boxes**, the font's height with no leading. It scales with the larger
+  text: about 0.3 to 0.5 em, rounded to the scale. A row's label over its one line is `pair-sm`, 8. A title over a wrapped
+  description, or a `headline` over `body`, is `pair-md`, 16. A `display` or `hero` over `body` is `pair-lg`, 24. A modal's title
+  over its message is `pair-xl`, 32. A pair's gap is always under the gap to the next group.
+- **The gaps between components are measured between line or component boxes**, never between font boxes. Row to row and
+  button to button is `item`, 16. A dialog's message to its buttons is `group`, 24, and so is a group's name to the heading over
+  it and to the group before it. A section heading that follows other content has `section`, 48, over it. The first heading on a
+  page keeps `lg` under the page's top padding. The screen's side margins are `edge`, 24.
+- **A section heading's words start at `edge`** over boxes and controls, and over the setting rows whose words stand there. They
+  start `md` in over rows whose words stand 16 in: value rows, detail rows, list rows, network rows, dropdowns and status blocks.
 - **Every touch target is `spacing.target`, 64 px — 6.9 mm.** A control may draw smaller and pad its hit area — a
   toggle draws `spacing.toggle-height`, 44 px, a checkbox or radio `spacing.check-size`, 44 px, and each takes touches
   across 64.
@@ -1019,7 +1044,8 @@ At 235 ppi a pixel is 0.108 mm and a point is 3.26 px.
 
 ### The kit
 
-- **Status bar, status band, footer** — the regions; the status band only where a screen gets news (DESIGN → Layout → Regions).
+- **Status bar, status band, footer** — the regions; the status band only where a screen gets news (DESIGN → Layout → Regions). The
+  status bar's title is `label`; the band's news is `caption`.
 - **Button** — the action button (black, one per screen, `button-action`), the outline button (`button-outline`), the
   tonal button (the light dither, black words, `button-tonal`) for a second action that is not Cancel, and the ghost
   button (words alone, `button-ghost`) for a third; a compact button is any of them as wide as its words; the standard
@@ -1039,7 +1065,7 @@ At 235 ppi a pixel is 0.108 mm and a point is 3.26 px.
   (Motion → Press).
 - **Toggle** — a pill track `spacing.toggle-width` by `spacing.toggle-height` with a pill thumb
   `spacing.toggle-thumb-width` wide inset `spacing.xs`: off is the light dither with a black thumb left, on a black
-  track with a white thumb right; its state also in words beside it. A toggle row is its name, the state in words and
+  track with a white thumb right. Its state also in words beside it. A toggle row is its name, the state in `body` words and
   the toggle at the content's right edge, and the whole row toggles. A disabled row shows its reason in words under the name,
   `spacing.xs` below it, and stays `spacing.target` high.
 - **Checkbox row, radio button row** — the toggle's look as a square or a disc, `spacing.check-size` across (the toggle's
@@ -1056,12 +1082,14 @@ At 235 ppi a pixel is 0.108 mm and a point is 3.26 px.
   unchooses itself. A disabled row shows its reason as a toggle row does. A choice that is one setting among settings,
   or a short list beside toggle rows, is a checkbox row or a radio button row; a question that is the screen's one
   task is a radio row; an answer that needs a detail line is a choice card.
-- **Value row, detail row, section heading** — a setting's name left and its value right in `text-secondary`, its words
-  `spacing.md` in from the row's outer edge (a value row reserves its `spacing.stroke.default` edge inside that), the
-  value ending in LVGL's dots (three full stops, the one place they stand; Voice & Content) when its full words are
-  one press away; a fact's name in `caption` over its value, never focused, both wrapping to 33 and 22 characters a line and never cut,
-  since nothing is one press away; a group's name in `caption` above it, with
-  `spacing.lg` of room over it that sets it off from the group before.
+- **Value row, detail row, section heading** — a setting's name left and its value right in `text-secondary`. Its words stand
+  `spacing.md` in from the row's outer edge, and a value row reserves its `spacing.stroke.default` edge inside that. A value
+  that does not fit ends in LVGL's dots (three full stops, the one place they stand; Voice & Content) when its full words are
+  one press away. A value row's value is in `body`. A fact's name in `caption` over its value is never focused. Both wrap to 33
+  and 22 characters a line and are never cut, since nothing is one press away.
+  A section heading is a group's name in `caption` above its group. `spacing.section` of room stands over it, which sets it off
+  from the content before. The first heading on a page keeps `spacing.lg` under the page's top padding. A group's name under a
+  heading stands `spacing.group` under it and over the group before it. Its radio button rows stand `spacing.item` apart.
 - **A row's content is centred on its height** — one line or more: a toggle, checkbox, radio, value, home, network or list-view
   row, a choice card, a dropdown field and a select sheet's option all keep their words and controls on the row's
   vertical axis, and a row that grows with its words grows about its centre. A host test holds it (STICKY_DESIGN_TOKENS §9).
@@ -1074,26 +1102,27 @@ At 235 ppi a pixel is 0.108 mm and a point is 3.26 px.
   choices on one light-dither track `spacing.target` high, `spacing.sm` round the items and between them, the chosen
   item a black pill behind its white word; every item is a focus stop.
 - **Sticky** — one follow-up as a card: its tag and its words in `display` or `body`.
-- **Carousel** — onboarding, one card at a time: a white card in a `spacing.stroke.default` outline, `rounded.lg`, filling the content's
-  height, its title in `display` and its words in `body`, `spacing.card-inset` in; its page in words ("2 of 4", `caption`
-  `text-secondary`) with the page dots beside them, an indicator and never a control; Back, Skip and Next (Done on the last card) are
-  stops in three fixed slots a third of the content wide, Back (outline) absent on the first card and Skip (outline) in the middle
-  slot on every card; a swipe left or right turns one card on the lift, `sound.at-end` past either end; a turn is one partial
-  refresh; holding OK leaves, as Skip does, at any depth — the screen's own escape, which the router runs when nothing is open.
-- **Dialog** — a decision the person must make now, with one action button and Cancel; a destructive action names
+- **Carousel** — onboarding, one card at a time. The card is white in a `spacing.stroke.default` outline, `rounded.lg`, filling
+  the content's height, `spacing.card-inset` in. Its title is `display` and its words `body`, `spacing.pair-lg` under it. Its page
+  in words ("2 of 4", `caption` `text-secondary`) stands with the page dots beside it, an indicator and never a control. Back, Skip
+  and Next (Done on the last card) are stops in three fixed slots, a third of the content wide each. Back (outline) is absent on
+  the first card, and Skip (outline) stands in the middle slot on every card. A swipe left or right turns one card on the lift,
+  with `sound.at-end` past either end. A turn is one partial refresh. Holding OK leaves, as Skip does, at any depth: the screen's
+  own escape, which the router runs when nothing is open.
+- **Dialog** — a decision the person must make now, with one action button and Cancel. A destructive action names
   what it destroys ("Delete note", under the title "Delete this note?"), and its dialog opens with focus on Cancel. It sits
   in the middle of the glass, `spacing.edge` from its sides, behind a catcher the size of the glass. It stands on a `spacing.stroke.strong`
-  outline, `rounded.md`, `spacing.lg` inside, its title in `label` and its message in `body`, the two buttons half width
-  `spacing.md` apart; its offset, `spacing.overlay-offset` down and to the right in `shadow-3`, stands inside the page's margin
+  outline, `rounded.md`, `spacing.lg` inside, its title in `label` and its message in `body` `spacing.pair-xl` under it, and `spacing.group` over the two buttons, half width
+  `spacing.item` apart. Its offset, `spacing.overlay-offset` down and to the right in `shadow-3`, stands inside the page's margin
   (Elevation & Depth). A touch outside it is eaten (Focus and input).
 - **Network row** — a Wi-Fi network in `spacing.list-row-height`, 80 px, `rounded.lg`, `spacing.md` either side and `spacing.sm`
-  above and below: its name in `caption-strong` (28 characters, then LVGL's dots) over its facts line in `caption` — an
-  open network says "Open", a secured one carries a padlock before "Locked", the connected one a check before "Connected" and
-  then its padlock or "Open", the one being joined "Connecting…" — and at the right end its signal, a glyph alone with no
-  word, centred on the row's height: the lit bars black, the unlit bars the light dither drawn under them on the same canvas
-  (DESIGN → Exceptions). The connected network and the one being joined are the chosen inversion — their words, glyphs and
-  lit bars white, the unlit bars the dark dither — and differ by the check and the words; a failed join is no row state: the
-  row goes back to rest and a dialog says why. Rows are `spacing.md` apart in a list view, no box.
+  above and below. Its name and its facts line are both `caption`, the name up to 28 characters and then LVGL's dots. An open
+  network says "Open" and a secured one carries a padlock before "Locked". The connected one carries a check before "Connected"
+  and then its padlock or "Open", and the one being joined says "Connecting…". At the right end stands its signal, a glyph alone
+  with no word, centred on the row's height. The lit bars are black and the unlit bars the light dither, drawn under them on the
+  same canvas (DESIGN → Exceptions). The connected network and the one being joined are the chosen inversion, with their words,
+  glyphs and lit bars white and the unlit bars the dark dither. They differ by the check and the words. A failed join is no row
+  state: the row goes back to rest and a dialog says why. Rows are `spacing.md` apart in a list view, no box.
 - **Keyboard** — a full-glass overlay with Cancel and one action named for what it does ("Join", "Done"): six keys a row, each
   `spacing.target` square, `spacing.key-gap` apart — letters in the order of the alphabet, then digits with common punctuation
   (123), then the rest of the punctuation (#+=), four pages of six rows, each key `rounded.md`: a character key the light dither
@@ -1128,8 +1157,8 @@ At 235 ppi a pixel is 0.108 mm and a point is 3.26 px.
   width, anchored to the glass's bottom and hanging off its sides and bottom, so only its top edge shows: a
   `spacing.stroke.strong` outline round the top edge and its `rounded.2xl` corners, and the offset rising from it in
   `shadow-2`, elevation 2 (Elevation & Depth). From its top: the outline, `spacing.md`, the field's name in `label`, `spacing.md`, a list view of
-  rows `spacing.md` apart, `spacing.md`, and its foot, `spacing.footer` high, in the footer's place. It holds Cancel and, until the Help screen ships, a key legend (Open items). A row is an option in `caption-strong`, 30 characters to a line,
-  wrapping to a second line and growing — never cut — with 64 px as its floor; the chosen row is the inversion with the
+  rows `spacing.md` apart, `spacing.md`, and its foot, `spacing.footer` high, in the footer's place. It holds Cancel and, until the Help screen ships, a key legend (Open items). A row is an option in `body`, 20 characters to a line,
+  wrapping to a second line and growing — never cut — with 64 px as its floor. The chosen row is the inversion in `label` with the
   check at its right end (DESIGN → Exceptions). A page holds four whole rows, or three when four would cover the field that
   opened it. The test is the field's bottom, the ring, white and the offset above the sheet's top: a field ending at y 290
   or higher takes four, one lower takes three, never fewer. The sheet keeps its height, and the scroll indicator shows from the second page.
@@ -1148,14 +1177,14 @@ At 235 ppi a pixel is 0.108 mm and a point is 3.26 px.
   and off, a check, the microphone and a refresh for the buttons, and a signal in three strengths, a padlock, a check for a row's
   facts line, a select chevron and the open and slashed eye, each cut to a box of its own — each in its words' colour or a button's, never a grey; any other
   glyph needs the person's yes and a place here.
-- **Status line** — news that asks nothing, as plain words under the title: `spacing.list-row-height` high and
-  `spacing.content` wide, in `caption-strong`, left, wrapped to two lines and never cut, 60 characters at most (past them
-  LVGL ends the second line in dots and the log says so), with no glyph, no box, no fill and no edge, so nothing about it can
-  be taken for a control; a `spacing.stroke.hairline` rule closes it while news shows. Info, success and error look alike: the
-  words, and the sound, tell them apart. Only a screen that can get news reserves it. It is no stop, takes no press and no
-  focus, and never covers a control. The newest replaces the one showing in one partial refresh; the same words again redraw
-  nothing but still sound their kind, so a press always hears its outcome. It leaves at the next change of screen or when its caller retracts it, never on a timer. News that arrives while a
-  dialog, sheet or the keyboard is open is held and drawn, and sounded, when it closes.
+- **Status line** — news that asks nothing, as plain words under the title. It is `spacing.list-row-height` high and
+  `spacing.content` wide, in `caption`, left, wrapped to two lines and never cut. Copy is 60 characters at most: past them LVGL
+  ends the second line in dots and the log says so. It has no glyph, no box, no fill and no edge, so nothing about it can be taken
+  for a control. A `spacing.stroke.hairline` rule closes it while news shows. Info, success and error look alike: the words, and the
+  sound, tell them apart. Only a screen that can get news reserves it. It is no stop, takes no press and no focus, and never
+  covers a control. The newest replaces the one showing in one partial refresh. The same words again redraw nothing but still sound
+  their kind, so a press always hears its outcome. It leaves at the next change of screen or when its caller retracts it, never
+  on a timer. News that arrives while a dialog, sheet or the keyboard is open is held, then drawn and sounded when it closes.
 - **Wait indicator** — still words and a segmented progress bar, stepping no faster than every 5 s.
 - **Progress bar, step bar, page dots** — round-capped pieces `spacing.progress` high (the one that runs out first
   `spacing.progress-lead`): a black fill from the left, `spacing.sm` of white, the rest of the track in the light dither;
@@ -1164,15 +1193,15 @@ At 235 ppi a pixel is 0.108 mm and a point is 3.26 px.
   dots a hollow `spacing.page-dot` circle, the current page a black pill `spacing.page-pill` wide, `spacing.sm` apart —
   an indicator beside its words, never a control: the deck's dots are no tap target either. Each steps, never glides.
 - **Radio row, choice card** — a card on the light dither, `rounded.lg`, its words `spacing.card-inset` in, with a
-  `spacing.mark` ring (one choice) or box (many) at the right; a radio row is at least `spacing.list-row-height` high, its `label`
+  `spacing.mark` ring (one choice) or box (many) at the right. A radio row is at least `spacing.list-row-height` high, its `label`
   name wrapping to 18 characters a line and never cut, `spacing.xs` above and below so one line and two both stand 80, three
-  116 and four 152, with no detail line; a choice card at least the mark and two `spacing.md` high with a `caption` name in bold over its detail.
+  116 and four 152, with no detail line. A choice card at least the mark and two `spacing.md` high with a `label` name over its detail in `caption`.
   Chosen is the mark alone: the ring's `spacing.mark-dot` dot, the box's check — the card does not change.
   A group is the rows and one-choice cards that share a parent, as a radio button row's. Choosing one — OK on it, or a tap
-  on the lift — clears the rest of its group and sends `LV_EVENT_VALUE_CHANGED` on it, after they are cleared; a chosen
+  on the lift — clears the rest of its group and sends `LV_EVENT_VALUE_CHANGED` on it, after they are cleared. A chosen
   row chosen again sends nothing (a radio never unchooses itself), and the programmatic set sends nothing. A many-choice
   card is a group of one and sends it on each flip. Moving the focus never chooses. A choice that is the screen's one task
-  applies at once: the screen stays, its status line says what is set, and there is no Save; choosing another is the undo.
+  applies at once: the screen stays, its status line says what is set, and there is no Save. Choosing another is the undo.
 - **List view, text view, scroll indicator** — rows or `caption-loose` text taller than their band, no box (the ring
   alone shows a text view, and its words stand `spacing.sm` inside the view on every side, so the first glyph is 12 px
   from the ring's inner edge and a page never shows a part of the line beside it), turn a
@@ -1211,9 +1240,10 @@ At 235 ppi a pixel is 0.108 mm and a point is 3.26 px.
   wraps with the tick alone; any other stops at its ends with `sound.at-end`. A tap on a neighbour steps one, one vertical swipe
   steps one on the lift, and nothing follows a finger. Use it for one value in a list of up to about 60; under about eight named
   options use the select list, for a level the range slider.
-- **Status block** — a heading in `label` over a line in `caption`, with the deck's mark — a check, a clock or a
-  link-off, `spacing.status-mark` of art, at one bit, compiled into the widgets component alone — flush left a
-  `spacing.lg` before the words: an empty or a done state; with no mark the slot stays empty and the words stand a `spacing.lg` in, where they would after a mark.
+- **Status block** — a heading in `label` over a line in `body`, `spacing.pair-md` apart between their own boxes. The deck's mark
+  stands beside them: a check, a clock or a link-off, `spacing.status-mark` of art at one bit, compiled into the widgets component
+  alone, flush left and a `spacing.lg` before the words. It marks an empty or a done state. With no mark the slot stays empty, and
+  the words stand a `spacing.lg` in, where they would after a mark.
 - **Recording indicator** — "Recording" and its time, with a distinct tone at start and stop.
 
 ### States
@@ -1254,7 +1284,8 @@ At 235 ppi a pixel is 0.108 mm and a point is 3.26 px.
 - Don't animate anything — no slides, fades, spinners or blinking cursors.
 - Don't put words on the dark dither, or white words on any dither — a disabled control's words, in a sparse dither,
   alone sit lighter than their ground; don't rely on a 1 px line.
-- Don't use a weight under 600, or a size under `caption`.
+- Don't use a weight under 600, except `body` at 400, or a size under `caption`. A lighter weight breaks up at one bit a pixel;
+  `body`'s 3 px strokes keep its gaps open (Typography → Face).
 - Don't time anything to leave — but for a password's last typed character (Exceptions).
 - Don't trigger two full refreshes back to back — one full refresh's own time apart at the least.
 
@@ -1491,7 +1522,7 @@ A Wi-Fi network's signal is shown by its glyph alone, with no "Strong", "Fair", 
 The chosen option of a select sheet is marked by the check, without its word.
 
 - **What:** a glyph with no word beside it, against Components → Icons' "a meaningful icon always has its word beside it".
-- **Why:** an option may run to two lines and 30 characters a line, and the row has no room for a word as well; the chosen row
+- **Why:** an option may run to two lines and 20 characters a line, and the row has no room for a word as well. The chosen row
   is also the inversion, so the check is never the only sign of the state.
 - **Where it stops:** a select sheet's chosen row, and nowhere else.
 

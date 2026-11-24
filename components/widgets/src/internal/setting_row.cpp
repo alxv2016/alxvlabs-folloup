@@ -32,7 +32,7 @@ SettingRow MakeSettingRow(lv_obj_t *parent, const char *name, bool with_state)
     row.reason = Words(row.words, ui::Type::kCaption, "", true);
     lv_obj_add_flag(row.reason, LV_OBJ_FLAG_HIDDEN);
     if (with_state) {
-        row.state = Line(row.root, ui::Type::kLabel, "", true);
+        row.state = Line(row.root, ui::Type::kBody, "", true);
     }
     return row;
 }

@@ -1567,6 +1567,7 @@ def gate_problems(task: dict, files: list[str]) -> list[str]:
     words = [d["text"].lower() for d in task.get("decisions", [])]
     no_visible = any(w.startswith(NO_VISIBLE_CHANGE) for w in words)
     design_given = any(w.startswith(DESIGN_GIVEN) for w in words)
+    all_gated = tuple(p for _, paths, _ in project.GATES for p in (paths or ()))
     touched = False
     for what, paths, kinds in project.GATES:
         if no_visible or not paths or not any(project.matches(f, paths) for f in files):
@@ -1591,7 +1592,9 @@ def gate_problems(task: dict, files: list[str]) -> list[str]:
             elif kind in KINDS_BEFORE and first and yes[0]["at"] > first:
                 problems.append(f"the yes on the {kind} {Path(yes[0]['file']).name} came after the first run that built "
                                 "it — the draft is approved before the build (.agents/HARNESS.md §9)")
-            elif kind in KINDS_BEFORE and len(yes) > 1 and built_after(task, paths, a["at"]) is False:
+            # A later draft may change another gate's paths alone — a token-only specimen builds no screen file — so
+            # its build is looked for in every gated path, not only this gate's.
+            elif kind in KINDS_BEFORE and len(yes) > 1 and built_after(task, all_gated, a["at"]) is False:
                 problems.append(f"the yes on the {kind} {name} came after its build — no run built a change after it; "
                                 "the draft is approved before the build (.agents/HARNESS.md §9)")
     target = task.get("target")
@@ -1959,6 +1962,16 @@ def self_test() -> int:
     ]
     for name, task, at, want in afters:
         got = built_after(task, ("DESIGN.md",), at)
+        if got != want:
+            bad += 1
+            print(f"FAIL built_after, {name}: want {want}, got {got}")
+    # gate_problems looks for a later draft's build in every gate's paths: a token-only draft, built after its yes,
+    # leaves the screen paths as they were and still counts as built.
+    token_only = {"gated_at_start": {}, "runs": [run("1", {"DESIGN.md": "a", "src/x.css": "z"}, ("DESIGN.md", "src/x.css")),
+                                                 run("3", {"DESIGN.md": "b", "src/x.css": "z"}, ("DESIGN.md", "src/x.css"))]}
+    for name, paths, want in [("a token-only draft, screen paths alone", ("src/x.css",), False),
+                              ("a token-only draft, every gated path", ("src/x.css", "DESIGN.md"), True)]:
+        got = built_after(token_only, paths, "2")
         if got != want:
             bad += 1
             print(f"FAIL built_after, {name}: want {want}, got {got}")

@@ -15,7 +15,7 @@
 namespace widgets {
 
 // Opens the sheet for `dropdown` on the active screen: the field's name for a title, a row for each option — the option in
-// `caption-strong`, about 30 characters to a line, wrapping to a second line and growing the row when a third is needed, never cut
+// `body` (the chosen one `label`), about 20 characters to a line, wrapping to a second line and growing the row when a third is needed, never cut
 // — the chosen one inverted with the check beside its words, and a foot with Cancel and "UP or DOWN picks. OK chooses." It takes
 // focus on the chosen row, on its page. Rows a page: four, or three when four would cover the field that opened it. OK on a row
 // chooses it (ChooseDropdown, which reports a change once) and closes; Cancel, holding OK, or choosing nothing new closes with

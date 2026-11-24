@@ -16,6 +16,7 @@ or the agent.
 | L2 | 2026-11-20 | The ui-designer judge, before the glass: a disabled row's value stayed grey on the dither | A state style on a composite (disabled, chosen, focused): every child that sets its own colour at selector 0 also given the state's colour, or the parent's state trickled to it — a child's own value beats the parent's state style |
 | L3 | 2026-11-23 | The person: "Don't change my checkmarks, radio, and switch components. I've asked you to fix typography and spacing, not make changes to UI components." | A mock or build that changes a component outside the layer asked for: a per-control pixel diff against today shows every other layer unchanged |
 | L4 | 2026-11-23 | The person, promoted from taste rows T2 and T3: spacing with no visual harmony, and too little margin below a large heading | Every gap on the spacing ladder (LAYOUT §7.1): pairs glued and groups spaced, the gap below a heading growing with the heading's size, measured between the texts' own boxes and checked by ink |
+| L5 | 2026-11-23 | The code reviewer, before the glass: headings over boxes moved to the edge only on the screens the mock drew, leaving the rest at the old x | A rule the approved draft states (a position, a gap, a type role): applied at every place in the product it covers, not only on the screens the draft drew; each place left out named with its reason, and every screen that moves shown at gate 2 |
 
 ## Quality
 

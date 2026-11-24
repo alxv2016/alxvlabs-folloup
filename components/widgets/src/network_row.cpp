@@ -11,7 +11,7 @@ namespace {
 constexpr int32_t kSignalGlyphWidth = 40;
 constexpr int32_t kSignalGlyphHeight = 30;
 // The name's and the facts' room: the row's 400 inside its padding, less the signal glyph, which stands alone, and a gap: 344 px,
-// 28 characters of `caption-strong` at 12 px a character.
+// 28 characters of `caption` at 12 px a character.
 constexpr int32_t kWords = dt::kSpacingContent - 2 * dt::kSpacingMd - kSignalGlyphWidth - dt::kSpacingMd;
 
 lv_obj_t *Mark(lv_obj_t *parent, const lv_image_dsc_t *glyph, lv_color_t colour)
@@ -118,8 +118,8 @@ lv_obj_t *MakeNetworkRow(lv_obj_t *parent, const char *name, bool locked, int si
     // The home row's shell: 80 px, `rounded.lg`, its ring outside, the chosen inversion.
     lv_obj_t *row = ui::NewRow(parent, name, nullptr, nullptr, nullptr);
     lv_obj_t *title = lv_obj_get_child(row, 0);
-    lv_obj_set_style_text_font(title, ui::Font(ui::Type::kCaptionStrong), 0);
-    ui::FitLineBox(title, ui::Type::kCaptionStrong);
+    lv_obj_set_style_text_font(title, ui::Font(ui::Type::kCaption), 0);
+    ui::FitLineBox(title, ui::Type::kCaption);
     lv_obj_set_width(title, kWords);
     Fill(row, locked, signal, state);
     lv_obj_add_flag(row, LV_OBJ_FLAG_CLICKABLE);

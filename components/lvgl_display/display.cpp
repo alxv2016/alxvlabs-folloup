@@ -72,8 +72,8 @@ constexpr TuningPreset kTunings1677[] = {
     {"Scan 4 x 10", {0, true, 4, 10}},
 };
 constexpr int kDefaultTuning2677 = 2;  // 85 Hz
-constexpr int kDefaultTuning1677 = 3;  // scan 3 x 10: about 100 ms a frame; scan 2 x 12 ghosts under a fast scroll or
-                                       // fast presses (the person's choice; STICKY_EPAPER_WAVEFORMS §3.5)
+constexpr int kDefaultTuning1677 = 1;  // keep waveform: every frame a whole partial, no scans — the scan presets left
+                                       // too much ghosting in use (the person's choice; STICKY_EPAPER_WAVEFORMS §3.5)
 const TuningPreset *s_tunings = kTunings1677;
 int s_tuning_count = 1;
 int s_tuning = 0;

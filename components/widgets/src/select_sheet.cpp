@@ -4,6 +4,7 @@
 
 #include "design_tokens.h"
 #include "internal/base.h"
+#include "internal/glue.h"
 #include "internal/marks.h"
 #include "internal/sheet_rules.h"
 #include "router/router.h"
@@ -24,7 +25,7 @@ namespace {
 constexpr int32_t kHang = dt::kSpacingStrokeStrong;  // wider than the glass by this each side: the outline's width
 constexpr int32_t kHangBelow = dt::kRounded2xl;  // taller than the glass by a radius and more, so no bottom corner shows
 // An option's words: the row's inside, less the check's own width (widgets_mark_glyph_fact_check, 28 px) and the gap before it, so
-// a row holds 30 characters of `caption-strong` to a line (12 px a character) whether it is the chosen one or not.
+// a row holds 20 characters of `body` or `label` to a line (18 px a character) whether it is the chosen one or not.
 int32_t WordsWidth()
 {
     return dt::kSpacingContent - 2 * dt::kSpacingMd - static_cast<int32_t>(widgets_mark_glyph_fact_check.header.w) - dt::kSpacingSm;
@@ -98,8 +99,8 @@ lv_obj_t *MakeRow(lv_obj_t *parent, const char *text, bool chosen)
     lv_obj_set_style_radius(row, dt::kRoundedLg, 0);
     lv_obj_set_style_bg_opa(row, LV_OPA_COVER, 0);
     lv_obj_set_style_bg_color(row, ui::Level(chosen ? dt::kColorSurfaceChosen : dt::kColorBackground), 0);
-    // The option in `caption-strong`, wrapping to a second line and then a third, each line on the role's line box. The words
-    // column is the one that stands the floor tall and centres its lines: a flex track is as tall as its tallest child, and the
+    // The option in `body`, the chosen one in `label`, wrapping to a second line and then a third, each line on the role's line
+    // box. The words column is the one that stands the floor tall and centres its lines: a flex track is as tall as its tallest child, and the
     // row's own minimum would only pad under it.
     lv_obj_t *column = detail::Bare(row);
     lv_obj_set_size(column, WordsWidth(), LV_SIZE_CONTENT);
@@ -108,12 +109,13 @@ lv_obj_t *MakeRow(lv_obj_t *parent, const char *text, bool chosen)
     lv_obj_set_flex_align(column, LV_FLEX_ALIGN_CENTER, LV_FLEX_ALIGN_START, LV_FLEX_ALIGN_START);
     lv_obj_t *words = lv_label_create(column);
     lv_label_set_text(words, text);
-    lv_obj_set_style_text_font(words, ui::Font(ui::Type::kCaptionStrong), 0);
-    lv_obj_set_style_text_line_space(words, ui::LineBox(ui::Type::kCaptionStrong) - lv_font_get_line_height(ui::Font(ui::Type::kCaptionStrong)), 0);
+    const ui::Type role = chosen ? ui::Type::kLabel : ui::Type::kBody;  // the chosen option in bold, the rest in regular
+    lv_obj_set_style_text_font(words, ui::Font(role), 0);
+    lv_obj_set_style_text_line_space(words, ui::LineBox(role) - lv_font_get_line_height(ui::Font(role)), 0);
     lv_obj_set_style_text_color(words, ui::Level(chosen ? dt::kColorTextOnFill : dt::kColorTextPrimary), 0);
     lv_label_set_long_mode(words, LV_LABEL_LONG_MODE_WRAP);
     lv_obj_set_width(words, WordsWidth());
-    ui::FitLineBox(words, ui::Type::kCaptionStrong);
+    ui::FitLineBox(words, role);
     if (chosen) {
         // The check alone marks the chosen option (DESIGN → Exceptions); the inversion marks it too, so it is never the only sign.
         lv_obj_t *check = lv_image_create(row);

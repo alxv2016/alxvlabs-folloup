@@ -13,6 +13,7 @@
 
 // Bitcount Single at one bit a pixel (fonts/bitcount/make_fonts.sh): C objects, declared outside any namespace.
 extern "C" {
+LV_FONT_DECLARE(bitcount_400_30)
 LV_FONT_DECLARE(bitcount_600_20) LV_FONT_DECLARE(bitcount_600_30) LV_FONT_DECLARE(bitcount_600_40)
 LV_FONT_DECLARE(bitcount_600_50) LV_FONT_DECLARE(bitcount_600_60) LV_FONT_DECLARE(bitcount_600_70)
 LV_FONT_DECLARE(bitcount_600_80) LV_FONT_DECLARE(bitcount_600_100) LV_FONT_DECLARE(bitcount_600_120)
@@ -36,7 +37,7 @@ struct Role {
 Role s_roles[] = {
     {dt::kTypographyHero, nullptr},  {dt::kTypographyDisplay, nullptr}, {dt::kTypographyHeadline, nullptr},
     {dt::kTypographyBody, nullptr},  {dt::kTypographyLabel, nullptr},   {dt::kTypographyCaption, nullptr},
-    {dt::kTypographyCaptionLoose, nullptr}, {dt::kTypographyCaptionStrong, nullptr},
+    {dt::kTypographyCaptionLoose, nullptr},
 };
 
 lv_style_t s_screen, s_status_bar, s_row, s_button_outline, s_button_action, s_divider, s_focus, s_chosen;
@@ -47,6 +48,7 @@ struct BitcountFont {
     const lv_font_t *font;
 };
 constexpr BitcountFont kBitcount[] = {
+    {30, 400, &bitcount_400_30},
     {20, 600, &bitcount_600_20},   {30, 600, &bitcount_600_30},   {40, 600, &bitcount_600_40},
     {50, 600, &bitcount_600_50},   {60, 600, &bitcount_600_60},   {70, 600, &bitcount_600_70},
     {80, 600, &bitcount_600_80},   {100, 600, &bitcount_600_100}, {120, 600, &bitcount_600_120},
@@ -86,7 +88,7 @@ void BuildStyles()
     lv_style_set_pad_hor(&s_status_bar, dt::kSpacingEdge);
     lv_style_set_bg_color(&s_status_bar, Level(dt::kColorBackground));
     lv_style_set_bg_opa(&s_status_bar, LV_OPA_COVER);
-    lv_style_set_text_font(&s_status_bar, Font(Type::kCaption));
+    lv_style_set_text_font(&s_status_bar, Font(Type::kLabel));
     lv_style_set_border_side(&s_status_bar, LV_BORDER_SIDE_BOTTOM);
     lv_style_set_border_width(&s_status_bar, dt::kSpacingStrokeHairline);
     lv_style_set_border_color(&s_status_bar, Level(dt::kColorDivider));

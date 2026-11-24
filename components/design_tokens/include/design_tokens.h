@@ -52,37 +52,38 @@ struct TypeRole {
 };
 
 // The primitives: the scale, each size a multiple of 10 px so the font's cells — a tenth of the em — fall on whole
-// pixels, its line 1.2 em; 100 px and up hold figures only.
+// pixels. Its line is 1.2 em to 40 px, then tapers, each step on the 4 px grid and never under the font's own height:
+// 56 at 50, 64 at 60, 72 at 70, 80 at 80. 100 px and up hold figures only, on the height of their digits
+// (STICKY_DESIGN_TOKENS §3; tests/host/line_floor_lvgl_test.cpp holds the floor).
 inline constexpr TypeRole kTypographyScale20Semibold = {20, 24, 600};
 inline constexpr TypeRole kTypographyScale20Bold = {20, 24, 700};
+inline constexpr TypeRole kTypographyScale30Regular = {30, 36, 400};  // the only regular weight
 inline constexpr TypeRole kTypographyScale30Semibold = {30, 36, 600};
 inline constexpr TypeRole kTypographyScale30Bold = {30, 36, 700};
 inline constexpr TypeRole kTypographyScale40Semibold = {40, 48, 600};
 inline constexpr TypeRole kTypographyScale40Bold = {40, 48, 700};
-inline constexpr TypeRole kTypographyScale50Semibold = {50, 60, 600};
-inline constexpr TypeRole kTypographyScale50Bold = {50, 60, 700};
-inline constexpr TypeRole kTypographyScale60Semibold = {60, 72, 600};
-inline constexpr TypeRole kTypographyScale60Bold = {60, 72, 700};
-inline constexpr TypeRole kTypographyScale70Semibold = {70, 84, 600};
-inline constexpr TypeRole kTypographyScale70Bold = {70, 84, 700};
-inline constexpr TypeRole kTypographyScale80Semibold = {80, 96, 600};
-inline constexpr TypeRole kTypographyScale80Bold = {80, 96, 700};
-inline constexpr TypeRole kTypographyScale100Semibold = {100, 120, 600};
-inline constexpr TypeRole kTypographyScale100Bold = {100, 120, 700};
-inline constexpr TypeRole kTypographyScale120Semibold = {120, 144, 600};
-inline constexpr TypeRole kTypographyScale120Bold = {120, 144, 700};
-inline constexpr TypeRole kTypographyScale160Semibold = {160, 192, 600};
-inline constexpr TypeRole kTypographyScale160Bold = {160, 192, 700};
+inline constexpr TypeRole kTypographyScale50Semibold = {50, 56, 600};
+inline constexpr TypeRole kTypographyScale50Bold = {50, 56, 700};
+inline constexpr TypeRole kTypographyScale60Semibold = {60, 64, 600};
+inline constexpr TypeRole kTypographyScale60Bold = {60, 64, 700};
+inline constexpr TypeRole kTypographyScale70Semibold = {70, 72, 600};
+inline constexpr TypeRole kTypographyScale70Bold = {70, 72, 700};
+inline constexpr TypeRole kTypographyScale80Semibold = {80, 80, 600};
+inline constexpr TypeRole kTypographyScale80Bold = {80, 80, 700};
+inline constexpr TypeRole kTypographyScale100Semibold = {100, 68, 600};
+inline constexpr TypeRole kTypographyScale100Bold = {100, 68, 700};
+inline constexpr TypeRole kTypographyScale120Semibold = {120, 80, 600};
+inline constexpr TypeRole kTypographyScale120Bold = {120, 80, 700};
+inline constexpr TypeRole kTypographyScale160Semibold = {160, 108, 600};
+inline constexpr TypeRole kTypographyScale160Bold = {160, 108, 700};
 
 // The roles: each one primitive (DESIGN → Typography → Scale and roles).
 inline constexpr TypeRole kTypographyHero = kTypographyScale60Bold;
 inline constexpr TypeRole kTypographyDisplay = kTypographyScale50Bold;
 inline constexpr TypeRole kTypographyHeadline = kTypographyScale40Bold;
-inline constexpr TypeRole kTypographyBody = kTypographyScale30Semibold;
+inline constexpr TypeRole kTypographyBody = {kTypographyScale30Regular.size_px, 40, kTypographyScale30Regular.weight};  // scale-30-regular on 40
 inline constexpr TypeRole kTypographyLabel = kTypographyScale30Bold;
 inline constexpr TypeRole kTypographyCaption = kTypographyScale20Semibold;
-// Caption in bold: a Wi-Fi network's name, a choice card's name.
-inline constexpr TypeRole kTypographyCaptionStrong = kTypographyScale20Bold;
 // Caption on a loose line, 1.5 em: a text view's lines, the deck's airy 24 on 16 (DESIGN → Typography → Scale and roles).
 inline constexpr TypeRole kTypographyCaptionLoose = {20, 30, 600};
 
@@ -114,7 +115,7 @@ inline constexpr int16_t kSpacingMd = 16;
 inline constexpr int16_t kSpacingLg = 24;
 inline constexpr int16_t kSpacingXl = 32;
 inline constexpr int16_t kSpacing2xl = 48;
-inline constexpr int16_t kSpacingEdge = 24;
+inline constexpr int16_t kSpacingEdge = kSpacingLg;
 inline constexpr int16_t kSpacingFocusOffset = 4;
 inline constexpr int16_t kSpacingTarget = 64;
 inline constexpr int16_t kSpacingContent = 432;
@@ -142,6 +143,14 @@ inline constexpr int16_t kSpacingScrollLength = 248;
 inline constexpr int16_t kSpacingScrollX = 467;
 inline constexpr int16_t kSpacingStatusMark = 85;
 inline constexpr int16_t kSpacingKeyGap = 12;
+// The role tokens: the gaps between texts and between whole components, each one step of the scale (DESIGN → Layout → Spacing).
+inline constexpr int16_t kSpacingPairSm = kSpacingSm;   // a row's label over its one line
+inline constexpr int16_t kSpacingPairMd = kSpacingMd;   // a title over a wrapped description; a headline over body
+inline constexpr int16_t kSpacingPairLg = kSpacingLg;   // a display or a hero over body
+inline constexpr int16_t kSpacingPairXl = kSpacingXl;   // a modal's title over its message
+inline constexpr int16_t kSpacingItem = kSpacingMd;     // row to row, button to button
+inline constexpr int16_t kSpacingGroup = kSpacingLg;    // a dialog's message to its buttons; a group's name under a heading
+inline constexpr int16_t kSpacingSection = kSpacing2xl; // above a section heading
 inline constexpr int16_t kSpacingOverlayOffset = 6;
 inline constexpr int16_t kSpacingStrokeHairline = 2;
 inline constexpr int16_t kSpacingStrokeDefault = 3;

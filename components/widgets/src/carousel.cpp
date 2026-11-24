@@ -120,7 +120,7 @@ Carousel MakeCarousel(lv_obj_t *screen, lv_obj_t *content, const CarouselCard *c
     lv_obj_set_flex_flow(card, LV_FLEX_FLOW_COLUMN);
     lv_obj_set_style_radius(card, dt::kRoundedLg, 0);
     lv_obj_set_style_pad_all(card, dt::kSpacingCardInset - dt::kSpacingStrokeDefault, 0);
-    lv_obj_set_style_pad_row(card, dt::kSpacingMd, 0);
+    lv_obj_set_style_pad_row(card, dt::kSpacingPairLg, 0);  // a display over its body
     lv_obj_set_style_bg_opa(card, LV_OPA_COVER, 0);
     lv_obj_set_style_bg_color(card, ui::Level(dt::kColorBackground), 0);
     detail::Outline(card, dt::kSpacingStrokeDefault);

@@ -901,8 +901,9 @@ of these holds:
   yes came after the first run that built it, a later draft's yes has no run after it that built a change, or the built
   thing changed after its yes — unless the person recorded "no visible change" or, for the draft, "design given". The
   first run that built it is the first whose gated files differ from what they held when the task started, so a gated
-  file an earlier task left uncommitted is not this task's build; a later draft's build is a run whose gated files
-  differ from the last run before its yes, since a long task builds earlier drafts before a later one is drawn;
+  file an earlier task left uncommitted is not this task's build. A later draft's build is a run whose gated files, in
+  any gate's paths, differ from the last run before its yes. A long task builds earlier drafts before a later one is
+  drawn, and a token-only draft builds no screen file;
 - the change ran on the target and has no sign-off for the code as it ran;
 - the code ran on the target twice, changed between, with no finding or decision recorded between (§9.4).
 

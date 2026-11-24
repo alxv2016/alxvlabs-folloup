@@ -19,11 +19,11 @@ lv_obj_t *MakeStatusLine(lv_obj_t *parent)
 
     // Words that wrap on each line box of the role (the label is n line boxes tall for n lines), at most two: it ends in LVGL's
     // dots where a third would start (DESIGN → Reading).
-    lv_obj_t *words = ui::NewLabel(zone, ui::Type::kCaptionStrong, "");
-    ui::FitLineBox(words, ui::Type::kCaptionStrong);
+    lv_obj_t *words = ui::NewLabel(zone, ui::Type::kCaption, "");
+    ui::FitLineBox(words, ui::Type::kCaption);
     lv_label_set_long_mode(words, LV_LABEL_LONG_MODE_DOTS);
     lv_obj_set_height(words, LV_SIZE_CONTENT);
-    lv_obj_set_style_max_height(words, 2 * ui::LineBox(ui::Type::kCaptionStrong), 0);
+    lv_obj_set_style_max_height(words, 2 * ui::LineBox(ui::Type::kCaption), 0);
     lv_obj_remove_flag(words, LV_OBJ_FLAG_CLICKABLE);
 
     // The lower rule is ui::NewDivider's, in the bottom of the zone, taken out of the flow; hidden until there is news.

@@ -223,9 +223,9 @@ Where it lives: `components/lvgl_display/display.cpp`.
 | SSD2677 | 75 Hz | `0x30` = `0x04` for partials | |
 | SSD2677 | 85 Hz | `0x30` = `0x05` for partials | Yes — the fastest, no ghosting `[SEEN]` |
 | SSD1677 | Seeed | `0xFC` on every partial | |
-| SSD1677 | Keep waveform | `0xCC` after the first partial | |
+| SSD1677 | Keep waveform | `0xCC` after the first partial; every frame a whole partial, about 510 ms, never scans | Yes — the person's choice: the scans left too much ghosting in use `[SEEN]` |
 | SSD1677 | Scan 2 x 12 | Scans of 2 frames, a budget of 12 — ghosts over a dithered fill under a fast touch scroll or fast presses `[SEEN]` | No |
-| SSD1677 | Scan 3 x 10 | Scans of 3 frames, a budget of 10 — no ghost the person saw under the same fast input `[SEEN]` | Yes — the person's choice |
+| SSD1677 | Scan 3 x 10 | Scans of 3 frames, a budget of 10 — no ghost the person saw under fast input, but too much ghosting over a day's use `[SEEN]` | No |
 | SSD1677 | Scan 4 x 10 | Scans of 4 frames, a budget of 10 | |
 
 - **A preset is chosen on the board** — the Display screen's Speed button, or `speed <n>` on the console `[FW]`.

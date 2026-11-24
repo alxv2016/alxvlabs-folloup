@@ -137,10 +137,10 @@ lv_obj_t *MakeChoiceCard(lv_obj_t *parent, const char *text, bool many, const ch
     lv_obj_set_flex_grow(words, 1);
     lv_obj_set_size(words, 1, LV_SIZE_CONTENT);  // the grow takes the room the mark leaves; the words wrap inside it
     if (supporting != nullptr && supporting[0] != '\0') {
-        detail::WrapWords(words, text, ui::Type::kCaptionStrong);
+        detail::WrapWords(words, text, ui::Type::kLabel);
         detail::WrapWords(words, supporting, ui::Type::kCaption);
     } else {
-        detail::WrapWords(words, text, ui::Type::kCaption);
+        detail::WrapWords(words, text, ui::Type::kLabel);
     }
     detail::MakeMark(card, many);
     detail::MakeChoice(card, many);

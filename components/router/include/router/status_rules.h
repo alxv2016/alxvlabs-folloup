@@ -24,7 +24,7 @@ enum class StatusKind : uint8_t { kInfo, kSuccess, kError };
 // Names one line, so a caller retracts only its own. Never 0; 0 is "no line" — what Say returns when nothing was said.
 using StatusId = uint32_t;
 
-// The copy cap: 60 characters at most, so two lines of `caption-strong` at 36 characters a line never fill edge to edge. Past
+// The copy cap: 60 characters at most, so two lines of `caption` at 36 characters a line never fill edge to edge. Past
 // it the line is still drawn — LVGL ends the second line in dots — and the log says so for the developer.
 inline constexpr size_t kStatusMaxChars = 60;
 // The bytes kept of a line's words, a terminator included. 60 characters of ASCII and of the font's two-byte marks (· ° × — U+00B7,

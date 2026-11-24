@@ -62,7 +62,8 @@ heading path for why. Do not renumber; add new material under the next free numb
 - **Paint `scale.primary.1` or `scale.primary.2` solid on a UI element** — fill it with `ui::Fill`, the dither (§4);
   the solid greys are for images drawn with a greyscale refresh (DESIGN → Colors → The four levels).
 - **Animate** — no timer drives a redraw faster than §5's limits.
-- **Draw a stroke under 2 px, a weight under 600, or words under `caption`, 20 px.**
+- **Draw a stroke under 2 px, a weight under 600 except `body` at 400, or words under `caption`, 20 px.** A lighter weight breaks up at
+  one bit a pixel; `body`'s 3 px strokes keep its gaps open (§3).
 - **Use a value the header does not have** — decide it in DESIGN.md first.
 
 ## 2. Colour
@@ -160,29 +161,44 @@ their value on each refresh — the design check reads them (§7).
 
 ## 3. Type
 
-- **The face is Bitcount Single**, a pixel font, at weights 600 and 700 — the upright SemiBold and Bold
-  instances of its variable font (`wght` 600 and 700, `ELXP` 0, `ELSH` 0, `slnt` 0, `CRSV` 0) from
-  petrvanblokland/TYPETR-Bitcount, under the SIL Open Font License (`components/ui/fonts/bitcount/OFL.txt`).
+- **The face is Bitcount Single**, a pixel font, at weights 600 and 700, and 400 at 30 px alone. The Regular, SemiBold and Bold are
+  the upright instances of its variable font, Version 1.001 (`wght` 400, 600 and 700, `ELXP` 0, `ELSH` 0, `slnt` 0, `CRSV` 0),
+  from petrvanblokland/TYPETR-Bitcount, cut with fontTools' instancer and under the SIL Open Font License
+  (`components/ui/fonts/bitcount/OFL.txt`). The Regular is for `scale-30-regular`.
+  The lighter weight's ink is shorter, so it compiles to a shorter line, on the same cells. The table gives each file's.
+
+| File | `wght` | `line_height`, `base_line` at 30 px |
+| --- | --- | --- |
+| `BitcountSingle-Regular.ttf` | 400 | 24, 3 |
+| `BitcountSingle-SemiBold.ttf` | 600 | 26, 4 |
+| `BitcountSingle-Bold.ttf` | 700 | 26, 4 |
+
 - **Every size is compiled at one bit a pixel** by `lv_font_conv` 1.5.3 (`components/ui/fonts/bitcount/make_fonts.sh`),
   so a stroke is solid black on every refresh; no font engine runs on the device.
 - **Bitcount draws on a 100-unit cell, a tenth of the em, so every size is a multiple of 10 px** — each cell then falls
   on whole panel pixels, 2 px at 20 px and 6 px at 60 px; a size between draws its cells unevenly. Weight widens each
   cell's square by 20 units at 600 and 30 at 700, so the two weights look alike below about 50 px `[D]`.
-- **The scale is the primitives, `typography.scale-<size>-<semibold|bold>`** — 20, 30, 40, 50, 60, 70 and 80 px with
-  every character the strings use, and 100, 120 and 160 px with figures only, each at both weights, its line pitch
-  1.2 em (the font's ascent and descent) — `kTypographyScale30Semibold` and its siblings in `design_tokens.h`.
-- **A role is one primitive** — `hero` `scale-60-bold`, `display`
-  `scale-50-bold`, `headline` `scale-40-bold`, `body` `scale-30-semibold`, `label` `scale-30-bold`, `caption`
-  `scale-20-semibold`; in the header, `kTypographyBody = kTypographyScale30Semibold`. Google's linter allows no group
-  under `typography`, so DESIGN.md writes each role's values out with its primitive named beside it. `caption-strong` is `scale-20-bold`
-  (`kTypographyCaptionStrong`): a Wi-Fi network's name, a choice card's name and a select sheet's options, 12 px a character.
-  `caption-loose` is
-  `caption`'s primitive on a 30 px line (`kTypographyCaptionLoose`), a text view's: the deck's 24 px line on 16 px type
-  at its 1.5 em `[DECK]`, as 1.5 em of 20 px.
-- **A role's line height is its line pitch** — 72, 60, 48, 36, 36 and 24 px, and 30 for `caption-loose`. `ui::NewLabel` and the screen's style
-  set LVGL's line space to the pitch less the compiled font's height, so the lines of a block step by the pitch; a
-  single line is the compiled font's height, about 0.9 em — 19 px for `caption` at 20 px, 26 for `body` and `label` at 30,
-  52 at 60 — and a block of n lines is n − 1 pitches and one font height `[D]`. A widget's name over a detail is made whole line boxes instead (§9); a free label stays the font's height.
+- **The scale is the primitives, `typography.scale-<size>-<semibold|bold>`, and `typography.scale-30-regular`.** The sizes are
+  20, 30, 40, 50, 60, 70 and 80 px with every character the strings use, and 100, 120 and 160 px with figures only. Each comes at
+  both weights, with a line pitch of 1.2 em to 40 px and then tapering — 56 px at 50, 64 at 60, 72 at 70 and 80 at 80 — each
+  step on the 4 px grid and never under the compiled font's own `line_height` (a pitch under it would be clamped to it, since
+  `LineSpace` stops at 0). The figures' pitch is the height of their digits, a font box rounded up to 4 px: 68 at 100, 80 at 120 and
+  108 at 160 (one line only, so no leading is seen). They are `kTypographyScale30Semibold` and its
+  siblings in `design_tokens.h`. The one 400 is `kTypographyScale30Regular`, with the same glyph range as the other sizes
+  (`bitcount_400_30.c`).
+- **A role is one primitive** — `hero` `scale-60-bold`, `display` `scale-50-bold`, `headline` `scale-40-bold`, `body`
+  `scale-30-regular` on a 40 px line, `label` `scale-30-bold`, `caption` `scale-20-semibold`. In the header, `kTypographyBody` is
+  `kTypographyScale30Regular`'s size and weight on a 40 px line. Google's linter allows no group under `typography`, so DESIGN.md
+  writes each role's values out with its primitive named beside it.
+  A Wi-Fi network's name and the status band's news are `caption`, and a choice card's name is `label`. A select sheet's options
+  are `body`, the chosen one `label`. `caption-loose` is `caption`'s primitive on a 30 px line (`kTypographyCaptionLoose`), a
+  text view's: the deck's 24 px line on 16 px type at its 1.5 em `[DECK]`, as 1.5 em of 20 px.
+- **A role's line height is its line pitch** — 64, 56, 48, 40, 36 and 24 px, and 30 for `caption-loose`. `ui::NewLabel` and the
+  screen's style set LVGL's line space to the pitch less the compiled font's height, so the lines of a block step by the pitch.
+  A single line is the compiled font's height, about 0.9 em. That is 19 px for `caption` at 20 px and 26 for `label` at 30
+  (`line_height` 26, `base_line` 4). It is 24 for `body` at 30 (`line_height` 24, `base_line` 3) and 52 at 60. A block of n lines is
+  n − 1 pitches and one font height `[D]`. A widget's name over a detail is made whole line boxes instead (§9). A free label stays
+  the font's height.
 - **The glyph ranges** are ASCII and · ° × – — ’ • … at 20 to 80 px, and the space, the figures and the colon at
   100 px and up; Bitcount has no arrows, so no string uses one. What a character outside them draws on the glass is
   open (§8).
@@ -195,6 +211,13 @@ their value on each refresh — the design check reads them (§7).
 - **Every spacing, stroke and radius is a whole number of panel pixels**, as DESIGN.md's front matter gives it — no
   scaling at run time.
 - **`spacing.target`, 64 px, is a hit area**: a control drawn smaller pads its touch box to it.
+- **The gaps are role tokens, each a step of the scale.** The header has `kSpacingPairSm` 8, `PairMd` 16, `PairLg` 24, `PairXl` 32,
+  `kSpacingItem` 16, `kSpacingGroup` 24, `kSpacingSection` 48 and `kSpacingEdge` 24 (DESIGN → Layout → Spacing).
+  A pair's gap is the gap between the two texts' own boxes, the font's height with no leading. The line boxes of `ui::NewLabel`
+  and `detail::Words` hide it. The leading a line box adds below the upper text and above the lower is taken back as a negative
+  margin (`widgets::detail::Glue`, `internal/glue.h`), so the column's `pad_row` is the gap `[D]`.
+  A section heading's `pad_top` is the section less the parent's own `pad_row`, so the two add up to 48 whatever the parent sets.
+  The page's first heading, with nothing above it, keeps `spacing.lg`.
 ### 4.1 The dithers
 
 - **A grey fill is a dither** — `ui::Fill(level)` gives levels 1 and 2 their fill codes (`FillCode`, in
@@ -233,7 +256,7 @@ their value on each refresh — the design check reads them (§7).
 
 - **A list row's padding is two values** — `spacing.sm` above and below, `spacing.md` either side; DESIGN.md's
   front matter carries the vertical one, since a component takes one padding token. Its title and supporting line
-  are one line each, 26 px of `label` and 19 of `caption`, so 8 + 26 + 19 + 8 = 61 px, centred in the 80 px row `[D]`.
+  are one line each on their line boxes (§9), 36 px of `label` and 24 of `caption`, so 8 + 36 + 24 + 8 = 76 px, centred in the 80 px row `[D]`.
   Rows are `spacing.md` apart with no rule between: a ring reaches 8 px, so a rule in a 16 px gap would touch it.
 - **The ring is outside every control (§9)**, so a button's label has the whole box: a half button `(432 − 16) / 2` =
   208 px wide, 16 px from its neighbour, keeps 202 px inside its 3 px edge for 10 characters of `label` at 18 px a
@@ -322,12 +345,13 @@ their value on each refresh — the design check reads them (§7).
   both rules against a counter `[HOST]`. What the moves leave is the dither and the black rings, which build up between
   those fulls `[?]`: a gate 3 look at the glass after a long entry sets the 60. Opening the keyboard's screen is not a typing
   press; its close is a full refresh.
-  **On the V1.0 the ceiling is qualified.** Its default preset is `Scan 3 x 10` (`kDefaultTuning1677`: `scan_frames` 3, `scan_budget` 10), so a frame that
-  changes at most 15 % of the glass (`kScanMaxChanged`) — a ring move, a typed character — is drawn by scans, and `Send` returns
-  from `SendByScans` before either count: it adds to neither `s_stats.partials` nor `s_uncounted`, a typing press's frame included.
-  The bound on a long walk there is the scan rule's own: after `kScanFramesBeforeFull` (150) scan frames the next pause of
-  `kFullAfterPauseMs` (2 s) draws a full refresh (the scan bullet below). The 60 holds on a V2.0 and for the V1.0's frames that are
-  partials — a page switch, which changes more than the ring does, or a board set to a preset without scans.
+  **On the V1.0 the ceiling holds unless a scan preset is chosen.** Its default preset is `Keep waveform`
+  (`kDefaultTuning1677`), which never scans, so every frame is a partial and both counts apply as on a V2.0. With a scan
+  preset chosen on the Display screen, a frame that changes at most 15 % of the glass (`kScanMaxChanged`) — a ring move, a
+  typed character — is drawn by scans, and `Send` returns from `SendByScans` before either count: it adds to neither
+  `s_stats.partials` nor `s_uncounted`. The bound on a long walk there is the scan rule's own: after
+  `kScanFramesBeforeFull` (150) scan frames the next pause of `kFullAfterPauseMs` (2 s) draws a full refresh (the scan
+  bullet below).
 - **A new screen on the V1.0 is two partials, through white**, not a full one — 1.0 to 1.25 s against a full's 1.6 s,
   and counted as two toward `kRefreshPartialLimit`, so one that would pass it is drawn full. Ten page changes, then a
   full refresh, left no trace on the glass over a run of 80 `[SEEN]`.
@@ -457,33 +481,41 @@ their value on each refresh — the design check reads them (§7).
 | Value row | 36 (48 in a list), words 12 in | 51 / 68, 17 | 64, words 16 in | `target`, `md` |
 | Detail row | name 16 over value 18, 6 pad, 55 | 78 | 76 (8 + 24 + 36 + 8) | `sm`, `caption`, `label` |
 | Radio row | 60 high, words 14 in, mark 30 (edge 3, dot 18) | 85, 20, 42.5 | 80 at least (4 + 36 n + 4: 80, 80, 116, 152 for one to four lines), 20, 42 (edge 4, dot 26) | `list-row-height`, `card-inset`, `mark`, `mark-dot` |
-| Choice card | min mark + 24, words 14 in, gap 12 | 76, 20, 17 | 74 (`mark` + 2 × `md`; 80 with a name over a detail, 24 + 24 + 2 × `md`), 20, gap 16 | `mark`, `card-inset`, `md` |
+| Choice card | min mark + 24, words 14 in, gap 12 | 76, 20, 17 | 74 (`mark` + 2 × `md`; 92 with a `label` name over a one-line detail, 36 + 24 + 2 × `md`), 20, gap 16 | `mark`, `card-inset`, `md` |
 | Roller | — (the person's words: a stepped picker, FolloUp's own) | — | three rows of 64, as wide as its widest value and 24 either side (84 for two figures), outline 2, open band 72 × 64 | `target`, `lg`, `stroke.hairline`, `xs` |
 | Carousel | — (BYTE-90's carousel slid its cards; FolloUp turns them in place) | — | a card 432 wide filling the height, footer slots 133 wide and 16 apart | `content`, `card-inset`, `stroke.default`, `md` |
 | Icon button | tile 54, glyph 30 (56 %) | 76, 42 | 64 (the hit-area floor, drawn and hit alike), glyph art 40 (62 %) | `target`, `icon` |
 | Glyph beside words | icon 24, gap 9 | 34, 13 | art 40 (ink 18 to 33), 16 of white from its ink to the first letter | `icon`, `md` |
 | Checkbox, radio | — (the person's words: like the switch) | — | 44, `rounded.md` or full, edge 3 off, dot 16 | `check-size`, `check-dot`, `stroke.default` |
 | Scroll indicator | lane 6 × 176, gap 6, 7 from the glass | 8.5 × 249 | 8 × 248, gap 8, x 467 | `scroll-thumb`, `scroll-length`, `scroll-x`, `sm` |
-| Status block | mark 60, column gap 16, heading 22 over 16 | 85, 23 | mark 85, gap 24; a block with no mark leaves the slot empty, its words `spacing.lg` in (x 48); heading `label` 30 over `caption` | `status-mark`, `lg`, `sm` |
+| Status block | mark 60, column gap 16, heading 22 over 16 | 85, 23 | mark 85, 24 from the mark to its words; a block with no mark leaves the slot empty, its words `spacing.lg` in (x 48); heading `label` 30 over its description in `body` 30 on 40, `pair-md` apart | `status-mark`, `lg`, `pair-md` |
 
   The deck's type sizes — 16, 18, 22 — are `caption` 20, `label` 30, `label` 30: the scale has no 25. Its names are
   `label_xs` and `label_sm`; its medium and bold are weights 600 and 700.
-- **A name over a detail stands on line boxes** (a toggle row's name over its reason, a status block's heading over its line,
-  a home row's title, a detail row, a choice card): `ui::FitLineBox` pads a label above and below by its role's pitch less
-  the compiled font's height, half each with the odd pixel above, so a one-line `label` is 36 px, a `caption` 24 and a
-  block of n lines n pitches; a dotted label is one line box tall. A detail row's name and value and a radio row's words wrap on
-  the same boxes (`widgets::detail::WrapWords`, shared with the choice card, takes no colour of its own so a disabled row's
-  `text-disabled` reaches it): a radio row is 4 + 36 n + 4 high, at least 80 — 80, 80, 116, 152 for one to four lines — and a detail row
-  8 + 24 a + 36 b + 8; the host render drew every wrapped frame pixel for pixel as the draft did `[HOST]`. `widgets::detail::Line` and `Words` and `ui::NewRow`
-  use it, and `tests/host/fit_line_box_lvgl_test.cpp` checks it on LVGL's real label code for `label`, `caption` and
-  `caption-loose` — odd and even spare pixels, dotted and wrapped `[D]`. The white between a name and its line is the spare
-  room under the name and over the detail, plus any gap: `label` over `caption` 5 + 3 px, a card's bold `caption` over its
-  `caption` 3 + 3. A toggle row takes `spacing.xs` between its name and its reason, only while the reason shows, so the row
-  is 64 px with it, and there is no gap when it hides. On the host render `[HOST]`, a home row's title and
-  detail stand 8 px of white apart, a card's name and detail 6, a status block's heading and its line 22, a disabled toggle
-  row's name and reason 12 and a detail row's 13. Heights: a row is 80, a toggle row 64 — its name, state word and toggle centred in it, the toggle 10 px above and below on the host render `[HOST]` — a choice card with a detail 80, a
-  detail row 76 (8 + 24 + 36 + 8) and a status block's text 68. A free label on a screen — `ui::NewLabel` alone —
-  stays the font's height.
+- **A name over a detail stands on line boxes.** That covers a toggle row's name over its reason, a status block's heading over
+  its line, a home row's title, a detail row and a choice card. `ui::FitLineBox` pads a label above and below by its role's pitch
+  less the compiled font's height, half each with the odd pixel above. A one-line `label` is then 36 px, a `caption` 24, and a
+  block of n lines n pitches. A dotted label is one line box tall.
+  A detail row's name and value and a radio row's words wrap on the same boxes. `widgets::detail::WrapWords`, shared with the
+  choice card, takes no colour of its own, so a disabled row's `text-disabled` reaches it.
+  A radio row is 4 + 36 n + 4 high, at least 80: 80, 80, 116 and 152 for one to four lines. A detail row is 8 + 24 a + 36 b + 8.
+  The host render drew every wrapped frame pixel for pixel as the draft did `[HOST]`.
+  `widgets::detail::Line` and `Words` and `ui::NewRow` use it. `tests/host/fit_line_box_lvgl_test.cpp` checks it on LVGL's real
+  label code for `label`, `caption` and `caption-loose`, with odd and even spare pixels, dotted and wrapped `[D]`.
+- **A pair's gap is the gap between the two texts' own boxes.** The line boxes above add leading to each text, so a pair is glued
+  with `widgets::detail::Glue` (`internal/glue.h`). It takes the leading back as a negative margin, and the column's `pad_row` is
+  then the gap between the font boxes. The dialog's title stands `pair-xl` over its message, and a status block's title `pair-md`
+  over its description. `tests/host/section_gaps_lvgl_test.cpp` measures both, and the heading's gaps `[D]`.
+- **The white between two texts, measured on the host render** `[HOST]`, counts the spare room under the upper text and over the
+  lower, plus any gap. A home row's title and detail stand 8 px apart, a choice card's name and detail 9, and a status block's
+  heading and its line 22. A disabled toggle row's name and reason stand 14 apart and a detail row's name and value 13.
+  A toggle row takes `spacing.xs` between its name and its reason only while the reason shows, so the row is 64 px with it, and
+  there is no gap when it hides.
+- **Heights on the host render** `[HOST]`: a row is 80 and a toggle row 64, its name, state word and toggle centred in it, the
+  toggle 10 px above and below. A choice card is 116 with a name over two detail lines (16 + 36 + 2 × 24 + 16) and 140 with a
+  name of three lines. A detail row is 76 (8 + 24 + 36 + 8). A status block's text is 119, a heading over two `body` lines
+  (36 − 5 + 16 + 80 − 8), at 432 px wide with or without a mark. A free label on a screen, `ui::NewLabel` alone, stays the font's
+  height.
 - **The scroll indicator is the deck's lane**, a `spacing.scroll-thumb` wide stroke of separate round-capped pieces — a
   short track piece in the light dither, `spacing.sm` of white, the black thumb, `spacing.sm` of white, the rest of the
   track — `spacing.scroll-length` long at most, its left edge `spacing.scroll-x` on the glass: 1 px clear of the 6 px
@@ -531,18 +563,24 @@ their value on each refresh — the design check reads them (§7).
   nearest page that scrolls a little further, so the ring (4 + 6 px, open for editing) is in view too. A list view's rows
   name their list, so the page behind brings the whole list into view and the list turns its own pages: a row never
   scrolls the band `[D]`.
-- **BYTE-90's network row, dialog, dropdown and pager are built from the approved drafts**, each from the repo's own rows and
-  buttons, in tokens: the **network row** (`widgets::MakeNetworkRow`) is the home row's shell — 80 px, `rounded.lg`, 16 either side
-  and 8 above and below — with the name in `caption-strong` 344 px wide (the row's 400 inside its padding less the 40 px signal
-  glyph and a 16 px gap: 28 characters, then three stops), the facts line in `caption` 24 px high with `spacing.sm` between a
-  glyph and its word and `spacing.lg` before the second fact, and the signal glyph — a 40 × 30 canvas, alone and with no word
-  (DESIGN → Exceptions → The signal glyph without a word), centred on the row's height — floating at the right end; the unlit bars are the strongest glyph recoloured `ui::Fill(band)` (the dark dither on the
-  inverted row) under the lit glyph on the same canvas. The **dialog** (`MakeDialog`): outline 4, `rounded.md`, `spacing.lg` inside,
-  `label` title and `body` message, two half buttons 180 px wide `spacing.md` apart. The **dropdown** (`MakeDropdown`) is a value row
-  with the chevron `spacing.md` after the value, the reason under it a page gap while disabled. The **horizontal pager**
-  (`MakeHorizontalPager`): a band 448 × 80 round a strip of 64 px items, whole items to 432 px a page, the next page a full view
-  (448 px) on so no item peeks at the edge, and "1 of 2" alone, in `caption`, `text-secondary`, 20 px, left-aligned at the strip's left edge, 16 px under the chips — no page dots;
-  its host test checks the words, their place and that nothing else stands there `[HOST]`. The host renders beside each draft are in the task's scratchpad, not the repo.
+- **BYTE-90's network row, dialog, dropdown and pager are built from the approved drafts.** Each is built from the repo's own rows
+  and buttons, in tokens.
+  The **network row** (`widgets::MakeNetworkRow`) is the home row's shell: 80 px, `rounded.lg`, 16 either side and 8 above and
+  below. Its name is `caption`, 344 px wide: the row's 400 inside its padding, less the 40 px signal glyph and a 16 px gap. That
+  holds 28 characters, then three stops. The facts line is `caption`, 24 px high, with `spacing.sm` between a glyph and its word
+  and `spacing.lg` before the second fact. The signal glyph is a 40 × 30 canvas, alone and with no word (DESIGN → Exceptions → The
+  signal glyph without a word), centred on the row's height and floating at the right end. The unlit bars are the strongest glyph
+  recoloured `ui::Fill(band)`, the dark dither on the inverted row, under the lit glyph on the same canvas.
+  The **dialog** (`MakeDialog`) has outline 4, `rounded.md` and `spacing.lg` inside. Its title is `label` and its message `body`.
+  The title stands `pair-xl` (32) over the message between their own boxes, and `group` (24) over the buttons. The two half buttons
+  are 180 px wide and `spacing.item` apart.
+  The **dropdown** (`MakeDropdown`) is a value row with the chevron `spacing.md` after the value. While it is disabled, its reason
+  stands under it a page gap.
+  The **horizontal pager** (`MakeHorizontalPager`) is a band 448 × 80 round a strip of 64 px items. A page holds whole items to
+  432 px, and the next page starts a full view (448 px) on, so no item peeks at the edge. "1 of 2" stands alone in `caption`,
+  `text-secondary`, 20 px, left-aligned at the strip's left edge and 16 px under the chips, with no page dots. Its host test checks
+  the words, their place and that nothing else stands there `[HOST]`. The host renders beside each draft are in the task's
+  scratchpad, not the repo.
 - **The roller is built from the pure rules in `roller_rules.h`** (`widgets::MakeRoller`, `MakeNumberRoller`; its behaviour is DESIGN → Roller):
   a white face `rounded.lg` 84 × 192 for two figures, three labels each centred in its 64 px row, the hairline outline a floating child
   over the face so the rows are placed from its top, and the open band, `surface-chosen`, `rounded.md`, 72 × 64 at x 6, behind the middle
@@ -815,11 +853,13 @@ their value on each refresh — the design check reads them (§7).
   offset's 6 must clear the sheet's top, so a field ending at y 290 or higher takes four, one ending between 291 and 370 three, and
   a lower one three too (never fewer: two would turn the page too often) — the title names the field. `RowsPerPage` is the rule,
   `tests/host/sheet_rules_test.cpp` checks it at both edges `[HOST]`.
-- **A row is `caption-strong` in 364 px** (the row's 400 inside its padding less the check's 28 and 8): 30 characters a line, wrapping
-  to a second line and a third, each on a 24 px line box. The words column takes the row's minimum, 64 px, and centres its lines, so a
-  row is 64 px for one or two lines (2 × 24 and 8 above and below) and 88 for three (§9's centring rule and test). The chosen row is
-  inverted with the check at its right end, white, 28 × 20, and no word (DESIGN → Exceptions); a page holds the whole rows that
-  fit, so a three-line option can cost a page a row (§10.1).
+- **A row is `body` in 364 px, the chosen one `label`.** That is the row's 400 inside its padding, less the check's 28 and 8, so a line
+  holds 20 characters. The words wrap onto a second line and a third, each on the role's line box: 40 for `body`, 36 for `label`.
+  The words column takes the row's 64 px minimum and centres its lines. A row is 64 px for one line, 96 for two `body` lines and
+  136 for three (§9's centring rule and test).
+  The chosen row is inverted with the check at its right end, white, 28 × 20, and no word (DESIGN → Exceptions).
+  A page holds the whole rows that fit, so a three-line option can cost a page a row (§10.1). With two among seven, every page
+  of the host test shows whole rows above the foot `[HOST]`.
 - **It is an overlay on the router's stack** (APP_ARCHITECTURE §7): opening calls `router::OpenOverlay` before a row is made, so
   the rows and Cancel are its own group's only stops, and focuses the chosen row; the field under it keeps the page's focus with
   its ring off. Closing calls `router::CloseOverlay` — the page's group bound again, the field's ring back if it showed — then

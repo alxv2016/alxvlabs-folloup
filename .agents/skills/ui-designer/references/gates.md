@@ -103,7 +103,7 @@ type — never as a change to the product.**
 - **Spacing overlays on a copy beside the clean frame, never over the only frame.** Margins (the space between
   elements) are yellow or orange hatching and padding (the space inside an element) is green, the kit's convention.
   Each band is labelled with its px and, where there is room, its role or token. A built sheet and a review specimen
-  get the same.
+  get the same, drawn on a copy of the built frame: overlays on the mock's side alone measure the draft, not the build.
 - **The values file beside it** (`<screen>_mock<n>.md`) — each element's component, its tokens (colour role, type
   role, spacing, radius), its states, the focus order, each text's contrast against what is painted under it, and the
   accessibility decisions (the `accessibility` skill).

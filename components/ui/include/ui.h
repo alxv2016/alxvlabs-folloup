@@ -17,12 +17,12 @@ esp_err_t Start();
 
 // --- Fonts and styles from DESIGN.md -------------------------------------------------------------------------------
 
-enum class Type : uint8_t { kHero, kDisplay, kHeadline, kBody, kLabel, kCaption, kCaptionLoose, kCaptionStrong };
+enum class Type : uint8_t { kHero, kDisplay, kHeadline, kBody, kLabel, kCaption, kCaptionLoose };
 const lv_font_t *Font(Type role);
 int16_t LineBox(Type role);
 
-// Bitcount Single at one bit a pixel, compiled by fonts/bitcount/make_fonts.sh at weights 600 and 700: 20 to 80 px in
-// steps of 10 with ASCII and · ° × – — ’ • …, and 100, 120 and 160 px with figures only; nullptr for any other
+// Bitcount Single at one bit a pixel, compiled by fonts/bitcount/make_fonts.sh at weights 600 and 700, and 30 px at 400: 20 to
+// 80 px in steps of 10 with ASCII and · ° × – — ’ • …, and 100, 120 and 160 px with figures only; nullptr for any other
 // size or weight. The roles take theirs through Font (STICKY_DESIGN_TOKENS §3).
 const lv_font_t *Bitcount(int16_t size_px, int16_t weight);
 

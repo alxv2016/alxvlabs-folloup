@@ -4,6 +4,7 @@
 
 #include "design_tokens.h"
 #include "internal/base.h"
+#include "internal/glue.h"
 #include "router/router.h"
 #include "widgets/button.h"
 
@@ -23,16 +24,21 @@ Dialog MakeDialog(lv_obj_t *parent, const char *title, const char *message, cons
     lv_obj_set_size(dialog.box, lv_pct(100), LV_SIZE_CONTENT);
     lv_obj_set_flex_flow(dialog.box, LV_FLEX_FLOW_COLUMN);
     lv_obj_set_style_pad_all(dialog.box, dt::kSpacingLg, 0);
-    lv_obj_set_style_pad_row(dialog.box, dt::kSpacingMd, 0);
+    lv_obj_set_style_pad_row(dialog.box, dt::kSpacingItem, 0);
     lv_obj_set_style_radius(dialog.box, dt::kRoundedMd, 0);
     lv_obj_set_style_bg_opa(dialog.box, LV_OPA_COVER, 0);
     lv_obj_set_style_bg_color(dialog.box, ui::Level(dt::kColorBackground), 0);
     detail::Outline(dialog.box, dt::kSpacingStrokeStrong);
     ui::AddOffset(dialog.box, ui::Elevation::kFloating, ui::OffsetSide::kBottomRight);
 
-    detail::Words(dialog.box, ui::Type::kLabel, title);
-    detail::Words(dialog.box, ui::Type::kBody, message);
+    // The title stands `pair-xl` over its message, between their own boxes (a modal's title stands alone); the message stands
+    // `group` over the buttons. The column's pad_row is `item`, so each gap is the pad_row and the margin that makes up the rest.
+    lv_obj_t *heading = detail::Words(dialog.box, ui::Type::kLabel, title);
+    lv_obj_t *words = detail::Words(dialog.box, ui::Type::kBody, message);
+    detail::Glue(heading, words);
+    lv_obj_set_style_margin_top(words, lv_obj_get_style_margin_top(words, LV_PART_MAIN) + dt::kSpacingPairXl - dt::kSpacingItem, 0);
     lv_obj_t *buttons = detail::Bare(dialog.box);
+    lv_obj_set_style_margin_top(buttons, dt::kSpacingGroup - dt::kSpacingItem, 0);
     lv_obj_set_size(buttons, lv_pct(100), dt::kSpacingTarget);
     lv_obj_set_flex_flow(buttons, LV_FLEX_FLOW_ROW);
     lv_obj_set_style_pad_column(buttons, dt::kSpacingMd, 0);

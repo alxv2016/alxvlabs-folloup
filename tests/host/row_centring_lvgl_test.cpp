@@ -22,6 +22,7 @@
 #include "design_tokens.h"
 #include "lvgl.h"
 #include "lvgl_display.h"
+#include "router/router.h"
 #include "ui.h"
 #include "widgets/widgets.h"
 
@@ -393,8 +394,8 @@ void TestSelectSheet()
     static const char *const kOptions[] = {
         "Never",                                                                        // one line
         "In an hour",
-        "On the first Monday of next month, in the morning",                            // two lines (30 characters to a line)
-        "On the first Monday of every month, in the morning, whether or not it is raining",  // three lines: the row grows
+        "On the first Monday of next month",                                            // two lines (20 characters to a line)
+        "On the first Monday of every month, in the morning",                           // three lines: the row grows
         "Tomorrow",
     };
     widgets::Dropdown *dropdown = widgets::MakeDropdown(s_column, "Remind me", kOptions, 5, 4);
@@ -412,13 +413,54 @@ void TestSelectSheet()
         Measure(std::string("sheet option, ") + names[i], row);
     }
     Check(heights[0] == 64 && heights[1] == 64 && heights[4] == 64, "a one-line option's row is the 64 px floor");
-    Check(heights[2] == 64, "a two-line option fits the 64 px floor: 2 x 24 and 8 above and below");
-    Check(heights[3] == 3 * 24 + 2 * dt::kSpacingSm, "a three-line option grows its row to 3 x 24 and 8 above and below");
+    Check(heights[2] == 2 * ui::LineBox(ui::Type::kBody) + 2 * dt::kSpacingSm, "a two-line option's row is 2 x 40 and 8 above and below");
+    Check(heights[3] == 3 * ui::LineBox(ui::Type::kBody) + 2 * dt::kSpacingSm, "a three-line option grows its row to 3 x 40 and 8 above and below");
     widgets::CloseSelectSheet();
     Check(!widgets::SelectSheetOpen(), "the select sheet closes");
 }
 
 }  // namespace
+
+// The sheet with the longest option the kit has — a three-line one — among short ones: the sheet keeps its foot on the glass, and
+// every page shows only whole rows above the foot, however many of the long rows it holds.
+void TestSelectSheetLongOption()
+{
+    std::printf("the select sheet with a three-line option\n");
+    NewPage();
+    static const char *const kOptions[] = {"Never", "In an hour", "On the first Monday of every month, in the morning", "Tomorrow",
+                                           "On the first Monday of every month, in the morning, early", "Next week", "In 2 days"};
+    widgets::Dropdown *dropdown = widgets::MakeDropdown(s_column, "Remind me", kOptions, 7, 2);
+    lv_obj_update_layout(s_screen);
+    widgets::OpenSelectSheet(dropdown);
+    lv_obj_update_layout(s_screen);
+    const uint32_t stops = lv_group_get_obj_count(s_group);
+    lv_obj_t *cancel = lv_group_get_obj_by_index(s_group, stops - 1);
+    lv_area_t foot = {};
+    lv_obj_get_coords(cancel, &foot);
+    Check(foot.y2 + dt::kSpacingFocusOffset + dt::kSpacingStrokeFocus < 800, "the sheet's Cancel and its ring stand on the glass");
+    for (uint32_t focused = 0; focused + 1 < stops; ++focused) {
+        router::Focus(lv_group_get_obj_by_index(s_group, focused));
+        lv_obj_update_layout(s_screen);
+        lv_obj_t *band = lv_obj_get_parent(lv_group_get_obj_by_index(s_group, 0));  // the list view's rows' parent
+        lv_area_t cut;
+        lv_obj_get_coords(band, &cut);
+        int shown = 0;
+        bool whole = true;
+        for (uint32_t i = 0; i + 1 < stops; ++i) {
+            lv_area_t a;
+            lv_obj_get_coords(lv_group_get_obj_by_index(s_group, i), &a);
+            if (a.y2 < cut.y1 || a.y1 > cut.y2) {
+                continue;  // on another page
+            }
+            ++shown;
+            whole = whole && a.y1 >= cut.y1 && a.y2 <= cut.y2;
+        }
+        std::printf("  focus on row %u: %d rows on its page, the band y %d..%d, the foot from y %d, whole rows: %s\n", focused, shown,
+                    int(cut.y1), int(cut.y2), int(foot.y1), whole ? "yes" : "NO");
+        Check(shown > 0 && whole && cut.y2 < foot.y1, "with focus on row " + std::to_string(focused) + " its page shows whole rows above the foot");
+    }
+    widgets::CloseSelectSheet();
+}
 
 int main()
 {
@@ -444,6 +486,7 @@ int main()
     TestNetworkRows();
     TestListViewValueRows();
     TestSelectSheet();
+    TestSelectSheetLongOption();
     std::printf("row centring on LVGL: %d checks, %d failed\n", s_checks, s_failures);
     return s_failures == 0 ? 0 : 1;
 }
