@@ -36,7 +36,7 @@ down at the board — never at a feature.**
 | `components/ssd1677`, `components/ssd2677` | Each display controller's driver, in Seeed's command sequences — the refreshes are [STICKY_EPAPER_WAVEFORMS](STICKY_EPAPER_WAVEFORMS.md) | `epaper` |
 | `components/devices` | The SHT40, IMU, fuel gauge, RTC (read with `ReadClock`, set with `SetClock`), buzzer, microphone and card, read as Seeed's demos do; the buzzer's note player, a task of its own that alone drives the LEDC channel, playing DESIGN.md's six sound words by `sound::Word` (`sounds.h`) or a table in `sound_rules.h`'s format (STICKY_HARDWARE_SPECS §4.2) | `board`, `board_config`, `bq27220`, `pcf8563`, `design_tokens` — the sounds' note type is the tokens' |
 | `components/lvgl_display` | LVGL on the glass: the display, its refresh policy and the SSD1677's scans, touch and the buttons; the press's tick and a widget's sound cue (`PlayCue`), each through a function the shell sets, so no widget reaches the buzzer | `board`, `board_config`, `design_tokens`, `epaper`, `gt911`, LVGL |
-| `components/ui` | DESIGN.md's look in LVGL — the theme: the fonts, the styles, the focus ring, and the first components | `lvgl_display`, `design_tokens`, LVGL |
+| `components/ui` | DESIGN.md's look in LVGL — the theme: the fonts, the styles, the focus ring, and the regions and text: the status bar, labels and dividers | `lvgl_display`, `design_tokens`, LVGL |
 | `components/widgets` | DESIGN.md's kit as LVGL objects, one header and source per widget under `include/widgets/` and `src/`, built from `ui`'s theme as [the agent deck's](STICKY_DESIGN_TOKENS.md#9-the-ring-outside-and-the-ported-widgets) widgets are from its theme, with the deck's three status marks, and the choice card's check, at one bit under `marks/`: `MakeX(parent, …)` for a styled widget, `X MakeX(…)` with `SetX` / `UpdateX` for a composite; the select sheet, the dialog and the keyboard open as overlays on the router's stack (§7) | `ui`, `design_tokens`, `lvgl_display`, `router`, LVGL |
 | `components/router` | The screen stack, the overlay stack and the routes: each screen's root and each screen's and overlay's focus group, a screen's lifecycle, Push, Pop and GoTo by object or by id, with no transitions (§7) | `lvgl_display`, `design_tokens`, LVGL, ESP-IDF's `esp_common`, `heap` and `log` |
 | `components/design_tokens` | DESIGN.md's tokens as one header (STICKY_DESIGN_TOKENS §6) | — |
@@ -91,8 +91,8 @@ E1–E5.**
 - **`components/hw_test` is the shape to copy**: a `CMakeLists.txt` that requires only what the feature uses, and a
   `<name>.cpp` whose `<name>::Install()` registers with `app_hooks` — here, rows on home through `OnHomeBuilt`.
 - **A screen is a route on the router's stack** (§7), built into the root the router makes — styled by `ui::StyleScreen`
-  — from `ui`'s `NewStatusBar` and `NewRow` and the kit's `widgets` controls. Its values come from `design_tokens.h`,
-  never a literal
+  — from `ui`'s `NewStatusBar` and the kit's `widgets` controls, the list row `widgets::MakeListRow` among them. Its
+  values come from `design_tokens.h`, never a literal
   (STICKY_DESIGN_TOKENS §6). Its routes are registered in a `kBoardUp` boot step (§3, §7).
 - **No header unless another component needs one** — and never another feature, which would break E4.
 - **The line is the whole wiring**: `FEATURE(<name>)` makes the component a requirement of `main` and calls its

@@ -40,7 +40,7 @@ Role s_roles[] = {
     {dt::kTypographyCaptionLoose, nullptr},
 };
 
-lv_style_t s_screen, s_status_bar, s_row, s_divider, s_focus, s_chosen;
+lv_style_t s_screen, s_status_bar, s_divider, s_focus;
 
 struct BitcountFont {
     int16_t size_px;
@@ -93,20 +93,6 @@ void BuildStyles()
     lv_style_set_border_width(&s_status_bar, dt::kSpacingStrokeHairline);
     lv_style_set_border_color(&s_status_bar, Level(dt::kColorDivider));
 
-    // list-row: 80 px, spacing.sm above and below, spacing.md either side, rounded.lg, no rule below — the ring and the
-    // 16 px between rows separate them (STICKY_DESIGN_TOKENS §4).
-    lv_style_init(&s_row);
-    lv_style_set_height(&s_row, dt::kSpacingListRowHeight);
-    lv_style_set_width(&s_row, lv_pct(100));
-    lv_style_set_pad_ver(&s_row, dt::kSpacingSm);
-    lv_style_set_pad_hor(&s_row, dt::kSpacingMd);
-    lv_style_set_bg_color(&s_row, Level(dt::kColorBackground));
-    lv_style_set_bg_opa(&s_row, LV_OPA_COVER);
-    lv_style_set_text_color(&s_row, Level(dt::kColorTextPrimary));
-    lv_style_set_text_font(&s_row, Font(Type::kLabel));
-    lv_style_set_border_width(&s_row, 0);
-    lv_style_set_radius(&s_row, dt::kRoundedLg);
-
     lv_style_init(&s_divider);
     lv_style_set_height(&s_divider, dt::kSpacingStrokeHairline);
     lv_style_set_width(&s_divider, lv_pct(100));
@@ -122,10 +108,6 @@ void BuildStyles()
     lv_style_set_outline_color(&s_focus, Level(dt::kColorFocusRing));
     lv_style_set_outline_opa(&s_focus, LV_OPA_COVER);
     lv_style_set_outline_pad(&s_focus, dt::kSpacingFocusOffset);
-
-    lv_style_init(&s_chosen);
-    lv_style_set_bg_color(&s_chosen, Level(dt::kColorSurfaceChosen));
-    lv_style_set_text_color(&s_chosen, Level(dt::kColorTextOnFill));
 }
 
 }  // namespace
@@ -217,54 +199,12 @@ void FitLineBox(lv_obj_t *label, Type role)
     FitLineBox(label, static_cast<int32_t>(LineBox(role)));
 }
 
-lv_obj_t *NewRow(lv_obj_t *parent, const char *label, const char *supporting, lv_event_cb_t on_click,
-                 void *user_data)
-{
-    lv_obj_t *row = lv_obj_create(parent);
-    lv_obj_add_style(row, &s_row, 0);
-    lv_obj_add_style(row, &s_chosen, LV_STATE_CHECKED);
-    NoScroll(row);
-    lv_obj_set_flex_flow(row, LV_FLEX_FLOW_COLUMN);
-    lv_obj_set_flex_align(row, LV_FLEX_ALIGN_CENTER, LV_FLEX_ALIGN_START, LV_FLEX_ALIGN_START);
-    lv_obj_set_style_pad_row(row, 0, 0);
-    lv_obj_t *title = lv_label_create(row);
-    lv_label_set_text(title, label);
-    lv_label_set_long_mode(title, LV_LABEL_LONG_MODE_DOTS);
-    lv_obj_set_width(title, lv_pct(100));
-    // One line on its line box: the rows keep their pitch and the detail its distance (STICKY_DESIGN_TOKENS §9).
-    FitLineBox(title, Type::kLabel);
-    if (supporting != nullptr) {
-        lv_obj_t *sub = lv_label_create(row);
-        lv_label_set_text(sub, supporting);
-        lv_obj_set_style_text_font(sub, Font(Type::kCaption), 0);
-        lv_obj_set_style_text_color(sub, Level(dt::kColorTextSecondary), 0);
-        lv_obj_set_style_text_color(sub, Level(dt::kColorTextOnFill), LV_STATE_CHECKED);
-        lv_label_set_long_mode(sub, LV_LABEL_LONG_MODE_DOTS);
-        lv_obj_set_width(sub, lv_pct(100));
-        // One line on its line box, ending in LVGL's dots when too long (STICKY_DESIGN_TOKENS §9).
-        FitLineBox(sub, Type::kCaption);
-    }
-    RingOutside(row);
-    if (on_click != nullptr) {
-        ShowWhenFocused(row);
-        lv_obj_set_clickable(row, true);
-        lv_obj_add_event_cb(row, on_click, LV_EVENT_CLICKED, user_data);
-        lv_group_add_obj(lvgl_display::Group(), row);
-    }
-    return row;
-}
-
 lv_obj_t *NewDivider(lv_obj_t *parent)
 {
     lv_obj_t *divider = lv_obj_create(parent);
     lv_obj_add_style(divider, &s_divider, 0);
     NoScroll(divider);
     return divider;
-}
-
-void SetChosen(lv_obj_t *control, bool chosen)
-{
-    lv_obj_set_state(control, LV_STATE_CHECKED, chosen);
 }
 
 void RingOutside(lv_obj_t *obj, int32_t inset)

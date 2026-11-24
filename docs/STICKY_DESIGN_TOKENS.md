@@ -545,7 +545,7 @@ their value on each refresh — the design check reads them (§7).
   choice card, takes no colour of its own, so a disabled row's `text-disabled` reaches it.
   A radio row is 4 + 36 n + 4 high, at least 80: 80, 80, 116 and 152 for one to four lines. A detail row is 8 + 24 a + 36 b + 8.
   The host render drew every wrapped frame pixel for pixel as the draft did `[HOST]`.
-  `widgets::detail::Line` and `Words` and `ui::NewRow` use it. `tests/host/fit_line_box_lvgl_test.cpp` checks it on LVGL's real
+  `widgets::detail::Line` and `Words` and `widgets::MakeListRow` use it. `tests/host/fit_line_box_lvgl_test.cpp` checks it on LVGL's real
   label code for `label`, `caption` and `caption-loose`, with odd and even spare pixels, dotted and wrapped `[D]`.
 - **A pair's gap is the gap between the two texts' own boxes.** The line boxes above add leading to each text, so a pair is glued
   with `widgets::detail::Glue` (`internal/glue.h`). It takes the leading back as a negative margin, and the column's `pad_row` is
@@ -603,7 +603,7 @@ their value on each refresh — the design check reads them (§7).
   its white mark, which has no edge. A row's own name and state word are `text-disabled-page` (a setting row sets each
   word's colour itself, since a label's own colour outranks its parent's disabled style); the reason stays solid `caption`.
 - **A focused control comes into view at once, by the theme (`ui::ShowWhenFocused`)** — LVGL's own scroll on focus
-  animates, which the glass would draw frame by frame. So a tappable `NewRow` and every widget's `JoinGroup` take
+  animates, which the glass would draw frame by frame. So a tappable `widgets::MakeListRow` and every widget's `JoinGroup` take
   `LV_OBJ_FLAG_SCROLL_ON_FOCUS` off and scroll the pages round the control without animation. The nearest page that
   scrolls then moves a little further, so the ring (4 + 6 px, open for editing) is in view too. A list view's rows
   name their list, so the page behind brings the whole list into view and the list turns its own pages: a row never
@@ -647,13 +647,15 @@ their value on each refresh — the design check reads them (§7).
   overlays and before going back, so it works at the root. The host render of the built screen is pixel for pixel the draft redrawn with Skip
   outlined `[HOST]`. `tests/host/carousel_lvgl_test.cpp` drives it with a scripted finger and the buttons, `carousel_escape_lvgl_test.cpp` holds OK at
   depth 1 and 2 `[HOST]`. The hardware test's "Welcome" screen shows it with four cards of illustrative copy.
-- **A row's content is centred on its height** — one line or more (DESIGN → Components → The kit). LVGL sizes a flex track to its
-  tallest child, so a row's `min_height` alone pads below its content; the pattern that holds is a content column that takes the
-  row's height and centres its lines (`setting_row.cpp`, `select_sheet.cpp`), and a row with a fixed height centres its track
-  (`value_row.cpp`, `ui::NewRow`). `tests/host/row_centring_lvgl_test.cpp` builds every row kind with one line of content and with
-  more on LVGL's real layout and fonts and asserts the content block's centre is within 1 px of the row's: toggle, toggle icon,
-  checkbox and radio button rows (one line, two, disabled with a reason), value rows, the dropdown, home rows, radio rows, choice
-  cards, radio rows of one to four lines and detail rows of one to three, a list view's band cut to its page's rows, network rows (in a list view too) and the select sheet's options (one line, two, three) `[HOST]`. Every row measured an offset of 0 px on
+- **A row's content is centred on its height** — one line or more (DESIGN → Components → The kit). LVGL sizes a flex
+  track to its tallest child, so a row's `min_height` alone pads below its content. The pattern that holds is a content
+  column that takes the row's height and centres its lines (`setting_row.cpp`, `select_sheet.cpp`). A row with a fixed
+  height centres its track (`value_row.cpp`, `widgets::MakeListRow`). `tests/host/row_centring_lvgl_test.cpp` builds
+  every row kind on LVGL's real layout and fonts, with one line of content and with more. It asserts the content
+  block's centre is within 1 px of the row's for toggle, toggle icon, checkbox and radio button rows (one line, two,
+  disabled with a reason), value rows, the dropdown, home rows and radio rows. It does the same for choice cards, radio
+  rows of one to four lines, detail rows of one to three, a list view's band cut to its page's rows, network rows (in a
+  list view too) and the select sheet's options (one line, two, three) `[HOST]`. Every row measured an offset of 0 px on
   2026-11-21, and an option row whose column lost its minimum height measured −12 px — the test sees it.
 - **A page with no row in the focus group has a stop of its own** (`list_view.cpp`'s `BuildStops`, called by `UpdateListView`; DESIGN →
   Components → The kit). The stop is a `detail::Bare` child of the list's frame — not of the band, so a row's index is still its place in

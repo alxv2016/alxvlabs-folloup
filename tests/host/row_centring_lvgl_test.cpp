@@ -213,8 +213,8 @@ void TestHomeRows()
 {
     std::printf("home rows, radio rows and choice cards\n");
     NewPage();
-    Measure("home row, a title alone", ui::NewRow(s_column, "Call the plumber", nullptr, nullptr, nullptr), 80);
-    Measure("home row, a title and a supporting line", ui::NewRow(s_column, "Call the plumber", "To-do · Today, 8:12", nullptr, nullptr), 80);
+    Measure("home row, a title alone", widgets::MakeListRow(s_column, "Call the plumber", nullptr, nullptr, nullptr), 80);
+    Measure("home row, a title and a supporting line", widgets::MakeListRow(s_column, "Call the plumber", "To-do · Today, 8:12", nullptr, nullptr), 80);
     Measure("radio row", widgets::MakeRadioRow(s_column, "Medium"), 80);
     Measure("choice card, a name alone", widgets::MakeChoiceCard(s_column, "Idea", false, nullptr));
     Measure("choice card, a name over a detail", widgets::MakeChoiceCard(s_column, "Idea", false, "something to think about"));

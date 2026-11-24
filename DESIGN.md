@@ -1045,6 +1045,12 @@ At 235 ppi a pixel is 0.108 mm and a point is 3.26 px.
 
 ### The kit
 
+**The kit is the product's one set of controls.** Every control a screen shows is built by `components/widgets`.
+`components/ui` holds the theme and the regions — the status bar, labels and dividers — and never a control. A control
+a second screen needs moves into the kit in the same change, and every caller takes it from there. Nothing builds a
+second version of a kit control. Every control the kit offers has its specimen on the kit page, or on the screen it
+serves, reached and used by the keys and by touch.
+
 - **Status bar, status band, footer** — the regions; the status band only where a screen gets news (DESIGN → Layout → Regions). The
   status bar's title is `label`; the band's news is `caption`.
 - **Button** — the action button (black, one per screen, `button-action`), the outline button (`button-outline`), the
@@ -1436,7 +1442,8 @@ A value off these tokens is argued here — what, where and why — before a scr
   Nothing animates, Nothing leaves on a timer, A screen takes a role, Content turns by page and Six words cannot hold
   there.
 - **Where it stops:** a size that matches a token uses the token; text, colours by role, focus and hit areas follow
-  this file; nothing outside `components/hw_test` uses the exception.
+  this file; nothing outside `components/hw_test` uses the exception. The type scale page's sample frames and the Touch
+  screen's tap layer are the only controls built outside the kit.
 - **Not this exception:** a `touch-exception` marker in `components/widgets` is the touch check being told that a line
   keeps a rule of this file by a way the check cannot see — no momentum and a claimed band, which is how a swipe
   turns one page and nothing scrolls by pixel (Layout → Paging), and no pressed state of its own (Motion → Press). The

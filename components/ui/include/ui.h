@@ -34,17 +34,15 @@ lv_color_t Level(uint8_t level);
 // pattern: a disabled control's words take Fill too, the one-bit font drawing each stroke pixel as the code.
 lv_color_t Fill(uint8_t level);
 
-// The components, built from DESIGN.md's tokens. Each returns the object to place; a control is added to lvgl_display::Group().
+// The regions and text, built from DESIGN.md's tokens; each returns the object to place. Controls are the kit's, in
+// components/widgets (DESIGN → The kit).
 lv_obj_t *NewScreen();                                         // the glass, no scrolling
 void StyleScreen(lv_obj_t *screen);                            // an empty screen object as NewScreen's glass: a router's root
 lv_obj_t *NewStatusBar(lv_obj_t *parent, const char *title);   // status-bar: caption, 44 px, a hairline below
 lv_obj_t *NewLabel(lv_obj_t *parent, Type role, const char *text, bool secondary = false);
 // FitLineBox (line_box.h) with the role's line height token as the line box (STICKY_DESIGN_TOKENS §3, §9).
 void FitLineBox(lv_obj_t *label, Type role);
-lv_obj_t *NewRow(lv_obj_t *parent, const char *label, const char *supporting, lv_event_cb_t on_click,
-                 void *user_data);                             // list-row: 80 px, rounded.lg, its ring outside, no rule
 lv_obj_t *NewDivider(lv_obj_t *parent);
-void SetChosen(lv_obj_t *control, bool chosen);                // list-row-chosen: inverted, never focus
 // The one focus ring, for every control: outside the object, spacing.focus-offset clear of its edge and following its
 // corners, black — for a control with spacing.md of room round it, whose containers let it out
 // (DESIGN → Components → States; STICKY_DESIGN_TOKENS §9). The buttons' focus is LV_STATE_FOCUS_KEY.
@@ -56,7 +54,7 @@ void RingOutside(lv_obj_t *obj, int32_t inset = 0);
 void LetRingOut(lv_obj_t *obj);
 // Brings `show` (the object itself when null) and its ring into view when `obj` takes the focus, at once: the pages round
 // it scroll, with no animation — LVGL's own scroll on focus animates, which the glass would draw frame by frame. Nothing
-// happens on a screen that does not scroll. NewRow (with a tap) and the widgets do it already; call it for any other control
+// happens on a screen that does not scroll. The widgets, the list row among them, do it already; call it for any other control
 // in the focus group, and with `show` for a control inside a view that turns pages itself, so the page brings that view
 // into view and never the control by a pixel (STICKY_DESIGN_TOKENS §9).
 void ShowWhenFocused(lv_obj_t *obj, lv_obj_t *show = nullptr);

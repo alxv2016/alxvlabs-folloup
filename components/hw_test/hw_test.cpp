@@ -2118,7 +2118,7 @@ void BuildHome(lv_obj_t *home)
     ui::LetRingOut(column);
     const widgets::ListView list = widgets::MakeListView(column, kHomeRowsPerPage, dt::kSpacingListRowHeight, widgets::IndicatorCentre::kGlass);
     for (const Entry &entry : kEntries) {
-        ui::NewRow(list.root, entry.label, entry.supporting, OnEntry, const_cast<Entry *>(&entry));
+        widgets::MakeListRow(list.root, entry.label, entry.supporting, OnEntry, const_cast<Entry *>(&entry));
     }
     widgets::UpdateListView(list);
 }

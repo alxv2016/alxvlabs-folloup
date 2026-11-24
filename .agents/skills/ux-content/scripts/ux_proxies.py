@@ -67,7 +67,7 @@ def room(call: str, arg: int, context: str) -> tuple | None:
         return 22, "a compact button (at most the content's width)"
     if call.endswith("NewStatusBar") and arg == 1:
         return 36, "the status bar's title"
-    if call.endswith("NewRow"):
+    if call.endswith("MakeListRow"):
         return {1: (22, "a home row's name"), 2: (33, "a home row's line")}.get(arg)
     if call.endswith("MakeNetworkRow") and arg == 1:
         return 28, "a Wi-Fi network's name"
@@ -207,7 +207,7 @@ def self_test() -> int:
     HalfButton(row, "Full", true, OnFull);
     widgets::MakeButton(stack, "Record", widgets::ButtonVariant::kAction, dt::kSpacingButtonWidth, widgets::Glyph::kMic);
     widgets::MakeButton(stack, "Recording now", widgets::ButtonVariant::kAction, dt::kSpacingButtonWidth, widgets::Glyph::kMic);
-    ui::NewRow(list, "Display", "Refresh modes, greys, ghosting", OnEntry, nullptr);
+    widgets::MakeListRow(list, "Display", "Refresh modes, greys, ghosting", OnEntry, nullptr);
     widgets::KeyboardConfig config{};
     config.action = s_password ? "Join" : "Save changes";
     ui::NewLabel(s, Type::kBody, "Please wait!");
@@ -219,7 +219,7 @@ def self_test() -> int:
     found = {raw: enclosing(code, tokens, pos)[:2] for pos, raw in ux_lint.literals(path, src, ux_lint.DEFAULT_CALLS + (
         r"\b(?:ui::|widgets::)?(?:Make|New)[A-Z]\w*",) + ROOM_CALLS)}
     check(found.get("Full") == ("HalfButton", 1), f"a half button's words are its second argument: {found.get('Full')}")
-    check(found.get("Refresh modes, greys, ghosting") == ("ui::NewRow", 2), "a row's line is its third argument")
+    check(found.get("Refresh modes, greys, ghosting") == ("widgets::MakeListRow", 2), "a row's line is its third argument")
     arm = next((t[0] for t in tokens if t[2] == "s" and t[3] == "Save changes"), -1)
     check(enclosing(code, tokens, arm)[:2] == (".action", 0), f"a ternary's arm assigned to a field: "
                                                               f"{enclosing(code, tokens, arm)[:2]}")

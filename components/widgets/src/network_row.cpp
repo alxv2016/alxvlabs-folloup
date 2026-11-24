@@ -3,6 +3,7 @@
 #include "design_tokens.h"
 #include "internal/base.h"
 #include "internal/marks.h"
+#include "widgets/list_row.h"
 
 namespace widgets {
 namespace dt = design_tokens;
@@ -65,7 +66,7 @@ void Fill(lv_obj_t *row, bool locked, int signal, NetworkState state)
     while (lv_obj_get_child_count(row) > 1) {
         lv_obj_delete(lv_obj_get_child(row, 1));
     }
-    ui::SetChosen(row, inverted);
+    SetListRowChosen(row, inverted);
 
     lv_obj_t *facts = detail::Bare(row);
     lv_obj_set_size(facts, kWords, ui::LineBox(ui::Type::kCaption));
@@ -116,7 +117,7 @@ void Fill(lv_obj_t *row, bool locked, int signal, NetworkState state)
 lv_obj_t *MakeNetworkRow(lv_obj_t *parent, const char *name, bool locked, int signal, NetworkState state)
 {
     // The home row's shell: 80 px, `rounded.lg`, its ring outside, the chosen inversion.
-    lv_obj_t *row = ui::NewRow(parent, name, nullptr, nullptr, nullptr);
+    lv_obj_t *row = MakeListRow(parent, name, nullptr, nullptr, nullptr);
     lv_obj_t *title = lv_obj_get_child(row, 0);
     lv_obj_set_style_text_font(title, ui::Font(ui::Type::kCaption), 0);
     ui::FitLineBox(title, ui::Type::kCaption);

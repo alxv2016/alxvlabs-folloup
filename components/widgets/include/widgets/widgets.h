@@ -25,6 +25,7 @@
 #include "widgets/icon_button.h"        // MakeIconButton, IconButtonWords
 #include "widgets/keyboard.h"          // KeyboardKind, KeyboardConfig, OpenKeyboard
 #include "widgets/list_view.h"         // ListView, PageWords, MakeListView, UpdateListView, ListViewPage, ListViewPages
+#include "widgets/list_row.h"          // MakeListRow, SetListRowChosen
 #include "widgets/network_row.h"       // NetworkState, MakeNetworkRow, SetNetworkRow
 #include "widgets/page_dots.h"         // MakePageDots, SetPageDot
 #include "widgets/progress_bar.h"      // ProgressBar, MakeProgressBar, SetProgress
