@@ -21,6 +21,11 @@ The program writes .cache/harness/proxies/ui-designer.json and ux-designer.json 
 and a one-bit PNG of each view to build/host/audit/, and of each ringed stop to build/host/audit/rings/. A metric
 outside its range caps its dimension's score; it never fails the run. Exit 0 when the audit ran, 1 when it could not
 build or run, or a fixture — two labels at known gaps, or rings cut, let out and doubled — misread.
+Bare, each metric also carries `base`: its value at the same place — dimension, name, view, quoted words — when HEAD
+draws every screen (null: no such place there), so verify.py caps only what the change made worse
+(.agents/HARNESS.md §12.5). HEAD's audit is run once per commit in a git worktree under .cache/harness/worktrees/, which
+shares this tree's managed_components and compiled LVGL (about 15 s), then cached in .cache/harness/proxies/base/
+<commit>/ and the worktree removed; --no-base leaves it out.
 The first run compiles LVGL into build/host/lvgl (about half a minute); later runs take about 10 s. Python 3.9+, standard
 library only.
 """
@@ -31,6 +36,7 @@ import argparse
 import importlib.util
 import json
 import re
+import shutil
 import subprocess
 import sys
 import tempfile
@@ -210,6 +216,99 @@ def write(judge: str, data: dict) -> None:
     (PROXIES / f"{judge}.json").write_text(json.dumps(data, indent=1, ensure_ascii=False) + "\n")
 
 
+# --- The base: every screen as HEAD draws it, so verify.py caps only what the change made worse --------------------
+
+BASE_DIR = PROXIES / "base"
+WORKTREES = ROOT / ".cache/harness/worktrees"
+
+
+def metric_key(m: dict) -> tuple:
+    """A metric's place, kept across an edit elsewhere: its dimension, its name, its view — a kit page's number
+    dropped, since a page added before it renumbers the rest — and the words it quotes."""
+    where = str(m.get("where", ""))
+    view = re.sub(r"\s+p\d+$", "", where.split(":", 1)[0].strip())
+    return m.get("dimension"), m.get("name"), view, tuple(re.findall(r"'([^']*)'", where))
+
+
+def outside(m: dict) -> float:
+    lo, hi = m["range"]
+    return max(lo - m["value"], m["value"] - hi, 0)
+
+
+def with_base(data: dict, base: dict) -> dict:
+    """Each metric with `base`, its value at the same place at the base — the one with the same `where`, else the
+    farthest out of those left at its key — or null when the base has no such place left. Each base metric is matched
+    once: a second violation at a key the base held once is new, even on a renumbered kit page."""
+    index = defaultdict(list)
+    for b in base.get("metrics", []):
+        index[metric_key(b)].append(b)
+    picks: dict = {}
+    for k, m in enumerate(data["metrics"]):  # the same `where` first, so a place that stayed keeps its own base
+        found = index.get(metric_key(m), [])
+        same = next((b for b in found if b.get("where") == m.get("where")), None)
+        if same is not None:
+            picks[k] = same
+            found.remove(same)
+    for k, m in enumerate(data["metrics"]):
+        if k not in picks:
+            found = index.get(metric_key(m), [])
+            pick = max(found, key=outside, default=None)
+            if pick is not None:
+                found.remove(pick)
+            picks[k] = pick
+    for k, m in enumerate(data["metrics"]):
+        m["base"] = picks[k]["value"] if picks[k] else None
+    return {**data, "base_commit": base.get("commit")}
+
+
+def drop_worktree(wt: Path) -> None:
+    """The base's worktree gone: its links into this tree removed first, so nothing is deleted through them."""
+    for link in (wt / "managed_components", wt / "build/host/lvgl"):
+        if link.is_symlink():
+            link.unlink()
+    # Only this worktree: a repo-wide `git worktree prune` could drop another worktree's records.
+    subprocess.run(["git", "worktree", "remove", "--force", str(wt)], cwd=ROOT, capture_output=True)
+    shutil.rmtree(wt, ignore_errors=True)
+
+
+def base_results(commit: str) -> tuple:
+    """({judge: every screen's results at `commit`}, how they were had). Cached by the commit's hash in
+    .cache/harness/proxies/base/; else audited once in a git worktree of that commit under .cache/harness/worktrees/,
+    which shares this tree's managed_components and compiled LVGL, so only the audit and its fonts compile. The worktree
+    is removed after. ({}, why) when the base cannot be had — then each metric caps as before."""
+    cache = BASE_DIR / commit
+    got = {j: load(cache / f"{j}.json") for j in JUDGES}
+    if all(got.values()):
+        return got, f"the base {commit[:9]}, from the cache"
+    if not (ROOT / "managed_components/lvgl__lvgl/src").is_dir():
+        return {}, "no managed_components/lvgl__lvgl to build the base with — run a firmware build once"
+    t0, wt = time.time(), WORKTREES / f"base-{commit[:12]}"
+    drop_worktree(wt)
+    WORKTREES.mkdir(parents=True, exist_ok=True)
+    # -f: a record of this path left by a run that died is taken over, not refused
+    if subprocess.run(["git", "worktree", "add", "-f", "--detach", "--quiet", str(wt), commit], cwd=ROOT,
+                      capture_output=True).returncode != 0:
+        return {}, f"git worktree add at {commit[:9]} failed"
+    try:
+        (wt / "managed_components").symlink_to(ROOT / "managed_components", target_is_directory=True)
+        (wt / "build/host").mkdir(parents=True, exist_ok=True)
+        if (ROOT / "build/host/lvgl").is_dir():
+            (wt / "build/host/lvgl").symlink_to(ROOT / "build/host/lvgl", target_is_directory=True)
+        (wt / ".cache/harness/proxies").mkdir(parents=True, exist_ok=True)
+        proc = subprocess.run(["bash", "tests/host/run.sh", "screen_audit"], cwd=wt, capture_output=True, text=True,
+                              errors="replace")
+        got = {j: load(wt / ".cache/harness/proxies" / f"{j}.json") for j in JUDGES}
+        if proc.returncode != 0 or not all(got.values()):
+            return {}, f"the audit at the base {commit[:9]} failed (exit {proc.returncode})"
+        shutil.rmtree(BASE_DIR, ignore_errors=True)  # one base kept: this one
+        cache.mkdir(parents=True)
+        for j, d in got.items():
+            (cache / f"{j}.json").write_text(json.dumps({**d, "commit": commit}, indent=1, ensure_ascii=False) + "\n")
+        return got, f"the base {commit[:9]}, audited once in a worktree in {time.time() - t0:.0f} s"
+    finally:
+        drop_worktree(wt)
+
+
 def build_and_run() -> tuple[int, str]:
     """Runs the host test runner on the audit alone; (exit, the lines that are not compiler chatter)."""
     proc = subprocess.run(["bash", "tests/host/run.sh", "screen_audit"], cwd=ROOT, capture_output=True, text=True,
@@ -349,6 +448,25 @@ void BuildHome(lv_obj_t *home) { for (const Entry &e : kRows) {} }
     check(in_scope(m("kit"), {"kit"}) and not in_scope(m("about"), {"kit"}), "a metric is kept for its screens only")
     check(in_scope(m("hw.unmapped"), {"kit"}) and not in_scope(m("kit"), set()), "an unmapped screen goes with any "
           "UI change; nothing touched keeps nothing")
+    # The base: a place is matched by its key — a kit page renumbered is the same place; new words are a new one.
+    off = {"dimension": "spacing", "name": "spacing values off the token scale", "value": 1, "range": [0, 0],
+           "ok": False, "where": "kit p10: 28 px between blocks, above at 'Brightness'"}
+    edges = {"dimension": "balance", "name": "left edges", "value": 5, "range": [1, 3], "ok": False,
+             "where": "kit p18: 24 px 'UI kit'; 39 px 'Status'"}
+    base = {"commit": "abc",
+            "metrics": [off, edges, dict(edges, value=4, where="kit p18: 2 px 'UI kit'; 3 px 'Status'")]}
+    data = {"metrics": [dict(off, where="kit p11: 28 px between blocks, above at 'Brightness'"), dict(edges),
+                        dict(edges, where="kit p19: 9 px 'UI kit'; 8 px 'Status'"),
+                        dict(off, where="kit p12: 20 px between blocks, above at 'Contrast'")]}
+    got = [m["base"] for m in with_base(data, base)["metrics"]]
+    checks[0] += 3
+    check(got == [1, 5, 4, None], f"each metric's base is the value at its place, else the farthest out left at its "
+          f"key, none at a new place: {got}")
+    twice = {"metrics": [dict(off, where="kit p11: 28 px between blocks, above at 'Brightness'"),
+                         dict(off, where="kit p14: 28 px between blocks, above at 'Brightness'")]}
+    got = [m["base"] for m in with_base(twice, {"metrics": [off]})["metrics"]]
+    check(got == [1, None], f"a second violation at a place the base held once is new, not carried: {got}")
+    check(with_base({"metrics": []}, base)["base_commit"] == "abc", "the results name the base they were held against")
     real = (ROOT / HW_TEST).read_text(errors="replace") if (ROOT / HW_TEST).is_file() else ""
     defined = {n.split("::")[-1] for n, *_ in code_proxies.functions(real)}
     missing = sorted({r for spec in SCREENS.values() for r in spec["roots"]} - defined)
@@ -360,6 +478,8 @@ def main(argv: list) -> int:
     parser.add_argument("--all", action="store_true", help="every screen: the whole-product audit, not the change")
     parser.add_argument("--no-build", action="store_true", help="summarise the last run's JSON only")
     parser.add_argument("--every", action="store_true", help="list every metric, not only those outside their range")
+    parser.add_argument("--no-base", action="store_true", help="leave out the base's values: every metric out of "
+                                                               "range then caps")
     parser.add_argument("--self-test", action="store_true")
     args = parser.parse_args(argv)
     if args.self_test:
@@ -383,6 +503,10 @@ def main(argv: list) -> int:
             print(f"screen audit: the host build, its fixture or its run failed (exit {code}):\n{out[-3000:]}")
             return 1
         print(f"screen audit ran in {time.time() - t0:.0f} s; PNGs of each view in build/host/audit/, of each ringed stop in rings/")
+    base: dict = {}
+    if not args.all and not args.no_base:
+        base, how = base_results(git("rev-parse", "HEAD").strip())
+        print(f"base: {how}" + ("" if base else " — no base values: each metric out of range caps as before"))
     status = 0
     for judge in JUDGES:
         data = load(PROXIES / f"{judge}.json")
@@ -397,6 +521,7 @@ def main(argv: list) -> int:
             continue
         if not args.all:
             data = scope_to_change(data, screens, why)
+            data = with_base(data, base[judge]) if base.get(judge) else data
             write(judge, data)
         print("\n".join(summarise(data, args.every)))
     return status

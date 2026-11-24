@@ -73,8 +73,9 @@ and a `tests/host/<name>_test.cpp` checks it. Each test file is one program, bui
 `tests/host/<name>_lvgl_test.cpp` also links LVGL's own sources, to drive LVGL's real input and scroll events (the
 swipe, `components/widgets/src/internal/swipe.cpp`; `ui::FitLineBox`, `components/ui/line_box.cpp`): it needs
 `managed_components/lvgl__lvgl`, which a firmware build or `idf.py reconfigure` fetches, and the first run compiles LVGL
-into `build/host/lvgl` once. The firmware sources such a test exercises are named on its `// host-sources:` line: a `.cpp`
-is compiled with the test, a `.c` (a font) once into `build/host/c`. `run.sh` also runs `tests/host/token_parity.py` and
+into `build/host/lvgl` once. The firmware sources such a test exercises are named on its `// host-sources:` line. Each
+`.cpp` and `.c` is compiled once into `build/host/obj/` and rebuilt only when it, a header it includes or the flags
+change; the tests build and run in parallel and print in name order. `run.sh` also runs `tests/host/token_parity.py` and
 its `--test` — DESIGN.md's front matter against the token header, both ways — with no filter or a filter its name holds
 (`bash tests/host/run.sh token`).
 

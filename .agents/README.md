@@ -61,7 +61,7 @@ The gates, the checks per path and what `finish` refuses: [HARNESS.md](HARNESS.m
 | Folder | Holds |
 | --- | --- |
 | [`project.py`](project.py) | The project's facts every script reads — the one file a project fills in |
-| [`skills/`](skills/) | The 17 skills, each a `SKILL.md` with its `scripts/` |
+| [`skills/`](skills/) | The 18 skills, each a `SKILL.md` with its `scripts/` |
 | [`agents/`](agents/) | The 9 agents, one prompt each |
 | [`rubrics/`](rubrics/) | What each reviewer scores |
 | [`hooks/`](hooks/) | The guard before every tool call, and the injection flag after reading outside content |
@@ -98,6 +98,7 @@ The gates, the checks per path and what `finish` refuses: [HARNESS.md](HARNESS.m
 | [`sticky-hardware`](skills/sticky-hardware/SKILL.md) | The reTerminal Sticky's hardware rules condensed from [STICKY_HARDWARE_SPECS](../docs/STICKY_HARDWARE_SPECS.md): bring-up order, one image for the SSD1677 (V1.0) and SSD2677 (V2.0), the shared SPI bus, the power latch, sleep and power-off, the fuel gauge's scaling; the pin and shared-bus check (`sticky_check.py`) | — | `project` |
 | [`react-vite-setup`](skills/react-vite-setup/SKILL.md) | A React, Vite and TypeScript web app from the web app spec in `docs/`: Node and Playwright's browsers checked, the spec written with a working app's defaults, the app generated from the templates (the shell, features, components with their stories, `tokens.css` from DESIGN.md, Vitest, Storybook and Playwright tests, CI), the layering check (`react_vite.py`). Portable: it carries the principles (`references/react-vite.md`) and the templates, and takes every fact from the project's spec and every value from its DESIGN.md | — | `portable` |
 | [`ux-content`](skills/ux-content/SKILL.md) | The words on every screen: voice and tone, the four tests, mechanics, names, the pattern for each element, accessible content, strings ready for translation; the string check (`ux_lint.py`, web, iOS, Android and C/C++ LVGL). Portable: it carries the rules (`references/ux-content.md`), and takes the voice, case and word list from the project's DESIGN.md | `ui-designer`, `ux-content-writer` | `portable` |
+| [`show-me`](skills/show-me/SKILL.md) | Every picture, at the lowest fidelity that answers the question: a diagram (pseudocode, a call tree, a file tree or a short diff as text; a Mermaid flow, sequence or state diagram drawn in one HTML page and opened), a sketch (a new part as a grey box beside the real frames on disk), or a mock (real size, real tokens and fonts, a values file, a spacing-overlay copy). A picture approves nothing; the gates decide which mock needs a yes. Technique inspired by HumanLayer's show-me | `ui-designer`, `ux-designer`, the main session, the person on demand | `portable` |
 | [`secrets-handling`](skills/secrets-handling/SKILL.md) | How the product takes, stores, shows, logs and rotates its users' secrets, per platform; bench and CI credentials; after a leak; the secret scan (`secret_scan.py`, counts only). Portable: it carries the rules (`references/secrets.md`); each project keeps its own secret inventory | — | `portable` |
 
 ## Agents

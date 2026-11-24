@@ -24,7 +24,10 @@ keys of .agents/evals/weights.json):
               #included by one; the parts only the bench can run (the board, its drivers, the display task) left out
 What is not measured is said so, and no metric is written for it. Writes .cache/harness/proxies/code-reviewer.json —
 {"judge", "at", "scope": "change" | "product", "metrics": [{"dimension", "name", "value", "range": [lo, hi], "ok",
-"where"}]} — and prints a summary.
+"where", "base"?, "offenders"?, "base_offenders"?}]} — and prints a summary. In the change's scope a metric carries its
+value at HEAD (`base`): the changed functions as HEAD holds them, with the functions over a limit there and here by
+file and name; none for warnings and growth, which are new by construction; the untested sources HEAD already had. So
+verify.py caps only what the change made worse (.agents/HARNESS.md §12.5).
 The baseline is .cache/harness/proxies/baseline/ (warnings.json, size.json); the first run with a build saves one.
 Python 3.9+, standard library only; ESP-IDF's Python for the size.
 """
@@ -309,9 +312,32 @@ def host_tested() -> set:
 
 # --- The proxies --------------------------------------------------------------------------------------------------------
 
-def metric(dimension: str, name: str, value: float, lo: float, hi: float, where: str) -> dict:
+def metric(dimension: str, name: str, value: float, lo: float, hi: float, where: str, **base) -> dict:
+    """A metric; `base`, in the change's scope, is its value at HEAD (`base`) and what was out of range there
+    (`base_offenders`, beside this tree's `offenders`), so verify.py caps only what the change made worse."""
     return {"dimension": dimension, "name": name, "value": value, "range": [lo, hi], "ok": lo <= value <= hi,
-            "where": where}
+            "where": where, **base}
+
+
+def at_head(path: str) -> str | None:
+    """The file as HEAD holds it; None when HEAD does not have it."""
+    proc = subprocess.run(["git", "show", f"HEAD:{path}"], cwd=ROOT, capture_output=True, text=True, errors="replace")
+    return proc.stdout if proc.returncode == 0 else None
+
+
+def over_limits(path: str, text: str | None) -> tuple:
+    """({"path name": lines} over LONGEST, {"path name": nesting} over DEEPEST, {"path name": (lines, nesting)}) for
+    every function in a file — the places the simplicity metrics name."""
+    longer, deeper, every = {}, {}, {}
+    for name, first, last, nest in functions(text or ""):
+        key = f"{path} {name}"
+        size = last - first + 1
+        every[key] = (max(size, every.get(key, (0, 0))[0]), max(nest, every.get(key, (0, 0))[1]))
+        if size > LONGEST:
+            longer[key] = max(size, longer.get(key, 0))
+        if nest > DEEPEST:
+            deeper[key] = max(nest, deeper.get(key, 0))
+    return longer, deeper, every
 
 
 def measure(build: Path, save_baseline: bool, log_file: Path | None = None, product: bool = False) -> tuple:
@@ -328,15 +354,29 @@ def measure(build: Path, save_baseline: bool, log_file: Path | None = None, prod
     if changed_fns:
         by_len = sorted(changed_fns, key=lambda t: t[3] - t[2], reverse=True)
         by_nest = sorted(changed_fns, key=lambda t: t[4], reverse=True)
+        long_base, deep_base = {}, {}
+        if not product:
+            # The base: each changed function as HEAD holds it, by file and name — a function already over a limit
+            # there and no worse is carried debt; a new one, or one the change made longer or deeper, is not.
+            heads = {f: over_limits(f, at_head(f)) for f in {t[0] for t in changed_fns}}
+            keys = {f"{t[0]} {t[1]}" for t in changed_fns}
+            was = [heads[k.split(" ", 1)[0]][2][k] for k in keys if k in heads[k.split(" ", 1)[0]][2]]
+            long_base = {"base": max((w[0] for w in was), default=None),
+                         "offenders": {f"{t[0]} {t[1]}": t[3] - t[2] + 1 for t in changed_fns
+                                       if t[3] - t[2] + 1 > LONGEST},
+                         "base_offenders": {k: v for h in heads.values() for k, v in h[0].items()}}
+            deep_base = {"base": max((w[1] for w in was), default=None),
+                         "offenders": {f"{t[0]} {t[1]}": t[4] for t in changed_fns if t[4] > DEEPEST},
+                         "base_offenders": {k: v for h in heads.values() for k, v in h[1].items()}}
         f, name, first, last, _ = by_len[0]
         over = [t for t in by_len if t[3] - t[2] + 1 > LONGEST]
         metrics.append(metric("simplicity", "longest changed function (lines)", last - first + 1, 0, LONGEST,
                               f"{f}:{first} {name}; {len(over)} of {len(changed_fns)} changed functions over {LONGEST}: "
-                              + ", ".join(f"{t[1]} {t[3] - t[2] + 1}" for t in over[:4])))
+                              + ", ".join(f"{t[1]} {t[3] - t[2] + 1}" for t in over[:4]), **long_base))
         f, name, first, _, nest = by_nest[0]
         deep = [t for t in by_nest if t[4] > DEEPEST]
         metrics.append(metric("simplicity", "deepest nesting in a changed function", nest, 0, DEEPEST,
-                              f"{f}:{first} {name}; {len(deep)} over {DEEPEST}"))
+                              f"{f}:{first} {name}; {len(deep)} over {DEEPEST}", **deep_base))
     else:
         notes.append("simplicity: no changed C or C++ function")
     # Fit: new warnings.
@@ -355,10 +395,11 @@ def measure(build: Path, save_baseline: bool, log_file: Path | None = None, prod
         else:
             new = [w for w in current if w["file"] in files]
             against = "none in changed files"
+        # Against the baseline the count is already what the change added: none at the base.
         metrics.append(metric("fit", "new compiler warnings in the project's sources", len(new), 0, 0,
                               f"{log.name} against {against}: "
                               + ("; ".join(f"{w['file']}:{w['line']} {w['key'].split(': ', 1)[1][:80]}" for w in new[:3])
-                                 or "none")))
+                                 or "none"), **({"base": 0} if against == "the baseline's" else {})))
     # Robustness: size.
     size = size_of(build)
     size_file = BASELINE / "size.json"
@@ -366,18 +407,19 @@ def measure(build: Path, save_baseline: bool, log_file: Path | None = None, prod
         notes.append(f"robustness: no firmware build in {build.relative_to(ROOT) if build.is_relative_to(ROOT) else build}"
                      " — the size is not measured")
     else:
+        base = json.loads(size_file.read_text()) if size_file.is_file() else {}
         if size.get("partition"):
             share = size["bin"] / size["partition"]
+            was = {"base": round(base["bin"] / size["partition"], 4)} if base.get("bin") and not product else {}
             metrics.append(metric("robustness", "app image's share of its partition", round(share, 4), 0, PARTITION_SHARE,
-                                  f"{size['bin']} of {size['partition']} bytes"))
-        if size_file.is_file():
-            base = json.loads(size_file.read_text())
+                                  f"{size['bin']} of {size['partition']} bytes", **was))
+        if base:
             for key, label, cap in (("bin", "app image growth (bytes)", BIN_GROWTH),
                                     ("diram", "DIRAM growth (bytes)", DIRAM_GROWTH),
                                     ("iram", "IRAM growth (bytes)", IRAM_GROWTH)):
                 if size.get(key) is not None and base.get(key) is not None:
                     metrics.append(metric("robustness", label, size[key] - base[key], -10**9, cap,
-                                          f"{base[key]} → {size[key]} bytes"))
+                                          f"{base[key]} → {size[key]} bytes", **({} if product else {"base": 0})))
         else:
             notes.append("robustness: no size baseline yet — this build's size is saved as it")
             save_baseline = True
@@ -388,8 +430,13 @@ def measure(build: Path, save_baseline: bool, log_file: Path | None = None, prod
     if sources:
         touched = host_tested()
         bare = [f for f in sources if f not in touched]
+        # The base: a source HEAD already had, untested there — known only while no host test changed.
+        was = {} if product or any(f.startswith("tests/host/") for f in files) else {
+            "base": None if not bare else sum(1 for f in bare if at_head(f) is not None),
+            "offenders": {f: 1 for f in bare}, "base_offenders": {f: 1 for f in bare if at_head(f) is not None}}
         metrics.append(metric("tests", "changed sources no host test touches", len(bare), 0, 0,
-                              (", ".join(bare[:5]) or f"each of {len(sources)} is compiled or included by a host test")))
+                              (", ".join(bare[:5]) or f"each of {len(sources)} is compiled or included by a host test"),
+                              **was))
     else:
         notes.append("tests: no changed source outside the bench-only parts")
     if save_baseline:
@@ -474,9 +521,17 @@ bool Thing::Ok() const noexcept { return true; }
         (b / "app.bin").write_bytes(b"\0" * 1000)
         s = size_of(b)
         check(s is not None and s["bin"] == 1000, f"the image's size from the build: {s}")
+    # The base: the places over a limit, by file and function, as HEAD holds them.
+    big = "void Big()\n{\n" + "    x();\n" * 70 + "}\nvoid Small() { y(); }\n"
+    longer, deeper, every = over_limits("a.cpp", big)
+    check(longer == {"a.cpp Big": 73} and not deeper and set(every) == {"a.cpp Big", "a.cpp Small"},
+          f"a function over the limit is named by file and name: {longer}, {sorted(every)}")
+    check(over_limits("a.cpp", None) == ({}, {}, {}), "a file HEAD does not have has nothing at the base")
+    m = metric("simplicity", "x", 73, 0, 60, "w", base=73, offenders={"a.cpp Big": 73}, base_offenders=longer)
+    check(m["base"] == 73 and m["offenders"] == m["base_offenders"], "a metric carries its base and its places")
     for f in failures:
         print(f"FAIL  {f}")
-    total = 11
+    total = 14
     print(f"code_proxies self-test: {total - len(failures)} of {total} checks pass")
     return 1 if failures else 0
 
