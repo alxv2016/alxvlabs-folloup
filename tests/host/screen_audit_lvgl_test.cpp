@@ -17,15 +17,20 @@
 //                words cut off by the box that holds them (none)
 //   consistency  across views: a type size and weight that is no DESIGN.md role; the same pair of roles spaced the same on every
 //                view, by font box (within spacing.xs); Back in one place on every screen
-//   state        every focusable shows a ring when focused; every disabled control says why in words (DESIGN → Components)
+//   state        every focusable shows a ring when focused; no ring cut off — its outline box, focused and open for editing,
+//                inside the glass and what each ancestor lets its children draw (its box, or with LV_OBJ_FLAG_OVERFLOW_VISIBLE
+//                its box grown by its ext_draw_size), per side, in px; one ring drawn at once (BYTE-90 ui_probe's RingClip and
+//                RingCount, STICKY_DESIGN_TOKENS §9); every disabled control says why in words (DESIGN → Components)
 //   medium       the share of the glass a ring move changes, at most kScanMaxChanged's 15 % (STICKY_DESIGN_TOKENS §5)
-// It writes .cache/harness/proxies/ui-designer.json and a PNG of each view to build/host/audit/. For the ux-designer judge it
-// walks the routes the controls push from Home, and writes the screens opened and the presses to reach each (at most 3 deep) to
+// It writes .cache/harness/proxies/ui-designer.json, a PNG of each view to build/host/audit/ and of each ringed stop to
+// build/host/audit/rings/ (screen__stop_name.png, for cmp after a refactor). For the ux-designer judge it walks the routes
+// the controls push from Home, and writes the screens opened and the presses to reach each (at most 3 deep) to
 // .cache/harness/proxies/ux-designer.json. Every metric names the screens it measured ("screens"), so the wrapper,
 // .agents/skills/ui-designer/scripts/screen_audit.py, keeps for a review only the screens the change touched; the program
 // itself always measures the whole product ("scope": "product"). Before the screens it measures a fixture — two cards, a
-// label over a caption at two known font-box gaps — and stops if a font box or an ink gap reads wrong. Otherwise it reports
-// and never fails: it exits non-zero only when it cannot run or the fixture misreads. The wrapper builds it alone.
+// label over a caption at two known font-box gaps, and a ring a box cuts 8 px at the bottom — and stops if a font box, an
+// ink gap or a ring reads wrong. Otherwise it reports and never fails: it exits non-zero only when it cannot run or the
+// fixture misreads. The wrapper builds it alone.
 // host-sources: components/ui/ui.cpp components/ui/line_box.cpp components/ui/fonts/bitcount/*.c components/widgets/marks/marks.c components/widgets/src/*.cpp components/widgets/src/internal/*.cpp components/router/router.cpp components/router/overlays.cpp components/router/focus.cpp components/router/touch.cpp components/router/routes.cpp components/router/screen.cpp components/router/status.cpp components/app_hooks/app_hooks.cpp components/app_shell/screen_home.cpp
 // Build and run: bash tests/host/run.sh screen_audit
 
@@ -34,6 +39,7 @@
 #include <cmath>
 #include <cstdint>
 #include <cstdio>
+#include <cstdlib>
 #include <cstring>
 #include <ctime>
 #include <map>
@@ -46,6 +52,7 @@
 #include "board.h"
 #include "esp_err.h"
 #include "ui.h"
+#include "src/core/lv_obj_draw_private.h"  // lv_obj_get_ext_draw_size: how far a container lets its children draw
 
 // The board calls the hardware test makes, as the real board.h declares them; the stand-in board.h has only the display type.
 namespace board {
@@ -1088,13 +1095,123 @@ void CheckRingMove(View &v)
         v.name + ": " + Name(in_view[0]) + " to " + Name(in_view[1]) + ", " + std::to_string(Changed(before, after)) + " px");
 }
 
-// Every control in the screen's walk shows a ring on the glass when focused — the focus brings it into view first.
+// --- The ring as LVGL draws it: its outline, and what its ancestors let it draw in (BYTE-90's ui_probe RingClip, RingCount) ---
+
+// Where an object lets its children draw: its box, or — overflow visible — its box grown by its own ext_draw_size, as LVGL's
+// lv_obj_redraw clips them; an overflow-visible container with no ext_draw_size still cuts at its box (ui::LetRingOut sets
+// both).
+Box ChildClip(lv_obj_t *p)
+{
+    Box b = Coords(p);
+    if (lv_obj_has_flag(p, LV_OBJ_FLAG_OVERFLOW_VISIBLE)) {
+        const int ext = lv_obj_get_ext_draw_size(p);
+        b = {b.x1 - ext, b.y1 - ext, b.x2 + ext, b.y2 + ext};
+    }
+    return b;
+}
+
+constexpr const char *kRingSides[4] = {"left", "top", "right", "bottom"};
+
+// A ring's outer edge, LVGL's: the object's box grown by its outline's width and pad. The pixels of it each side loses to
+// the glass or to an ancestor, and which one cuts it. Not measured: a sibling or an overlay drawn over the ring (the status
+// bar or the footer over scrolled content, an overlay over a lower screen), and an ancestor's clip_corner rounding the cut.
+struct RingCut {
+    Box ring;
+    int px[4] = {};       // left, top, right, bottom
+    std::string by[4];
+    int Worst(int *side) const
+    {
+        int s = 0;
+        for (int k = 1; k < 4; ++k) if (px[k] > px[s]) s = k;
+        *side = s;
+        return px[s];
+    }
+};
+
+RingCut CutOf(lv_obj_t *o, int width, int pad)
+{
+    RingCut c;
+    const Box box = Coords(o);
+    const int grow = width + pad;
+    c.ring = {box.x1 - grow, box.y1 - grow, box.x2 + grow, box.y2 + grow};
+    Box seen{0, 0, kW - 1, kH - 1};
+    std::string by[4] = {"the glass", "the glass", "the glass", "the glass"};
+    for (lv_obj_t *p = lv_obj_get_parent(o); p != nullptr; p = lv_obj_get_parent(p)) {
+        const Box clip = ChildClip(p);
+        if (clip.x1 > seen.x1) { seen.x1 = clip.x1; by[0] = Name(p); }
+        if (clip.y1 > seen.y1) { seen.y1 = clip.y1; by[1] = Name(p); }
+        if (clip.x2 < seen.x2) { seen.x2 = clip.x2; by[2] = Name(p); }
+        if (clip.y2 < seen.y2) { seen.y2 = clip.y2; by[3] = Name(p); }
+    }
+    const int cut[4] = {seen.x1 - c.ring.x1, seen.y1 - c.ring.y1, c.ring.x2 - seen.x2, c.ring.y2 - seen.y2};
+    for (int k = 0; k < 4; ++k) {
+        c.px[k] = std::max(0, cut[k]);
+        c.by[k] = c.px[k] > 0 ? by[k] : "";
+    }
+    return c;
+}
+
+// The outline an object draws in its current state, if any: width and pad.
+bool Outline(lv_obj_t *o, int *width, int *pad)
+{
+    *width = lv_obj_get_style_outline_width(o, LV_PART_MAIN);
+    *pad = lv_obj_get_style_outline_pad(o, LV_PART_MAIN);
+    return *width > 0 && lv_obj_get_style_outline_opa(o, LV_PART_MAIN) > LV_OPA_MIN &&
+           lv_obj_get_style_opa(o, LV_PART_MAIN) > LV_OPA_MIN;
+}
+
+// The ring a control draws open for editing, from the styles ui::RingEditing sets at FOCUS_KEY | EDITED, read without
+// putting the control in that state (a roller opens on it).
+bool EditingOutline(lv_obj_t *o, int *width, int *pad)
+{
+    constexpr lv_style_selector_t kEditing = LV_STATE_FOCUS_KEY | LV_STATE_EDITED;
+    lv_style_value_t w, p;
+    if (lv_obj_get_local_style_prop(o, LV_STYLE_OUTLINE_WIDTH, &w, kEditing) != LV_STYLE_RES_FOUND || w.num <= 0) return false;
+    *width = w.num;
+    *pad = lv_obj_get_local_style_prop(o, LV_STYLE_OUTLINE_PAD, &p, kEditing) == LV_STYLE_RES_FOUND ? p.num
+                                                                                                    : lv_obj_get_style_outline_pad(o, LV_PART_MAIN);
+    return true;
+}
+
+// The objects in a focused state whose outline is drawn on the glass now: shown, its ring's box in what its ancestors show.
+std::vector<lv_obj_t *> RingsDrawn()
+{
+    std::vector<lv_obj_t *> out;
+    for (lv_obj_t *o : AllObjects()) {
+        int width = 0, pad = 0;
+        if (!lv_obj_has_state(o, LV_STATE_FOCUSED) && !lv_obj_has_state(o, LV_STATE_FOCUS_KEY)) continue;
+        if (Hidden(o) || !Outline(o, &width, &pad)) continue;
+        const RingCut c = CutOf(o, width, pad);
+        if (c.px[0] + c.px[2] < c.ring.W() && c.px[1] + c.px[3] < c.ring.y2 - c.ring.y1 + 1) out.push_back(o);
+    }
+    return out;
+}
+
+std::string FileName(const std::string &s)
+{
+    std::string f;
+    for (char c : s) {
+        const bool keep = std::isalnum(static_cast<unsigned char>(c));
+        if (keep) f += c;
+        else if (!f.empty() && f.back() != '_') f += '_';
+    }
+    while (!f.empty() && f.back() == '_') f.pop_back();
+    return f;
+}
+
+// Every control in the screen's walk shows a ring on the glass when focused — the focus brings it into view first. Each
+// ringed frame is kept in build/host/audit/rings/, by screen and stop, so a refactor can be proven pixel-identical (cmp);
+// the ring cut off by a container or the glass, and the rings drawn at once, are measured on it.
 void CheckRings(const std::string &screen, lv_obj_t *scroller)
 {
     s_screen = ScreenOf(screen);
     std::vector<std::string> bare;
-    int count = 0;
-    for (lv_obj_t *o : Focusables()) {
+    std::vector<std::pair<int, std::string>> cuts;  // px, where
+    std::vector<std::string> many;
+    int count = 0, worst_rings = 1;
+    const std::vector<lv_obj_t *> walk = Focusables();
+    for (size_t k = 0; k < walk.size(); ++k) {
+        lv_obj_t *o = walk[k];
         lv_group_focus_obj(o);
         lv_obj_update_layout(lv_screen_active());
         const Box seen = OnGlass(o);
@@ -1104,6 +1221,30 @@ void CheckRings(const std::string &screen, lv_obj_t *scroller)
         const std::vector<uint8_t> plain = RenderChanged();
         lv_obj_add_state(o, LV_STATE_FOCUS_KEY);
         const std::vector<uint8_t> ringed = RenderChanged();
+        const std::string stop = "stop " + std::to_string(k + 1) + " " + Name(o);
+        char index[8];
+        std::snprintf(index, sizeof index, "%02zu", k + 1);
+        SavePng("build/host/audit/rings/" + FileName(screen) + "__" + index + "_" + FileName(Name(o)) + ".png", ringed);
+        int width = 0, pad = 0;
+        if (Outline(o, &width, &pad)) {
+            const RingCut c = CutOf(o, width, pad);
+            for (int s = 0; s < 4; ++s) {
+                if (c.px[s] > 0) cuts.push_back({c.px[s], stop + " " + kRingSides[s] + " " + std::to_string(c.px[s]) + " px (by " + c.by[s] + ")"});
+            }
+        }
+        if (EditingOutline(o, &width, &pad)) {
+            const RingCut c = CutOf(o, width, pad);
+            for (int s = 0; s < 4; ++s) {
+                if (c.px[s] > 0) cuts.push_back({c.px[s], stop + " editing " + kRingSides[s] + " " + std::to_string(c.px[s]) + " px (by " + c.by[s] + ")"});
+            }
+        }
+        const std::vector<lv_obj_t *> drawn = RingsDrawn();
+        if (drawn.size() != 1) {
+            std::vector<std::string> names;
+            for (lv_obj_t *d : drawn) names.push_back(Name(d));
+            many.push_back(stop + ": " + std::to_string(drawn.size()) + " rings (" + Join(names, 4) + ")");
+            if (std::abs(static_cast<int>(drawn.size()) - 1) > std::abs(worst_rings - 1)) worst_rings = static_cast<int>(drawn.size());
+        }
         lv_obj_remove_state(o, LV_STATE_FOCUS_KEY);
         if (Changed(plain, ringed) < 4 * seen.W()) bare.push_back(Name(o));  // a ring is at least a 4 px stroke along the top
     }
@@ -1112,6 +1253,13 @@ void CheckRings(const std::string &screen, lv_obj_t *scroller)
     if (count > 0) {
         Add("state", "focusable controls with no visible ring", static_cast<double>(bare.size()), 0, 0,
             screen + ": " + (bare.empty() ? std::to_string(count) + " controls, each ringed" : Join(bare, 4)));
+        std::stable_sort(cuts.begin(), cuts.end(), [](const auto &a, const auto &b) { return a.first > b.first; });
+        std::vector<std::string> hits;
+        for (const auto &c : cuts) hits.push_back(c.second);
+        Add("state", "focus rings cut off (px)", cuts.empty() ? 0 : cuts.front().first, 0, 0,
+            screen + ": " + (hits.empty() ? std::to_string(count) + " rings, each whole" : Join(hits, hits.size())));
+        Add("state", "rings drawn at once", worst_rings, 1, 1,
+            screen + ": " + (many.empty() ? "one ring at each of " + std::to_string(count) + " stops" : Join(many, many.size())));
     }
 }
 
@@ -1548,6 +1696,121 @@ int CheckFixture()
     return bad;
 }
 
+// --- The ring fixture: rings cut a known amount on each side, let out, and drawn two at once ------------------------------------
+
+// A button with the one ring (ui::RingOutside), 160 x 64 at x, y in `parent`, out of the group: the fixture sets its states.
+lv_obj_t *RingFixtureButton(lv_obj_t *parent, int x, int y)
+{
+    lv_obj_t *b = lv_button_create(parent);
+    lv_group_remove_obj(b);
+    lv_obj_remove_state(b, static_cast<lv_state_t>(LV_STATE_FOCUSED | LV_STATE_FOCUS_KEY));
+    lv_obj_set_pos(b, x, y);
+    lv_obj_set_size(b, 160, dt::kSpacingTarget);
+    ui::RingOutside(b);
+    return b;
+}
+
+// A box 400 x 200 at 40, 300 on the screen, no padding and no scroll: it cuts its children at its edge unless it lets them out.
+lv_obj_t *RingFixtureBox(lv_obj_t *scr)
+{
+    lv_obj_t *box = lv_obj_create(scr);
+    lv_obj_remove_style_all(box);
+    lv_obj_set_pos(box, 40, 300);
+    lv_obj_set_size(box, 400, 200);
+    lv_obj_remove_flag(box, LV_OBJ_FLAG_SCROLLABLE);
+    return box;
+}
+
+lv_obj_t *RingFixtureScreen()
+{
+    lv_obj_t *scr = lv_obj_create(nullptr);
+    lv_screen_load(scr);
+    lv_obj_set_style_bg_color(scr, lv_color_white(), 0);
+    lv_obj_set_style_bg_opa(scr, LV_OPA_COVER, 0);
+    return scr;
+}
+
+// The ring's measures on known layouts, each on a screen of its own: a button in a clipping box, placed so the box cuts its
+// ring a known amount on one side; the same in a box that lets it out (ui::LetRingOut), whole; in a box set overflow visible
+// with no ext_draw_size, still cut; a button open for editing (ui::RingEditing, its 6 px stroke), read by EditingOutline. Each
+// is read by the measure and drawn so on the glass: the ring's changed pixels end where the measure says. Then two buttons
+// ringed at once read two rings, and one alone one.
+int CheckRingFixture()
+{
+    lv_obj_t *before = lv_screen_active();
+    int bad = 0;
+    auto check = [&](bool ok, const std::string &what) {
+        if (!ok) { ++bad; std::printf("screen audit ring fixture: FAIL %s\n", what.c_str()); }
+    };
+    constexpr int kReach = dt::kSpacingFocusOffset + dt::kSpacingStrokeFocus;   // 8
+    constexpr int kEditReach = dt::kSpacingFocusOffset + dt::kSpacingStrokeEdit;  // 10
+    constexpr int kRight = 400 - 160, kBottom = 200 - dt::kSpacingTarget, kMid = (200 - dt::kSpacingTarget) / 2;
+    enum class Box_ { kClips, kLetOut, kOverflowOnly };
+    struct Case { const char *what; Box_ box; bool editing; int x, y; int cut[4]; };
+    const Case cases[] = {
+        {"cut at the bottom", Box_::kClips, false, 120, kBottom, {0, 0, 0, kReach}},
+        {"cut on the left", Box_::kClips, false, 3, kMid, {kReach - 3, 0, 0, 0}},
+        {"cut at the top", Box_::kClips, false, 120, 0, {0, kReach, 0, 0}},
+        {"cut on the right", Box_::kClips, false, kRight, kMid, {0, 0, kReach, 0}},
+        {"let out", Box_::kLetOut, false, 120, kBottom, {0, 0, 0, 0}},
+        {"overflow visible with no ext_draw_size", Box_::kOverflowOnly, false, 120, kBottom, {0, 0, 0, kReach}},
+        {"open for editing, cut on the right", Box_::kClips, true, kRight - 3, kMid, {0, 0, kEditReach - 3, 0}},
+    };
+    for (const Case &t : cases) {
+        lv_obj_t *scr = RingFixtureScreen();
+        lv_obj_t *box = RingFixtureBox(scr);
+        if (t.box == Box_::kLetOut) ui::LetRingOut(box);
+        if (t.box == Box_::kOverflowOnly) lv_obj_set_overflow_visible(box, true);
+        lv_obj_t *button = RingFixtureButton(box, t.x, t.y);
+        if (t.editing) ui::RingEditing(button);
+        Settle();
+        const std::vector<uint8_t> plain = Render();
+        lv_obj_add_state(button, t.editing ? static_cast<lv_state_t>(LV_STATE_FOCUS_KEY | LV_STATE_EDITED) : LV_STATE_FOCUS_KEY);
+        lv_obj_update_layout(scr);
+        const std::vector<uint8_t> ringed = Render();
+        const std::string at = std::string(t.what) + ": ";
+        int width = 0, pad = 0, edit_width = 0, edit_pad = 0;
+        const bool drawn = Outline(button, &width, &pad);
+        check(drawn && width + pad == (t.editing ? kEditReach : kReach), at + "an outline " + std::to_string(width) + " + " + std::to_string(pad));
+        if (t.editing) {
+            check(EditingOutline(button, &edit_width, &edit_pad) && edit_width == width && edit_pad == pad,
+                  at + "the editing outline read " + std::to_string(edit_width) + " + " + std::to_string(edit_pad));
+        }
+        const RingCut c = t.editing ? CutOf(button, edit_width, edit_pad) : CutOf(button, width, pad);
+        std::string read, want;
+        bool same = true;
+        for (int k = 0; k < 4; ++k) {
+            same = same && c.px[k] == t.cut[k];
+            read += (k ? ", " : "") + std::to_string(c.px[k]);
+            want += (k ? ", " : "") + std::to_string(t.cut[k]);
+        }
+        check(same, at + "cut " + read + " px (left, top, right, bottom), not " + want);
+        const Box ink = InkBox(ringed, &plain, {0, 0, kW - 1, kH - 1});
+        const Box drawn_at{c.ring.x1 + t.cut[0], c.ring.y1 + t.cut[1], c.ring.x2 - t.cut[2], c.ring.y2 - t.cut[3]};
+        check(ink.x1 == drawn_at.x1 && ink.y1 == drawn_at.y1 && ink.x2 == drawn_at.x2 && ink.y2 == drawn_at.y2,
+              at + "the glass draws the ring at " + std::to_string(ink.x1) + ", " + std::to_string(ink.y1) + " to " + std::to_string(ink.x2) +
+                  ", " + std::to_string(ink.y2) + "; the measure " + std::to_string(drawn_at.x1) + ", " + std::to_string(drawn_at.y1) + " to " +
+                  std::to_string(drawn_at.x2) + ", " + std::to_string(drawn_at.y2));
+        check(RingsDrawn().size() == 1, at + std::to_string(RingsDrawn().size()) + " rings drawn at once");
+        lv_screen_load(before);
+        lv_obj_delete(scr);
+    }
+    // Two rings at once: both buttons' states set here, then one taken off.
+    lv_obj_t *scr = RingFixtureScreen();
+    lv_obj_t *a = RingFixtureButton(scr, 40, 100), *b = RingFixtureButton(scr, 40, 300);
+    lv_obj_add_state(a, LV_STATE_FOCUS_KEY);
+    lv_obj_add_state(b, LV_STATE_FOCUS_KEY);
+    lv_obj_update_layout(scr);
+    check(RingsDrawn().size() == 2, "two ringed: " + std::to_string(RingsDrawn().size()) + " rings drawn at once");
+    lv_obj_remove_state(b, LV_STATE_FOCUS_KEY);
+    lv_obj_update_layout(scr);
+    check(RingsDrawn().size() == 1, "one ringed: " + std::to_string(RingsDrawn().size()) + " rings drawn at once");
+    lv_screen_load(before);
+    lv_obj_delete(scr);
+    std::printf("screen audit ring fixture: %s\n", bad ? "FAIL" : "rings cut a known amount on each side, open for editing and in a box overflow visible without reach; one let out whole; two rings at once");
+    return bad;
+}
+
 // LVGL on the host: its heap grown as the firmware's PSRAM grows it, a glass-sized display read as the glass reads it, and
 // a keypad in a group, as the buttons are.
 bool StartLvgl()
@@ -1582,14 +1845,17 @@ bool StartLvgl()
 void PrepareOutput()
 {
     mkdir("build/host/audit", 0755);
-    if (DIR *dir = opendir("build/host/audit")) {
-        while (const dirent *e = readdir(dir)) {
-            const std::string file = e->d_name;
-            if (file.size() > 4 && file.compare(file.size() - 4, 4, ".png") == 0) {
-                std::remove(("build/host/audit/" + file).c_str());
+    mkdir("build/host/audit/rings", 0755);
+    for (const std::string folder : {"build/host/audit/", "build/host/audit/rings/"}) {
+        if (DIR *dir = opendir(folder.c_str())) {
+            while (const dirent *e = readdir(dir)) {
+                const std::string file = e->d_name;
+                if (file.size() > 4 && file.compare(file.size() - 4, 4, ".png") == 0) {
+                    std::remove((folder + file).c_str());
+                }
             }
+            closedir(dir);
         }
-        closedir(dir);
     }
     mkdir(".cache", 0755);
     mkdir(".cache/harness", 0755);
@@ -1607,7 +1873,7 @@ int main()
     }
     MapFaces();
     FindOffsetCb();
-    if (CheckFixture() != 0) return 1;  // a measure that misreads a known layout would misread every screen
+    if (CheckFixture() != 0 || CheckRingFixture() != 0) return 1;  // a measure that misreads a known layout would misread every screen
     PrepareOutput();
 
     // Home and the routes, as app_shell builds them.

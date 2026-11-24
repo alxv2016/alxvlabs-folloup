@@ -491,6 +491,23 @@ their value on each refresh — the design check reads them (§7).
   inside its track: the track's `spacing.sm` inset is the ring's reach (4 + 4), so the ring ends on the track's edge and
   a neighbour's gap, 8 px, holds it, the track's `rounded.xl` 16 concentric with the item's `rounded.md` 8 and the
   ring `[D]`. A chosen control keeps the black ring, with 4 px of white between.
+- **The screen audit holds every ring whole and alone** — `tests/host/screen_audit_lvgl_test.cpp` focuses each stop of
+  every screen and overlay as a key does and measures two things, BYTE-90's `ui_probe` `RingClip` and `RingCount`.
+  - **The focus ring cut off, range 0.** The ring's box is the control's, grown by its outline's width and pad in its
+    focused state, and in its editing state where `ui::RingEditing` styles one. The audit counts the px the box loses
+    on each side to the glass and to each ancestor. An ancestor lets its children draw in its own box. With
+    `LV_OBJ_FLAG_OVERFLOW_VISIBLE` it lets them draw in its box grown by its `ext_draw_size`, as LVGL clips them, so a
+    container set overflow visible without `ui::LetRingOut`'s reach still cuts. Two things are not measured. One is a
+    sibling or an overlay drawn over the ring: the status bar or the footer over scrolled content, an overlay over a
+    lower screen. The other is an ancestor's `clip_corner`, which rounds the cut.
+  - **The rings drawn at once, range 1** — the objects in a focused state whose outline is drawn.
+  - **A fixture runs first, and the audit stops if it misreads.** Each case is read by the measure and drawn so on the
+    glass. A button in a clipping box reads its ring cut 8 px at the bottom, 5 on the left, 8 at the top and 8 on the
+    right. The same button in a box `ui::LetRingOut` lets out reads none. In a box set overflow visible with no
+    `ext_draw_size` it still reads 8. A button open for editing, its ring 10 px out, reads 7 on the right. Two buttons
+    ringed read two rings, and one alone reads one.
+  - **Each ringed frame is kept in `build/host/audit/rings/`**, named by screen and stop, so a refactor can be proven
+    pixel for pixel with `cmp`. No stop on any screen reads a ring cut or a second ring `[HOST]`.
 - **The deck's one base radius, 10, is `rounded.lg` 12 everywhere it appears** — buttons, chips, rows, cards, a text
   view's ring, a range slider's track; its small radius 5, a checkbox's mark, is `rounded.md` 8; its pills — the
   toggle, the progress and step pieces, the scroll indicator's, the page dots, the radio mark — are `rounded.full`.

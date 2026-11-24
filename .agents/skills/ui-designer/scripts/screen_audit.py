@@ -18,8 +18,9 @@ program is not even built — no UI cap applies. With --all, every metric is kep
 
 The program writes .cache/harness/proxies/ui-designer.json and ux-designer.json — `{"judge", "at", "scope": "change" |
 "product", "screens": [...], "metrics": [{"dimension", "name", "value", "range": [lo, hi], "ok", "where", "screens"}]}` —
-and a one-bit PNG of each view to build/host/audit/. A metric outside its range caps its dimension's score; it never fails
-the run. Exit 0 when the audit ran, 1 when it could not build or run, or its fixture — two labels at known gaps — misread.
+and a one-bit PNG of each view to build/host/audit/, and of each ringed stop to build/host/audit/rings/. A metric
+outside its range caps its dimension's score; it never fails the run. Exit 0 when the audit ran, 1 when it could not
+build or run, or a fixture — two labels at known gaps, or rings cut, let out and doubled — misread.
 The first run compiles LVGL into build/host/lvgl (about half a minute); later runs take about 10 s. Python 3.9+, standard
 library only.
 """
@@ -381,7 +382,7 @@ def main(argv: list) -> int:
         if code != 0:
             print(f"screen audit: the host build, its fixture or its run failed (exit {code}):\n{out[-3000:]}")
             return 1
-        print(f"screen audit ran in {time.time() - t0:.0f} s; PNGs of each view in build/host/audit/")
+        print(f"screen audit ran in {time.time() - t0:.0f} s; PNGs of each view in build/host/audit/, of each ringed stop in rings/")
     status = 0
     for judge in JUDGES:
         data = load(PROXIES / f"{judge}.json")
