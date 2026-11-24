@@ -3,7 +3,9 @@
 # board and no ESP-IDF. Each tests/host/*_test.cpp is one program; the run fails if any fails to build or any check
 # fails. A test named *_lvgl_test.cpp links LVGL's real sources, taken from managed_components (a firmware build fetches
 # them) and compiled once, with LVGL's own default configuration, into build/host/lvgl. The binaries go to build/host/,
-# which is never committed. Run from anywhere: bash tests/host/run.sh [part of a test's name]
+# which is never committed. tests/host/token_parity.py runs too, with its self-test: DESIGN.md's front matter and the
+# token header hold the same tokens (STICKY_DESIGN_TOKENS §7). Run from anywhere: bash tests/host/run.sh [part of a
+# test's name]
 set -euo pipefail
 cd "$(dirname "$0")/../.."
 
@@ -44,7 +46,17 @@ status=0
 shopt -s nullglob
 # An argument runs only the tests whose name holds it: bash tests/host/run.sh screen_audit
 tests=(tests/host/*${1:-}*_test.cpp)
+# The token parity check is a test by the name token_parity: no argument, or one its name holds, runs it and its cases.
+parity=0
+if [[ "token_parity" == *"${1:-}"* ]]; then
+    parity=1
+    python3 tests/host/token_parity.py || status=1
+    python3 tests/host/token_parity.py --test || status=1
+fi
 if [ ${#tests[@]} -eq 0 ]; then
+    if [ "$parity" -eq 1 ]; then
+        exit "$status"
+    fi
     echo "host tests: none in tests/host/"
     exit 1
 fi

@@ -401,8 +401,17 @@ their value on each refresh — the design check reads them (§7).
 
 ## 6. The token header
 
-- **One C++ header carries every token** — `components/design_tokens/include/design_tokens.h`, kept equal to DESIGN.md's
-  front matter by hand and named in `TOKEN_FILES` in `.agents/project.py`.
+- **One C++ header carries every token** — `components/design_tokens/include/design_tokens.h`, written by hand, named
+  in `TOKEN_FILES` in `.agents/project.py`, and held equal to DESIGN.md's front matter by `tests/host/token_parity.py`
+  (§7). The check catches the one-sided change a generator would prevent — a value changed on one side alone fails
+  the host tests — and leaves the header's comments, its derived symbols and its `static_assert`s where a person
+  writes them.
+- **A symbol in the header that is no front-matter token is in the check's `HEADER_ONLY` list, with its reason.** They
+  are the elevation struct's `kNoShadow`, the derived `kFocusRingReach` and `detail::kScale`, the touch thresholds
+  (§10), and the refresh policy's `kRefreshPartialLimit` and `kFeedbackTickMs`. §5's names for three motion delays (`kWaitIndicatorDelayMs`,
+  `kSelfUpdateMinMs`, `kClockTickMs`) are in its `ALIASES` list, each checked equal to the token symbol it names. An
+  entry the header no longer declares, or that a front-matter token now names, fails as stale. Any other symbol needs
+  its token in DESIGN.md first.
 - **The arithmetic between tokens is checked as the header compiles** — `static_assert`s at its foot: two rings never
   touch (`kSpacingItem` ≥ twice `kFocusRingReach`, 8), the footer holds its buttons' rings, a list row is at least a target,
   a flick's movement is inside its distance, every type size is a multiple of 10 px and every line to 80 px a multiple of 4 px,
@@ -411,7 +420,13 @@ their value on each refresh — the design check reads them (§7).
   type check reads the header's own list of primitives, `detail::kScale`, so a new primitive joins it.
 - **A token's path becomes its symbol**: `colors.text-primary` → `kColorTextPrimary`, `spacing.target` →
   `kSpacingTarget`, `spacing.stroke.focus` → `kSpacingStrokeFocus`, `rounded.sm` → `kRoundedSm`.
-- **A colour is stored as its level, 0 to 3**, with the hex in a comment — `kColorTextSecondary = 1;  // #555555`.
+- **A colour is stored as its level, 0 to 3**, with the hex in a comment — `kColorTextSecondary = 1;  // #555555`; the
+  two sparse dithers are levels 4 and 5 (§2.1).
+- **A motion token is one symbol holding its delay, the time the code waits** — `kMotionWaitIndicatorDelayMs`, or
+  `kMotionStateChangeMs` where the delay is 0; nothing animates, so every duration is 0 ms and every timing
+  `steps(1, start)`, and a token that changes either needs its symbol decided first.
+- **A sound's limits carry their unit and its words are arrays of notes** — `sound.band-low` → `kSoundBandLowHz`,
+  `sound.tick-max` → `kSoundTickMaxMs`, `sound.tick` → `kSoundTick[]`, each note `{wave, hz, hz_end, ms, volume}`.
 - **A type token is a struct of its size, its line box and its weight**, a role being one primitive by name;
   `ui::Font(role)` gives the compiled font LVGL draws it in, and `ui::Bitcount(size, weight)` any primitive's (§3).
 - **A component reads the header through two layers, as the agent deck's do (§9)** — `components/ui` is the theme (fonts,
@@ -426,14 +441,21 @@ their value on each refresh — the design check reads them (§7).
   for exists, and every ratio is true; `verify.py run` runs it when DESIGN.md or this doc changes.
 - **Google's linter runs on DESIGN.md** — `npx @google/design.md lint DESIGN.md` checks its token references, its
   sections and their order, and each component's contrast; it fetches the package from npm, so the guard asks first.
+- **DESIGN.md's front matter and the token header agree, both ways** — `bash tests/host/run.sh` runs
+  `python3 tests/host/token_parity.py` and its `--test`. Every token in the front matter's colours, type, radius,
+  spacing, elevation, motion and sound, its refs resolved, has the symbol §6's naming rule gives it, with the same
+  value. A colour is compared by its level and its comment's hex, a type token by its size, line and weight, an
+  elevation by each field and a sound by each note; a field the header's struct has no place for fails. Every symbol
+  in the header is a token, an alias equal to its token, or in its `HEADER_ONLY` list. A mismatch names the token's
+  path, both values and the header's line. It does not read the components, which are refs to the tokens it compares,
+  a type token's family, or this doc's tables.
 - **DESIGN.md's front matter and §2's tables agree by hand** — a script to compare them is open (§8).
 
 ## 8. Open items
 
 | Item | Status | Unblocked by |
 | --- | --- | --- |
-| Generating the token header's symbols from DESIGN.md's front matter, instead of by hand | Open | A second change to the tokens, which makes a generator worth it |
-| A script that compares DESIGN.md's front matter with §2's tables | Open | The token header, which a third copy would make worth checking |
+| A script that compares DESIGN.md's front matter with §2's tables | Open | A change to a colour role, which §2's tables would have to follow by hand |
 | The glyph ranges beyond ASCII and · ° × – — ’ • … — a name with an accent, a currency — and what a character outside them draws: LVGL's placeholder box is on (`CONFIG_LV_USE_FONT_PLACEHOLDER`) | Open | An out-of-range character drawn on the glass; the first strings that need more |
 | The glass's real white and black, against the levels' nominal 21 : 1 | Open | A reading with a light meter on a V1.0 and a V2.0 board |
 | Whether a disabled control's words, in the two sparse dithers, read on a V1.0 and a V2.0 (1.23 : 1 and 1.14 : 1 against their ground), and whether a disabled checkbox's check and speaker-off glyph are legible at all | Open | The kit page's disabled samples, seen on both boards |

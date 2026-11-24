@@ -308,7 +308,8 @@ CHECKS = {
     # The host tests: the firmware's pure logic (glass_rules.h, swipe_rules.h) and the swipe against LVGL's own sources,
     # built and run with the computer's own compiler, no board and no ESP-IDF — the build-run-test skill.
     "host": {"run": ["bash", "tests/host/run.sh"],
-             "when": ("components/lvgl_display/", "components/ui/", "components/widgets/", "tests/host/"), "counts": True},
+             "when": ("components/lvgl_display/", "components/ui/", "components/widgets/", "components/design_tokens/",
+                      "DESIGN.md", "tests/host/"), "counts": True},
 }
 
 # The project's own judges, beyond the kit's (doc-reviewer, code-reviewer, ui-designer): agent name → the paths
