@@ -10,8 +10,8 @@
 namespace widgets::detail {
 
 // A square button `size` a side with `radius` corners, the glyph of `action` centred, in the focus group with its ring outside it
-// (the ring's corner is the button's radius plus the gap out to it, so a square button has a square-cornered ring). The face, the
-// variants, the disabled look and the words for the hint are the icon button's own.
+// (the ring's corner is the button's radius plus the gap out to it, so its outer corner is 8 round a square button;
+// DESIGN → Shapes). The face, the variants, the disabled look and the words for the hint are the icon button's own.
 lv_obj_t *MakeIconButtonSized(lv_obj_t *parent, IconAction action, ButtonVariant variant, int32_t size, int32_t radius,
                               const char *action_words);
 

@@ -946,7 +946,8 @@ At 235 ppi a pixel is 0.108 mm and a point is 3.26 px.
   `rounded.xl`, 16, less the 16 px between button and edge is 0, so the button is square and its ring's outer radius
   `rounded.md` shares the frame's corner centre. A child inset by the parent's radius or more is square.
 - **A ring's corner is the control's radius plus the gap out to it** — its offset and its stroke — so the ring shares
-  the control's corner centre; a ring round a square control is square.
+  the control's corner centre: its outer corner is 20 round a `rounded.lg` control and its inner edge 16, and round a
+  square control its outer corner is 8.
 
 ## Motion
 

@@ -426,7 +426,6 @@ their value on each refresh — the design check reads them (§7).
 
 | Item | Status | Unblocked by |
 | --- | --- | --- |
-| A focus ring's outer corner: the host render measures radius 16 round every rounded control (a value row, a radio row, a choice card, a facts page), where DESIGN → Shapes gives the control's radius plus the gap out to it, 12 + 4 + 4 = 20 — whether LVGL's outline radius counts the offset and the stroke | Open | The code made to draw 20, or the rule restated as drawn, by the person's choice |
 | Generating the token header's symbols from DESIGN.md's front matter, instead of by hand | Open | A second change to the tokens, which makes a generator worth it |
 | A script that compares DESIGN.md's front matter with §2's tables | Open | The token header, which a third copy would make worth checking |
 | The glyph ranges beyond ASCII and · ° × – — ’ • … — a name with an accent, a currency — and what a character outside them draws: LVGL's placeholder box is on (`CONFIG_LV_USE_FONT_PLACEHOLDER`) | Open | An out-of-range character drawn on the glass; the first strings that need more |
@@ -452,7 +451,8 @@ their value on each refresh — the design check reads them (§7).
   light dither in the order of their strength, its motion left out. Every number in the table below is `[DECK]` in its
   second column and `[D]` in the third and fourth.
 - **The one focus ring is outside every control**, `spacing.focus-offset` clear of its outer edge — its outline
-  included — with white between, the outline's radius the control's plus its pad and width (LVGL's `outline_pad`):
+  included — with white between, the outline's radius the control's plus its pad and width (LVGL's `outline_pad`),
+  so its outer corner is 20 round a `rounded.lg` control, its inner edge 16, and 8 round a square one `[HOST]`:
   a button, an icon button, a chip, a row, a card, a text view, a toggle, a checkbox, a radio and a range slider, black on the white glass, whether the
   control is chosen or not. It reaches 8 px, so stops sit `spacing.md` apart and each container above one lets it out
   (`ui::LetRingOut`, an `ext_draw_size` of the larger reach) or pads it: the list view's band is 8 px wider and taller
