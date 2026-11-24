@@ -314,6 +314,12 @@ private:
 
     esp_err_t Draw(Mode mode, const uint8_t *frame)
     {
+        // A full starts from the supply off, as one after a greyscale refresh does: the frame streams unpowered (and
+        // the waveform latches, when its slot changed), then the supply powers on to drive — about 83 ms more a full.
+        // It lessens the pale right edge of a V2.0 board's black flash (STICKY_HARDWARE_SPECS §8.1).
+        if (mode == Mode::kFull) {
+            ESP_RETURN_ON_ERROR(PowerOff(), kTag, "power off before a full");
+        }
         int64_t t = esp_timer_get_time();
         int c = 25;
         ESP_RETURN_ON_ERROR(Temperature(&c), kTag, "temperature");

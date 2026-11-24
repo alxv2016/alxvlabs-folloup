@@ -175,6 +175,9 @@ check says it was skipped and passes.
 - **The board stays on after shutdown on USB** → D2 feeds `PWR_EN` from `VIN_5V`, so the rail cannot be cut → expected:
   it enters deep sleep; test a power-off on battery alone, where whether the rail collapses is still open
   (STICKY_HARDWARE_SPECS §5.3, §8.3, §10).
+- **A V2.0 full refresh's black flash shows a pale right edge** → the panel, Seeed's demo shows it too → a full that
+  starts with the supply off lessens it; on any glass symptom, flash Seeed's demo before a bisect or a driver change
+  (STICKY_HARDWARE_SPECS §8.1).
 - More, by where the symptom shows, in STICKY_HARDWARE_SPECS §8.
 
 ## Sources

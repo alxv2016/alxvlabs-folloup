@@ -29,6 +29,7 @@ Firmware facts and Pins tables by their rows, wherever they sit.
 | `[DS]` | From a part's datasheet |
 | `[FW]` | A value, level or timing proven by firmware running on the board |
 | `[MEAS]` | Measured or observed on the board during firmware bring-up; the date and build were not recorded |
+| `[SEEN]` | Seen on the glass by the person, on the date and builds the line names |
 | `[D]` | Derived from the cited values, not measured |
 | `[?]` | Unverified — tracked in Open items |
 
@@ -560,6 +561,11 @@ the card before the panel, then the rest.**
   which hands GPIO0 to the SPI bus → set every unused data pin to `-1` (§1) `[SRC]`.
 - **Card detection reads at random** → `SD_DETECT` has no pull-up fitted (R45) → enable GPIO11's internal pull-up
   `[SCH]`.
+- **A V2.0 board's full refresh shows a pale right edge during its black flash** → the panel or board, not the
+  firmware. The frame itself lands clean, and V1.0 shows none. On 2026-11-24 it showed with our first commit
+  (`3fc96dd`), three forced full slots, on battery, after 15 minutes off, and with Seeed's peripheral demo at `4b7f9a1`
+  `[SEEN]`. → A full that starts with the supply off lessens it (STICKY_EPAPER_WAVEFORMS §3.1). On any glass symptom,
+  flash Seeed's demo before a bisect or a driver change; what remains is Seeed's to answer.
 
 ### 8.2 Touch
 

@@ -121,8 +121,8 @@ scans use.**
 - **The temperature is the SHT40's**, given at start and again about once a minute while the glass is idle
   (`kTemperatureEveryMs`, `lvgl_display::SetTemperatureSource`); the controller's own sensor (`0x40`) is read only
   when no SHT40 reading has been given `[FW]`.
-- **The controller stays powered between refreshes** — it powers off after a greyscale refresh, as Seeed's does, and
-  before deep sleep. Its power-off (`0x02`)
+- **The controller stays powered between refreshes** — off after a greyscale refresh, as Seeed's is, before deep
+  sleep, and before a full, lessening V2.0's pale right edge (STICKY_HARDWARE_SPECS §8.1). Its power-off (`0x02`)
   lets black fade within seconds of a refresh; with the supply left on, black holds. PSR's ground ties do not change
   it: NORG off, NORG and TIEG off, and FOPT = `01` all still faded `[SEEN]`. The cost is the supply's idle current,
   unmeasured (§7) `[FW]`.
@@ -266,7 +266,8 @@ growing and shrinking by 36 px a frame on a white track** `[MEAS]`.
   | `0x62`, `0xE7`, `0xE9` or `0xE0`'s bit 4, each alone | 875–876 ms | 416 ms | 440 ms |
 
 - **A whole frame goes out in 39 ms** — 96000 bytes at 20 MHz, encoded while the last chunk sends `[MEAS]`.
-- **A drive after a standby adds 83 ms** to power the supply on `[MEAS]`.
+- **A drive after a standby or a greyscale refresh adds 83 ms** to power the supply on `[MEAS]`; so does every full,
+  which powers the supply off first — a repeated full's total not remeasured `[D]`.
 
 ### 4.2 The V1.0 board (SSD1677)
 
