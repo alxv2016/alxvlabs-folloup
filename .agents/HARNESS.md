@@ -315,7 +315,8 @@ Move a judge up a tier when calibration shows it missing findings it has items f
 - **Only the person's own words name an approved file** — a request, a silence or a judge's pass is not a yes.
 - **An approval keeps the file's hash**: `status` and `finish` say when the file changed after the yes.
 - **The sign-off holds for the code as it ran** — `signoff` refuses with nothing run on the target or with the code
-  changed since; a doc edit leaves it standing. With no run on the target, the Verified block says why.
+  changed since; a doc edit, or a comment or whitespace edit in code, leaves it standing (§13). With no run on the
+  target, the Verified block says why.
 
 ### 9.1 The design gates
 
@@ -427,7 +428,7 @@ feedback moves both the examples and the weights. The generic design: [AGENT_HAR
 
   | Judge | Script | Dimensions it can cap |
   | --- | --- | --- |
-  | `ui-designer`, `ux-designer` | [`screen_audit.py`](skills/ui-designer/scripts/screen_audit.py) — every screen drawn on the host by [`screen_audit_lvgl_test.cpp`](../tests/host/screen_audit_lvgl_test.cpp), one run writing both judges' JSON, after its fixtures — two labels at known gaps, and rings cut, let out and doubled; bare, only the screens whose sources the change touched — each screen mapped to the `hw_test.cpp` function that builds it, a widget's change reaching every screen that calls it, the foundation (`ui`, `lvgl_display`, `router`, the tokens) every screen | `hierarchy`, `spacing`, `consistency`, `balance`, `state`, `medium`; `flow` |
+  | `ui-designer`, `ux-designer` | [`screen_audit.py`](skills/ui-designer/scripts/screen_audit.py) — every screen drawn on the host by [`screen_audit_lvgl_test.cpp`](../tests/host/screen_audit_lvgl_test.cpp), one run writing both judges' JSON, after its fixtures — two labels at known gaps, rings cut, let out and doubled, and a disabled button whose reason stands far above it, told only when the button names it (`widgets::LinkDisabledReason`); bare, only the screens whose sources the change touched — each screen mapped to the `hw_test.cpp` function that builds it, a widget's change reaching every screen that calls it, the foundation (`ui`, `lvgl_display`, `router`, the tokens) every screen | `hierarchy`, `spacing`, `consistency`, `balance`, `state`, `medium`; `flow` |
   | `code-reviewer` | [`code_proxies.py`](skills/verify-change/scripts/code_proxies.py) — the changed functions against HEAD, `--all` every function | `simplicity`, `fit`, `robustness`, `tests` |
   | `doc-reviewer` | [`doc_proxies.py`](skills/docs-authoring-and-sync/scripts/doc_proxies.py) — the changed sections and lines of the changed docs, `--all` every doc whole | `plain`, `answer-first`, `accuracy`, `concise` |
   | `ux-content-writer` | [`ux_proxies.py`](skills/ux-content/scripts/ux_proxies.py) — the strings on the changed lines of the changed UI files, `--all` every one | `short`, `clear`, `human`, `next-step` |
@@ -498,6 +499,14 @@ Old debt is the audit's trend, never a review's cap.
   dimension, name, view and the words it quotes; a kit page's number is dropped, since a page added renumbers the
   rest. Each base metric is matched once, the same `where` first, so a second violation at a place the base held
   once is new. The trade: one moved to another kit page, while the old one goes, is still carried.
+- **A renamed place is carried when the base has an offender of the same metric on the same view left unmatched,
+  reading the same with its quoted words masked, as far out or farther.** A label reworded changes the words a place
+  quotes, so its key finds nothing: "Set clock" to "Set" made the Clock screen's unchanged 40 px and 80 px gaps read
+  as new. Masked, the `where` keeps its px and its layout words, so only the words may differ; a kit page's number
+  is dropped. Such a metric is matched one to one, the farthest out first, each to the nearest such base offender,
+  and `review` and `proxies` name the base's place beside the carried debt. An old one fixed while a new one at
+  another gap appears caps, even on the kit's one view. So does a renamed place farther out than the base's, and a
+  second new place on the view.
 
 ---
 
@@ -517,11 +526,13 @@ Critique's LGTM with comments and CodeRabbit's incremental reviews.
 
 - **A review stands while its normalised fingerprint matches.** C and C++ lose their comments, and whitespace
   collapses; a space between a word and a sign goes. Literals and every space in a preprocessor line are kept, and a
-  `//` comment ending in a backslash takes the next line, as the compiler does. Python is read by its tokenizer:
+  `//` comment ending in a backslash takes the next line, as the compiler does. A `// host-sources:` line is kept as
+  written, since `tests/host/run.sh` reads it for what a test compiles. Python is read by its tokenizer:
   comments and breaks inside brackets go, indentation depth stays. Shell loses its comments and runs of spaces outside
   quotes; line breaks and here-documents stay. A `#!` first line is kept in both. Markdown re-wrapped with the same
   words is the same, but any word change, a list run into a paragraph, or the whitespace of fenced or indented code
-  is not. Other files compare by line. `status` and the Verified block say "stands: only comments or whitespace
+  is not. YAML compares line by line as written, blank lines and trailing spaces kept, since a block scalar holds
+  them. Other files compare by line. `status` and the Verified block say "stands: only comments or whitespace
   changed" when only that holds it.
 - **A nit is polish the judge passed with; a blocking finding is not.** A pass with `--nit` is approve-with-nits.
   `nits-fixed` diffs the snapshot against the tree after normalising both, and every hunk must lie by a nit. A nit
@@ -529,6 +540,11 @@ Critique's LGTM with comments and CodeRabbit's incremental reviews.
   from what the judge read refuses it. A logic change within those bounds is not told apart from polish. `delta`
   shows every hunk, so the judge sees one on its next look. A blocking verdict stays in force until the judge records a
   new pass — `nits-fixed` never clears it, like Gerrit's `is:MIN`.
+- **A `built` yes and a run on the target rest on the code normalised the same way.** `approve --kind built` keeps
+  the gated files' normalised fingerprint, and `target` the deployed files'. So wrapping a comment after the
+  person's yes, or after the board ran the code, keeps the yes and the sign-off; a token changed makes both stale.
+  Comments never reach the target. Each also keeps the raw hash, which `status` shows beside "stands: only comments
+  or whitespace changed in its code since". A binary is hashed by its bytes.
 - **A review rests on what the judge read.** `ask` keeps the judge's files when it is asked. Its `review` then
   stamps and snapshots those files, not the tree at record time. So an edit made while the judge reads makes the
   review stale, and shows in the next `delta`. Without an `ask` since its last review, `review` snapshots the tree

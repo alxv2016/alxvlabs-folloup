@@ -20,7 +20,8 @@ The program writes .cache/harness/proxies/ui-designer.json and ux-designer.json 
 "product", "screens": [...], "metrics": [{"dimension", "name", "value", "range": [lo, hi], "ok", "where", "screens"}]}` —
 and a one-bit PNG of each view to build/host/audit/, and of each ringed stop to build/host/audit/rings/. A metric
 outside its range caps its dimension's score; it never fails the run. Exit 0 when the audit ran, 1 when it could not
-build or run, or a fixture — two labels at known gaps, or rings cut, let out and doubled — misread.
+build or run, or a fixture — two labels at known gaps, rings cut, let out and doubled, or a disabled button's reason
+far above it, linked and not — misread.
 Bare, each metric also carries `base`: its value at the same place — dimension, name, view, quoted words — when HEAD
 draws every screen (null: no such place there), so verify.py caps only what the change made worse
 (.agents/HARNESS.md §12.5). HEAD's audit is run once per commit in a git worktree under .cache/harness/worktrees/, which
@@ -230,6 +231,13 @@ def metric_key(m: dict) -> tuple:
     return m.get("dimension"), m.get("name"), view, tuple(re.findall(r"'([^']*)'", where))
 
 
+def masked(m: dict) -> tuple:
+    """A metric's place with the words it quotes masked: its dimension, its name and its `where` — a kit page's
+    number dropped — with each quoted text `''`, so the px and the layout words it reads must stay as they were."""
+    view, _, rest = str(m.get("where", "")).partition(":")
+    return m.get("dimension"), m.get("name"), re.sub(r"\s+p\d+$", "", view.strip()), re.sub(r"'[^']*'", "''", rest)
+
+
 def outside(m: dict) -> float:
     lo, hi = m["range"]
     return max(lo - m["value"], m["value"] - hi, 0)
@@ -238,7 +246,13 @@ def outside(m: dict) -> float:
 def with_base(data: dict, base: dict) -> dict:
     """Each metric with `base`, its value at the same place at the base — the one with the same `where`, else the
     farthest out of those left at its key — or null when the base has no such place left. Each base metric is matched
-    once: a second violation at a key the base held once is new, even on a renumbered kit page."""
+    once: a second violation at a key the base held once is new, even on a renumbered kit page.
+    A place renamed — the words it quotes changed, as a label reworded — is the same place when the base has an
+    offender of the same metric on the same view left unmatched whose `where` reads the same once the quoted words are
+    masked (the same px, the same layout words), out of range by as much or more: matched one to one, the
+    farthest-out offender here first, each to the nearest such base offender, so its value then decides. An old one
+    fixed while a new one at another gap appears, a second new place, or one farther out finds none and stays new
+    (.agents/HARNESS.md §12.5)."""
     index = defaultdict(list)
     for b in base.get("metrics", []):
         index[metric_key(b)].append(b)
@@ -256,8 +270,26 @@ def with_base(data: dict, base: dict) -> dict:
             if pick is not None:
                 found.remove(pick)
             picks[k] = pick
+    # A renamed place: an offender here with no base left at its key, matched to an offender left on the same view
+    # that reads the same with its quoted words masked.
+    renamed: dict = {}
+    left = defaultdict(list)
+    for found in index.values():
+        for b in found:
+            if b.get("ok") is False:
+                left[masked(b)].append(b)
+    for k in sorted((k for k, m in enumerate(data["metrics"]) if picks[k] is None and m.get("ok") is False),
+                    key=lambda k: -outside(data["metrics"][k])):
+        m = data["metrics"][k]
+        pool = left.get(masked(m), [])
+        pick = min((b for b in pool if outside(b) >= outside(m)), key=outside, default=None)
+        if pick is not None:
+            pool.remove(pick)
+            picks[k], renamed[k] = pick, pick.get("where")
     for k, m in enumerate(data["metrics"]):
         m["base"] = picks[k]["value"] if picks[k] else None
+        if k in renamed:
+            m["base_where"] = renamed[k]  # the place as the base named it, before its words changed
     return {**data, "base_commit": base.get("commit")}
 
 
@@ -466,6 +498,29 @@ void BuildHome(lv_obj_t *home) { for (const Entry &e : kRows) {} }
                          dict(off, where="kit p14: 28 px between blocks, above at 'Brightness'")]}
     got = [m["base"] for m in with_base(twice, {"metrics": [off]})["metrics"]]
     check(got == [1, None], f"a second violation at a place the base held once is new, not carried: {got}")
+    # A renamed place: "Set clock" → "Set", the Clock screen's two off-scale gaps unchanged.
+    clock = dict(off, value=2, screens=["clock"], where="clock: 40 px between blocks, above at 'Set clock'; 80 px "
+                                                        "between blocks, above at 'Now 09:41'")
+    renamed = lambda v: dict(clock, value=v, where=clock["where"].replace("'Set clock'", "'Set'"))  # noqa: E731
+    checks[0] += 3
+    got = with_base({"metrics": [renamed(2)]}, {"metrics": [clock]})["metrics"][0]
+    check(got["base"] == 2 and got.get("base_where") == clock["where"],
+          f"a renamed place with the same value is carried, its base's place named: {got.get('base')}")
+    got = with_base({"metrics": [renamed(3)]}, {"metrics": [clock]})["metrics"][0]
+    check(got["base"] is None, f"a renamed place farther out than the base's is new: {got['base']}")
+    other = dict(off, where="kit p12: 20 px between blocks, above at 'Contrast'")
+    got = [m["base"] for m in with_base({"metrics": [dict(off, where="kit p11: 28 px between blocks, above at 'Hue'"),
+                                                     other]}, {"metrics": [off]})["metrics"]]
+    check(got == [1, None], f"one renamed place takes the base's one offender; an extra place stays new: {got}")
+    old = dict(off, where="kit p3: 28 px between blocks, above at 'Old'")
+    checks[0] += 2
+    got = with_base({"metrics": [dict(off, where="kit p9: 36 px between blocks, above at 'New'")]},
+                    {"metrics": [old]})["metrics"][0]
+    check(got["base"] is None, f"an old place fixed and a new one at another gap on the view is new, not a rename: "
+                               f"{got['base']}")
+    got = with_base({"metrics": [dict(off, where="kit p4: 28 px between blocks, above at 'New'")]},
+                    {"metrics": [old]})["metrics"][0]
+    check(got["base"] == 1, f"the same px with its words changed, on a renumbered page, is a rename: {got['base']}")
     check(with_base({"metrics": []}, base)["base_commit"] == "abc", "the results name the base they were held against")
     real = (ROOT / HW_TEST).read_text(errors="replace") if (ROOT / HW_TEST).is_file() else ""
     defined = {n.split("::")[-1] for n, *_ in code_proxies.functions(real)}

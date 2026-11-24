@@ -20,7 +20,8 @@
 //   state        every focusable shows a ring when focused; no ring cut off — its outline box, focused and open for editing,
 //                inside the glass and what each ancestor lets its children draw (its box, or with LV_OBJ_FLAG_OVERFLOW_VISIBLE
 //                its box grown by its ext_draw_size), per side, in px; one ring drawn at once (BYTE-90 ui_probe's RingClip and
-//                RingCount, STICKY_DESIGN_TOKENS §9); every disabled control says why in words (DESIGN → Components)
+//                RingCount, STICKY_DESIGN_TOKENS §9); every disabled control says why in words — inside it, just under
+//                it, or in the words it names as its reason (widgets::LinkDisabledReason) (DESIGN → Components)
 //   medium       the share of the glass a ring move changes, at most kScanMaxChanged's 15 % (STICKY_DESIGN_TOKENS §5)
 // It writes .cache/harness/proxies/ui-designer.json, a PNG of each view to build/host/audit/ and of each ringed stop to
 // build/host/audit/rings/ (screen__stop_name.png, for cmp after a refactor). For the ux-designer judge it walks the routes
@@ -28,9 +29,10 @@
 // .cache/harness/proxies/ux-designer.json. Every metric names the screens it measured ("screens"), so the wrapper,
 // .agents/skills/ui-designer/scripts/screen_audit.py, keeps for a review only the screens the change touched; the program
 // itself always measures the whole product ("scope": "product"). Before the screens it measures a fixture — two cards, a
-// label over a caption at two known font-box gaps, and a ring a box cuts 8 px at the bottom — and stops if a font box, an
-// ink gap or a ring reads wrong. Otherwise it reports and never fails: it exits non-zero only when it cannot run or the
-// fixture misreads. The wrapper builds it alone.
+// label over a caption at two known font-box gaps, a ring a box cuts 8 px at the bottom, and a disabled button whose
+// reason stands 500 px above it, linked and not — and stops if a font box, an ink gap, a ring or a reason reads wrong.
+// Otherwise it reports and never fails: it exits non-zero only when it cannot run or the fixture misreads. The wrapper
+// builds it alone.
 // host-sources: components/ui/ui.cpp components/ui/line_box.cpp components/ui/fonts/bitcount/*.c components/widgets/marks/marks.c components/widgets/src/*.cpp components/widgets/src/internal/*.cpp components/router/router.cpp components/router/overlays.cpp components/router/focus.cpp components/router/touch.cpp components/router/routes.cpp components/router/screen.cpp components/router/status.cpp components/app_hooks/app_hooks.cpp components/app_shell/screen_home.cpp
 // Build and run: bash tests/host/run.sh screen_audit
 
@@ -1002,7 +1004,16 @@ void CheckCut(View &v)
         v.name + ": " + (cut.empty() ? std::string("none") : Join(cut)));
 }
 
-// Every disabled control says why in words: a second text inside it, or a text just under it (DESIGN → Components).
+// The words a control names as why it is disabled (widgets::LinkDisabledReason), when they stand on this view.
+bool LinkedReasonShown(View &v, lv_obj_t *control)
+{
+    lv_obj_t *reason = widgets::DisabledReason(control);
+    const auto it = reason != nullptr ? v.nodes.find(reason) : v.nodes.end();
+    return it != v.nodes.end() && it->second.text && !it->second.ink.Empty();
+}
+
+// Every disabled control says why in words: a second text inside it, a text just under it, or the words it names as its
+// reason wherever they stand on the view — the keyboard's count line, above its footer (DESIGN → Components).
 void CheckDisabled(View &v)
 {
     std::vector<std::string> silent;
@@ -1031,7 +1042,7 @@ void CheckDisabled(View &v)
         Collect(host, inside);
         int texts = 0;
         for (lv_obj_t *c : inside) texts += v.nodes.count(c) && v.nodes[c].text;
-        bool told = texts >= 2;
+        bool told = texts >= 2 || LinkedReasonShown(v, o) || (host != o && LinkedReasonShown(v, host));
         for (lv_obj_t *c : v.order) {
             const Node &n = v.nodes[c];
             if (told || !n.text || std::find(inside.begin(), inside.end(), c) != inside.end()) continue;
@@ -1811,6 +1822,64 @@ int CheckRingFixture()
     return bad;
 }
 
+// --- The disabled fixture: a reason far from its control, found only when the control names it ----------------------
+
+// A disabled action button low on a screen of paper and a caption far above it, linked as its reason or not: the reason
+// metric reads 0 linked and 1 unlinked.
+int CheckDisabledFixture()
+{
+    lv_obj_t *before = lv_screen_active();
+    int bad = 0;
+    for (const bool linked : {true, false}) {
+        lv_obj_t *scr = RingFixtureScreen();
+        lv_obj_t *words = lv_label_create(scr);
+        const auto &caption = dt::kTypographyCaption;
+        lv_obj_set_style_text_font(words, ui::Bitcount(caption.size_px, caption.weight), 0);
+        lv_label_set_text(words, "3 of 8 characters needed");
+        lv_obj_set_pos(words, 40, 100);
+        lv_obj_t *button = widgets::MakeButton(scr, "Join", widgets::ButtonVariant::kAction, 200);
+        lv_obj_set_pos(button, 40, 600);
+        lv_obj_add_state(button, LV_STATE_DISABLED);
+        if (linked) widgets::LinkDisabledReason(button, words);
+        Settle();
+        View v;
+        v.name = "fixture";
+        const size_t metrics = s_metrics.size();
+        Capture(v);
+        CheckDisabled(v);
+        const double silent = s_metrics.size() > metrics ? s_metrics.back().value : -1;
+        s_metrics.resize(metrics);
+        if (silent != (linked ? 0 : 1)) {
+            ++bad;
+            std::printf("screen audit disabled fixture: FAIL %s reason 500 px above: %g silent\n",
+                        linked ? "a linked" : "an unlinked", silent);
+        }
+        lv_screen_load(before);
+        lv_obj_delete(scr);
+    }
+    // The link: a second call replaces the reason, and the reason's deletion clears it, either going first.
+    lv_obj_t *scr = RingFixtureScreen();
+    lv_obj_t *control = lv_obj_create(scr), *one = lv_label_create(scr), *two = lv_label_create(scr);
+    widgets::LinkDisabledReason(control, one);
+    widgets::LinkDisabledReason(control, two);
+    const bool replaced = widgets::DisabledReason(control) == two;
+    lv_obj_delete(two);
+    const bool cleared = widgets::DisabledReason(control) == nullptr;
+    widgets::LinkDisabledReason(control, one);
+    lv_obj_delete(control);
+    lv_obj_delete(one);  // its unhooked link is not called on a freed cell
+    if (!replaced || !cleared) {
+        ++bad;
+        std::printf("screen audit disabled fixture: FAIL the link %s\n",
+                    replaced ? "outlives its reason" : "was not replaced");
+    }
+    lv_screen_load(before);
+    lv_obj_delete(scr);
+    std::printf("screen audit disabled fixture: %s\n",
+                bad ? "FAIL" : "a reason far above is told when linked, silent when not");
+    return bad;
+}
+
 // LVGL on the host: its heap grown as the firmware's PSRAM grows it, a glass-sized display read as the glass reads it, and
 // a keypad in a group, as the buttons are.
 bool StartLvgl()
@@ -1873,7 +1942,8 @@ int main()
     }
     MapFaces();
     FindOffsetCb();
-    if (CheckFixture() != 0 || CheckRingFixture() != 0) return 1;  // a measure that misreads a known layout would misread every screen
+    // A measure that misreads a known layout would misread every screen.
+    if (CheckFixture() != 0 || CheckRingFixture() != 0 || CheckDisabledFixture() != 0) return 1;
     PrepareOutput();
 
     // Home and the routes, as app_shell builds them.

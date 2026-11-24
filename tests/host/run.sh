@@ -2,17 +2,17 @@
 # Builds and runs the host tests — the firmware's pure logic, tested on the computer with its own C++ compiler, no
 # board and no ESP-IDF. Each tests/host/*_test.cpp is one program; the run fails if any fails to build or any check
 # fails. A test named *_lvgl_test.cpp links LVGL's real sources, taken from managed_components (a firmware build fetches
-# them) and compiled once, with LVGL's own default configuration, into build/host/lvgl. The binaries go to build/host/,
-# which is never committed. tests/host/token_parity.py runs too, with its self-test: DESIGN.md's front matter and the
-# token header hold the same tokens (STICKY_DESIGN_TOKENS §7). Run from anywhere: bash tests/host/run.sh [part of a
-# test's name]
+# them) and compiled once, with LVGL's own default configuration, into build/host/lvgl. The binaries go to
+# build/host/runs/<pid>/, which, like all of build/host/, is never committed. tests/host/token_parity.py runs too,
+# with its self-test: DESIGN.md's front matter and the token header hold the same tokens (STICKY_DESIGN_TOKENS §7).
+# Run from anywhere: bash tests/host/run.sh [part of a test's name]
 #
 # How it stays fast: every test file and every firmware source on a `// host-sources:` line is compiled once into
 # build/host/obj/<flag-set hash>/, its path with slashes made `__`, and rebuilt only when the source, a header it
 # includes (the compiler's own -MD list) or the flags change; the compiles, then the tests' links and runs, go as many
-# at a time as the computer has cores. Each test's output is kept in build/host/logs/ and printed in name order once all
-# have run. Only the screen audit writes files (build/host/audit/, .cache/harness/proxies/), so no two tests share an
-# output. Runs under macOS's bash 3.2.
+# at a time as the computer has cores. Each run keeps its binaries and output in build/host/runs/<pid>/, prints the
+# output in name order once all have run, and leaves it in build/host/logs/. Only the screen audit writes files
+# (build/host/audit/, .cache/harness/proxies/), so no two tests share an output. Runs under macOS's bash 3.2.
 set -euo pipefail
 cd "$(dirname "$0")/../.."
 
@@ -102,24 +102,27 @@ compile_one() {
 # result (0 passed, 1 failed) in logs/<name>.status; the seconds it took go to times/<name>, so the next run starts the
 # slowest first. A missing object is a source that did not build.
 link_and_run() {
-    local name="$1" log="$OUT/logs/$1.log" o
+    local name="$1" log="$RUN/logs/$1.log" o
     shift
     SECONDS=0
     trap 'echo "$SECONDS" > "$OUT/times/$name"' RETURN
     {
         for o in "$@"; do
-            [ -f "$o" ] || { echo "host tests: $name did not build"; echo 1 > "$OUT/logs/$name.status"; return 0; }
+            [ -f "$o" ] || { echo "host tests: $name did not build"; echo 1 > "$RUN/logs/$name.status"; return 0; }
         done
-        if ! $CXX "$@" -o "$OUT/$name"; then
+        if ! $CXX "$@" -o "$RUN/$name"; then
             echo "host tests: $name did not build"
-            echo 1 > "$OUT/logs/$name.status"
+            echo 1 > "$RUN/logs/$name.status"
             return 0
         fi
-        if "$OUT/$name"; then echo 0 > "$OUT/logs/$name.status"; else echo 1 > "$OUT/logs/$name.status"; fi
+        if "$RUN/$name"; then echo 0 > "$RUN/logs/$name.status"; else echo 1 > "$RUN/logs/$name.status"; fi
     } > "$log" 2>&1
 }
+# Each run keeps its test binaries and logs in a folder of its own, so two runs at once never clobber each other;
+# the logs move to build/host/logs/ when the run ends.
+RUN="$OUT/runs/$$"
 export -f compile_one link_and_run
-export OUT CXX
+export OUT CXX RUN
 
 status=0
 shopt -s nullglob
@@ -150,9 +153,10 @@ for test in "${tests[@]}"; do
 done
 
 dir_plain="$(obj_dir plain)" dir_lvgl="$(obj_dir lvgl)" dir_font="$(obj_dir font)"
-mkdir -p "$dir_plain" "$dir_lvgl" "$dir_font" "$OUT/logs"
-rm -f "$OUT"/logs/*
-jobs_file="$OUT/logs/compile.jobs"
+rm -rf "$RUN"  # a run killed outright leaves its folder, and a later run may get the same pid
+mkdir -p "$dir_plain" "$dir_lvgl" "$dir_font" "$RUN/logs"
+trap 'rm -rf "$RUN"' EXIT
+jobs_file="$RUN/logs/compile.jobs"
 : > "$jobs_file"
 # Each test's link line (name, then its objects) in name order: the test's own object, the objects of the files on its
 # `// host-sources:` line in that line's order (a .cpp against LVGL, a .c as a font), then LVGL's. A test needing LVGL
@@ -210,9 +214,13 @@ for test in "${tests[@]}"; do
         echo "host tests: $name did not build"
         status=1
     else
-        cat "$OUT/logs/$name.log"
-        [ "$(cat "$OUT/logs/$name.status" 2>/dev/null || echo 1)" = 0 ] || status=1
+        cat "$RUN/logs/$name.log"
+        [ "$(cat "$RUN/logs/$name.status" 2>/dev/null || echo 1)" = 0 ] || status=1
     fi
     i=$((i + 1))
 done
+# Two runs ending at once race for build/host/logs/: one's logs win, and neither run's exit status changes.
+{ mv "$RUN/logs" "$OUT/logs.$$" && rm -rf "$OUT/logs" && { [ -e "$OUT/logs" ] || mv "$OUT/logs.$$" "$OUT/logs"; }; } \
+    2>/dev/null || true
+rm -rf "$OUT/logs.$$" 2>/dev/null || true
 exit "$status"

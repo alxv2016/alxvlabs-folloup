@@ -905,6 +905,9 @@ file.
   fingerprint. A redrawn mock or a changed screen is no longer the one approved.
 - **The target and its sign-off store a fingerprint of the deployed code** — every changed file but docs and the
   harness. A doc edit leaves a sign-off standing; a code edit does not.
+- **Both code fingerprints are normalised as a review's are**, with the raw hash kept for display. A comment
+  re-wrapped after the person's yes, or after the target ran the code, keeps the yes and the sign-off. Comments never
+  reach the target, so only a changed token asks the person to look again.
 
 ### 10.4 The hand-over
 

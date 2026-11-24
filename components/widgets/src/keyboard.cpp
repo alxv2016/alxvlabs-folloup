@@ -401,6 +401,7 @@ Keyboard OpenKeyboard(const KeyboardConfig &config)
     kb->action = MakeButton(footer, kb->action_words.c_str(), ButtonVariant::kAction, kHalf);
     lv_obj_add_event_cb(kb->cancel, OnCancelClicked, LV_EVENT_CLICKED, kb);
     lv_obj_add_event_cb(kb->action, OnActionClicked, LV_EVENT_CLICKED, kb);
+    LinkDisabledReason(kb->action, kb->count);  // the count line says why the action waits
 
     Refresh(kb);
     lv_obj_add_event_cb(screen, OnScreenDelete, LV_EVENT_DELETE, kb);

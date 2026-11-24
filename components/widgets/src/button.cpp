@@ -68,4 +68,63 @@ lv_obj_t *MakeButton(lv_obj_t *parent, const char *label, ButtonVariant variant,
     return button;
 }
 
+namespace {
+// A control's link to its reason. It clears itself when the reason goes, and the control's going frees it, so it never
+// points at a deleted object (lv_obj_is_valid would read through such a pointer to test it).
+struct ReasonCell {
+    lv_obj_t *reason;
+};
+
+void ReasonGone(lv_event_t *e)
+{
+    static_cast<ReasonCell *>(lv_event_get_user_data(e))->reason = nullptr;
+}
+
+// On the control, LV_EVENT_DELETE: unhooks the reason and frees the cell. DisabledReason finds the link by this
+// function's address, on purpose — no flag or user data of the control's own is taken.
+void ReasonLink(lv_event_t *e)
+{
+    auto *cell = static_cast<ReasonCell *>(lv_event_get_user_data(e));
+    if (cell->reason != nullptr) {
+        lv_obj_remove_event_cb_with_user_data(cell->reason, ReasonGone, cell);
+    }
+    delete cell;
+}
+
+ReasonCell *CellOf(lv_obj_t *control)
+{
+    for (uint32_t i = 0; i < lv_obj_get_event_count(control); ++i) {
+        lv_event_dsc_t *dsc = lv_obj_get_event_dsc(control, i);
+        if (lv_event_dsc_get_cb(dsc) == ReasonLink) {
+            return static_cast<ReasonCell *>(lv_event_dsc_get_user_data(dsc));
+        }
+    }
+    return nullptr;
+}
+}  // namespace
+
+void LinkDisabledReason(lv_obj_t *control, lv_obj_t *reason)
+{
+    if (reason == control) {
+        return;  // a control is never its own reason
+    }
+    ReasonCell *cell = CellOf(control);
+    if (cell == nullptr) {  // one link per control: a second call replaces the reason
+        cell = new ReasonCell{nullptr};  // freed by ReasonLink when the control is deleted
+        lv_obj_add_event_cb(control, ReasonLink, LV_EVENT_DELETE, cell);
+    } else if (cell->reason != nullptr) {
+        lv_obj_remove_event_cb_with_user_data(cell->reason, ReasonGone, cell);
+    }
+    cell->reason = reason;
+    if (reason != nullptr) {
+        lv_obj_add_event_cb(reason, ReasonGone, LV_EVENT_DELETE, cell);
+    }
+}
+
+lv_obj_t *DisabledReason(lv_obj_t *control)
+{
+    const ReasonCell *cell = CellOf(control);
+    return cell != nullptr ? cell->reason : nullptr;
+}
+
 }  // namespace widgets

@@ -1281,7 +1281,8 @@ serves, reached and used by the keys and by touch.
   `text-disabled-page`, one in eight. A disabled control looks inert, not faded: it is exempt from contrast, is never
   reached by the buttons and never has a ring, and a disabled tonal button differs from an enabled one by its words
   alone — so the reason says why, in words, solid `caption` in `text-secondary` under the control, `spacing.xs` below
-  a row's name; prefer explaining over disabling.
+  a row's name. Where the words cannot stand under it, a line the screen already shows says why and is linked to the
+  control (the keyboard's count line, for its action). Prefer explaining over disabling.
 - **Busy** — the label says what it is doing.
 - **Done** — in words ("Done"), never a grey.
 

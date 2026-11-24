@@ -26,4 +26,12 @@ enum class ButtonVariant : uint8_t { kAction, kOutline, kTonal, kGhost };
 lv_obj_t *MakeButton(lv_obj_t *parent, const char *label, ButtonVariant variant, int32_t width = 0,
                      Glyph glyph = Glyph::kNone);
 
+// Names `reason`, words elsewhere on the screen, as what says why `control` is disabled — for words that cannot
+// stand under it, as the keyboard's count line above its footer. It draws nothing; the screen audit reads the link.
+// One link per control: a second call replaces the reason, nullptr removes it.
+void LinkDisabledReason(lv_obj_t *control, lv_obj_t *reason);
+// The words LinkDisabledReason named for `control`, or nullptr — also once those words are deleted: the link clears
+// itself, so either may go first.
+lv_obj_t *DisabledReason(lv_obj_t *control);
+
 }  // namespace widgets

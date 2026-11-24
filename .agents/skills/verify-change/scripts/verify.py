@@ -196,6 +196,7 @@ NIT_SLACK = 3      # a hunk within this many lines of a nit is that nit's fix
 NIT_SPAN = 10      # the most lines one nit covers
 LINE_LIMIT = 120   # the longest code line `selfcheck` lets through
 SNAPSHOTS = STATE / "snapshots"
+HOST_SOURCES = "// host-sources:"  # a comment tests/host/run.sh reads at a line's start: what a host test compiles
 RAW_STRING = re.compile(r"(?:^|\W)(?:u8|u|U|L)?R$")  # C++'s R"delim( … )delim", seen from its opening quote
 
 
@@ -204,8 +205,9 @@ def read_text(p: Path) -> str | None:
 
 
 def kind_of(path: str, text: str) -> str:
-    """How a file is normalised — c, py, sh, md or raw — by its extension, else by its shebang."""
-    for kind, ext in (("c", C_SOURCES), ("py", (".py",)), ("sh", (".sh", ".bash")), ("md", (".md",))):
+    """How a file is normalised — c, py, sh, md, exact or raw — by its extension, else by its shebang."""
+    for kind, ext in (("c", C_SOURCES), ("py", (".py",)), ("sh", (".sh", ".bash")), ("md", (".md",)),
+                      ("exact", (".yml", ".yaml"))):
         if path.endswith(ext):
             return kind
     first = text.split("\n", 1)[0]
@@ -221,7 +223,8 @@ def is_word(ch: str) -> bool:
 def c_units(text: str) -> list[tuple[int, int, str]]:
     """C and C++ as statements: comments dropped, a run of whitespace one space — and none between a word and a sign
     — a unit ending at `;`, `{`, `}` or a preprocessor line's end. Literals are kept as written, and a directive keeps
-    every space (`#define F (x)` is not `#define F(x)`)."""
+    every space (`#define F (x)` is not `#define F(x)`). A `// host-sources:` line, which tests/host/run.sh reads, is
+    a unit of its own, as written."""
     out: list = []
     buf: list = []
     span = [0, 0]
@@ -255,6 +258,14 @@ def c_units(text: str) -> list[tuple[int, int, str]]:
             continue
         if c in " \t\r\f\v":
             space, i = True, i + 1
+            continue
+        if text.startswith(HOST_SOURCES, i) and (i == 0 or text[i - 1] == "\n"):
+            # tests/host/run.sh reads this comment for what the test compiles: a unit of its own, as written
+            cut()
+            j = text.find("\n", i)
+            j = n if j < 0 else j
+            out.append((line, line, text[i:j].rstrip()))
+            space, i = True, j
             continue
         if text.startswith("//", i):  # a backslash before its newline splices the next line into it
             j = text.find("\n", i)
@@ -437,7 +448,12 @@ def raw_units(text: str) -> list[tuple[int, int, str]]:
     return [(ln, ln, s.rstrip()) for ln, s in enumerate(text.split("\n"), 1) if s.strip()]
 
 
-UNITS = {"c": c_units, "py": py_units, "sh": sh_units, "md": md_units, "raw": raw_units}
+def exact_units(text: str) -> list[tuple[int, int, str]]:
+    """YAML as lines, as written: a blank line or a trailing space in a block scalar is part of its value."""
+    return [(ln, ln, s) for ln, s in enumerate(text.split("\n"), 1)]
+
+
+UNITS = {"c": c_units, "py": py_units, "sh": sh_units, "md": md_units, "exact": exact_units, "raw": raw_units}
 
 
 def file_units(path: str, text: str | None) -> list[tuple[int, int, str]]:
@@ -456,7 +472,13 @@ def normal_hash(paths, salt: str = "", root: Path | None = None) -> str:
     """content_hash of the files once normalised: a comment or whitespace edit leaves it as it was."""
     h = hashlib.sha256(salt.encode())
     for f in paths:
-        text = read_text((root or ROOT) / f)
+        p = (root or ROOT) / f
+        raw = p.read_bytes() if p.is_file() else None
+        try:
+            text = None if raw is None else raw.decode("utf-8")
+        except UnicodeDecodeError:  # a binary — a font, an image: its bytes, never text with its bytes replaced
+            h.update(f.encode() + b"\0" + raw + b"\0")
+            continue
         body = "(deleted)" if text is None else "\x1e".join(u[2] for u in file_units(f, text))
         h.update(f.encode() + b"\0" + body.encode() + b"\0")
     return h.hexdigest()[:16]
@@ -616,17 +638,47 @@ def tree_fingerprint() -> str:
     return content_hash(watched(changed_files()), git("rev-parse", "HEAD"))
 
 
+def deployed_files() -> list[str]:
+    """The changed files that reach the target — everything but docs and the harness."""
+    return [f for f in changed_files() if not is_kit_or_doc(f) and not f.startswith(HARNESS)]
+
+
 def deployed_fingerprint() -> str:
-    """HEAD and the changed files that reach the target — everything but docs and the harness; a doc edit leaves a
-    sign-off standing."""
-    return content_hash([f for f in changed_files() if not is_kit_or_doc(f) and not f.startswith(HARNESS)],
-                        git("rev-parse", "HEAD"))
+    """HEAD and the changed files that reach the target, normalised as a judge's are (.agents/HARNESS.md §13): a doc
+    edit, or a comment or whitespace edit in code, leaves a sign-off standing — comments never reach the target."""
+    return normal_hash(deployed_files(), git("rev-parse", "HEAD"))
+
+
+def deployed_raw() -> str:
+    """The same files' raw bytes: shown beside the normalised one, and what a target recorded before it held."""
+    return content_hash(deployed_files(), git("rev-parse", "HEAD"))
+
+
+def deployed_holds(stored: str | None) -> bool:
+    """Whether the code that reaches the target is still what ran there — the normalised fingerprint, or the raw one
+    a target recorded before the normalised one was kept."""
+    return stored is not None and stored in (deployed_fingerprint(), deployed_raw())
+
+
+def gated_files(files: list[str] | None = None) -> list[str]:
+    paths = tuple(p for _, ps, _ in project.GATES for p in ps)
+    return [f for f in (files if files is not None else changed_files()) if project.matches(f, paths)]
 
 
 def gated_fingerprint(files: list[str] | None = None) -> str:
-    """The content of the changed files any gate covers — what a `built` yes saw."""
-    paths = tuple(p for _, ps, _ in project.GATES for p in ps)
-    return content_hash([f for f in (files if files is not None else changed_files()) if project.matches(f, paths)])
+    """The changed files any gate covers, normalised as a judge's are — what a `built` yes saw; a comment or
+    whitespace edit after it leaves the yes standing (.agents/HARNESS.md §13)."""
+    return normal_hash(gated_files(files))
+
+
+def gated_raw(files: list[str] | None = None) -> str:
+    """The same files' raw bytes: shown beside the normalised one, and what a yes recorded before it held."""
+    return content_hash(gated_files(files))
+
+
+def gated_holds(stored: str | None, files: list[str] | None = None) -> bool:
+    """Whether the gated files are still what a `built` yes saw — normalised, or raw for a yes recorded before."""
+    return stored is not None and stored in (gated_fingerprint(files), gated_raw(files))
 
 
 def file_hash(path: Path) -> str | None:
@@ -1551,7 +1603,7 @@ def cmd_approve(args: argparse.Namespace) -> int:
         return 2
     with task_update() as task:
         task["approvals"].append({"kind": args.kind, "file": str(path.resolve()), "sha": digest, "note": args.note,
-                                  "at": now(), "code": gated_fingerprint()})
+                                  "at": now(), "code": gated_fingerprint(), "code_raw": gated_raw()})
     print(f"approval recorded: {args.kind} {path.name} ({digest})")
     return 0
 
@@ -1569,7 +1621,8 @@ def cmd_decision(args: argparse.Namespace) -> int:
 def cmd_target(args: argparse.Namespace) -> int:
     with task_update() as task:
         task["target"] = {"where": args.where, "build": args.build, "health_exit": args.health_exit,
-                          "note": args.note, "at": now(), "deployed": deployed_fingerprint()}
+                          "note": args.note, "at": now(), "deployed": deployed_fingerprint(),
+                          "deployed_raw": deployed_raw()}
         # Every run on the target, with how many findings and decisions were recorded by then — finish reads it
         # (unrecorded_redeploys).
         task.setdefault("target_log", []).append({"at": task["target"]["at"], "deployed": task["target"]["deployed"],
@@ -1610,7 +1663,7 @@ def cmd_signoff(args: argparse.Namespace) -> int:
         print("signoff: nothing ran on the target this task — run it there, record it with verify.py target, then "
               "show the person", file=sys.stderr)
         return 1
-    if target["deployed"] != deployed_fingerprint():
+    if not deployed_holds(target["deployed"]):
         print("signoff: the code changed since it ran on the target — run it again, record it with verify.py "
               "target, and show the person again", file=sys.stderr)
         return 1
@@ -1620,8 +1673,17 @@ def cmd_signoff(args: argparse.Namespace) -> int:
     return 0
 
 
+def code_state(raw_then: str | None, raw_now: str, holds: bool) -> str:
+    """How the code stands against a built yes or a run on the target, in words, with the raw hash it saw."""
+    if not holds:
+        return " — the code changed since"
+    if raw_then is not None and raw_then != raw_now:
+        return f" — stands: only comments or whitespace changed in its code since (raw {raw_then} → {raw_now})"
+    return f" (code {raw_now})"
+
+
 def signoff_state(s: dict) -> str:
-    return "" if s["deployed"] == deployed_fingerprint() else " — the code changed since"
+    return "" if deployed_holds(s["deployed"]) else " — the code changed since"
 
 
 def log_judgement(entry: dict) -> None:
@@ -1837,7 +1899,9 @@ def split_metrics(data: dict, judge: str) -> tuple[dict, dict]:
         if not change or why:
             caps.setdefault(m["dimension"], []).append(said + (f" — {why}" if why else ""))
         else:
-            carried.setdefault(m["dimension"], []).append(said + f" — carried: {m.get('base', 'here')} at the base")
+            carried.setdefault(m["dimension"], []).append(
+                said + f" — carried: {m.get('base', 'here')} at the base"
+                + (f", where it read {str(m['base_where'])[:80]}" if m.get("base_where") else ""))
     return caps, carried
 
 
@@ -2401,7 +2465,7 @@ def gate_problems(task: dict, files: list[str]) -> list[str]:
             name = Path(a["file"]).name
             if approval_state(a):
                 problems.append(f"the approved {kind} {name}{approval_state(a)} — show the person the new file")
-            elif kind in KINDS_AFTER and a.get("code") != gated_fingerprint(files):
+            elif kind in KINDS_AFTER and not gated_holds(a.get("code"), files):
                 problems.append(f"the code changed after the person's yes on {name} — show them the built thing again")
             elif kind in KINDS_BEFORE and first and yes[0]["at"] > first:
                 problems.append(f"the yes on the {kind} {Path(yes[0]['file']).name} came after the first run that built "
@@ -2413,7 +2477,7 @@ def gate_problems(task: dict, files: list[str]) -> list[str]:
                                 "the draft is approved before the build (.agents/HARNESS.md §9)")
     target = task.get("target")
     if touched and target:
-        if target["deployed"] != deployed_fingerprint():
+        if not deployed_holds(target["deployed"]):
             problems.append("the code changed since it ran on the target — run it there again and record it with "
                             "verify.py target")
         elif not any(s["deployed"] == target["deployed"] for s in task.get("signoffs", [])):
@@ -2448,13 +2512,16 @@ def cmd_status(_: argparse.Namespace) -> int:
     for a in task.get("acceptances", []):
         print(f"accepted below the bar by the person: {a['judge']} at {a['quality']}/100 — {a['words']}")
     for a in task.get("approvals", []):
-        print(f"approved by the person: {a['kind']} {Path(a['file']).name} at {a['at']}{approval_state(a)}")
+        code = code_state(a.get("code_raw"), gated_raw(), gated_holds(a.get("code"))) if a["kind"] in KINDS_AFTER \
+            else ""
+        print(f"approved by the person: {a['kind']} {Path(a['file']).name} at {a['at']}{approval_state(a)}{code}")
     for d in task.get("decisions", []):
         print(f"decision (the person's, settled — a judge does not block on it): {d['text']}")
     if task.get("target"):
         t = task["target"]
         print(f"target: {t['build']} on {t['where']} at {t['at']}"
-              + (f", health check exit {t['health_exit']}" if t.get("health_exit") is not None else ""))
+              + (f", health check exit {t['health_exit']}" if t.get("health_exit") is not None else "")
+              + code_state(t.get("deployed_raw"), deployed_raw(), deployed_holds(t.get("deployed"))))
     for s in task.get("signoffs", []):
         print(f"signed off on the target by the person at {s['at']}: {s['text']}{signoff_state(s)}")
     for f in task["findings"]:
@@ -3107,10 +3174,26 @@ def normalise_self_test() -> list[tuple[str, bool]]:
          and not same("hook", "#!/bin/bash\necho a\n", "#!/bin/zsh\necho a\n")),
         ("normalise: a four-backtick fence holds a triple-backtick line, whitespace kept",
          not same("a.md", "````\n```\n  a  b\n````\n", "````\n```\na b\n````\n")),
+        ("normalise: a `// host-sources:` line is kept, so editing it is a change; another comment is not",
+         not same("t.cpp", "// host-sources: a.cpp\nint x;\n", "// host-sources: a.cpp b.cpp\nint x;\n")
+         and not same("t.cpp", "// host-sources: a.cpp\nint x;\n", "int x;\n")
+         and same("t.cpp", "// host-sources: a.cpp\n// one\nint x;\n", "// host-sources: a.cpp\n// two\nint x;\n")
+         and same("t.cpp", "int x;  // host-sources: a.cpp\n", "int x;\n")),
+        ("normalise: YAML keeps its blank lines and trailing spaces",
+         not same("ci.yml", "run: |\n  a\n\n  b\n", "run: |\n  a\n  b\n")
+         and not same("a.yaml", "k: |\n  a \n", "k: |\n  a\n")),
         ("normalise: indented code keeps its whitespace; a list's indented paragraph does not",
          not same("a.md", "Para.\n\n    x  =  1\n", "Para.\n\n    x = 1\n")
          and same("a.md", "- a\n\n    b  c\n", "- a\n\n    b c\n")),
     ]
+    with tempfile.TemporaryDirectory() as tmp:
+        bins = []
+        for n, data in enumerate((b"\x89PNG\xff\x01", b"\x89PNG\xfe\x01")):
+            (Path(tmp) / f"b{n}").mkdir()
+            (Path(tmp) / f"b{n}" / "f.png").write_bytes(data)
+            bins.append(normal_hash(["f.png"], "", Path(tmp) / f"b{n}"))
+        out.append(("normalise: a binary is hashed by its bytes — two that differ only in non-UTF-8 bytes differ",
+                    bins[0] != bins[1]))
     hunks = unit_hunks("a.c", c, c.replace("x + 1", "x + 2").replace("one more", "plus one"))
     out.append(("delta: a code edit and a comment edit are one hunk, at its line",
                 [(h["old"][:2], h["new"][:2]) for h in hunks] == [((2, 2), (2, 2))]))
@@ -3295,6 +3378,38 @@ def cli_self_test() -> list[tuple[str, bool]]:
                     code == 0 and "acceptance at" in said and "is below the bar" not in done
                     and "Carried forward: ui-designer" in done))
         out += review_cli_self_test(root, cli)
+        out += gate_cli_self_test(root, cli)
+    return out
+
+
+def gate_cli_self_test(root: Path, cli) -> list[tuple[str, bool]]:
+    """End to end: a built yes and a sign-off rest on the code normalised — a comment or whitespace edit after them
+    keeps both, a code edit makes both stale (.agents/HARNESS.md §13)."""
+    out = []
+    (root / ".gitignore").write_text(".cache/\n")  # the loop's own state, ignored as in the repo
+    src = root / "components/widgets/src/w.cpp"
+    src.parent.mkdir(parents=True, exist_ok=True)
+    body = "int Gap()\n{\n    return 24;  // the block gap\n}\n"
+    src.write_text(body)
+    shot = root / "built.png"
+    shot.write_bytes(b"\x89PNG built")
+    cli("approve", str(shot), "--kind", "built")
+    cli("target", "--where", "a board", "--build", "dev")
+    src.write_text("int Gap()\n{\n  // the gap between blocks, from DESIGN.md\n  return 24;\n}\n")
+    code, said = cli("signoff", "the gap looks right")
+    _, status = cli("status")
+    _, done = cli("finish")
+    out.append(("cli: a comment edit after a built yes keeps it, and status says so",
+                "the code changed after the person's yes" not in done and "stands: only comments" in status))
+    out.append(("cli: a comment edit after the run on the target keeps it, and the sign-off is taken",
+                code == 0 and "the code changed since it ran on the target" not in done
+                and "no sign-off from the person on the target" not in done))
+    src.write_text(body.replace("24", "32"))
+    code, said = cli("signoff", "again")
+    _, done = cli("finish")
+    out.append(("cli: a code edit after a built yes makes it stale", "the code changed after the person's yes" in done))
+    out.append(("cli: a code edit after the run on the target refuses the sign-off and holds finish",
+                code == 1 and "the code changed since it ran on the target" in done))
     return out
 
 

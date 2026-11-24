@@ -818,9 +818,11 @@ their value on each refresh — the design check reads them (§7).
   `erase` and `text` — for a character, Delete and what has been typed; a slot `spacing.content` × `spacing.target` stands at
   the field's place for it, `SetKeyboardTarget` sets the target once the field is made in the slot, and `KeyboardTextChanged`
   tells the keyboard the text changed another way (§11.4). The count line under the slot reads the text
-  ("3 of 8 characters needed", then "9 characters"), the action is disabled (the one disabled look) until `min_length`. The 88 px between the
-  last key row and the footer is white (DESIGN → Components → The kit: no hint line), which keeps the keys' rings clear of the
-  footer's.
+  ("3 of 8 characters needed", then "9 characters"), the action is disabled (the one disabled look) until
+  `min_length`. It names the count line as its reason with `widgets::LinkDisabledReason`, which draws nothing, and the
+  screen audit's disabled-reason check (`tests/host/screen_audit_lvgl_test.cpp`) reads that line as its reason. The
+  88 px between the last key row and the footer is white (DESIGN → Components → The kit: no hint line), which keeps
+  the keys' rings clear of the footer's.
 - **The typing-only partial count is §5's**; the keyboard is a full-glass overlay (APP_ARCHITECTURE §7): `OpenKeyboard` makes its
   screen, opens it on the router's overlay stack — which loads it, a page change, two partials through white on the V1.0 —
   and builds the keys into the overlay's group. Closing it — the action, Cancel, holding OK — sets the counting back to every
