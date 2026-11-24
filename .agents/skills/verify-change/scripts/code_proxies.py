@@ -10,13 +10,14 @@ numbers with a range. A proxy outside its range caps its quality dimension at 2;
     python3 .agents/skills/verify-change/scripts/code_proxies.py --self-test
 
 A review scores the change, an audit the product: bare, only the functions the diff against HEAD touches are measured
-(a new file: all of its functions), the warnings new since the baseline, and the changed sources; with --all, every
-function in the project's own sources, every warning in the build log, and every source. Measures, by dimension (the
-keys of .agents/evals/weights.json):
+(a new file: all of its functions), the warnings on the lines the change touched, and the changed sources; with --all,
+every function in the project's own sources, every warning in the build log, and every source. Measures, by dimension
+(the keys of .agents/evals/weights.json):
   simplicity  the longest changed C/C++ function, in lines (at most 60), and its deepest nesting of control blocks (at
               most 4) — [J] ranges, the common review limits; a test file's functions count too
   fit         new compiler warnings in the project's own sources (none — build-run-test's check), from the newest build
-              log quiet.py kept in .cache/harness/logs/, against the baseline's warnings, else those in changed files
+              log quiet.py kept in .cache/harness/logs/: in a review, those on the lines the change touched, and none
+              measured when that log is older than a changed file; in the audit, every one in the log
   robustness  the app's size against its partition (at most 90 %), and its growth since the baseline — the image at most
               16 KiB, DIRAM at most 1 KiB, IRAM none (the ESP32-S3's IRAM is full) — [J] ranges; read with ESP-IDF's
               esp_idf_size from build/<project>.map
@@ -26,9 +27,10 @@ What is not measured is said so, and no metric is written for it. Writes .cache/
 {"judge", "at", "scope": "change" | "product", "metrics": [{"dimension", "name", "value", "range": [lo, hi], "ok",
 "where", "base"?, "offenders"?, "base_offenders"?}]} — and prints a summary. In the change's scope a metric carries its
 value at HEAD (`base`): the changed functions as HEAD holds them, with the functions over a limit there and here by
-file and name; none for warnings and growth, which are new by construction; the untested sources HEAD already had. So
-verify.py caps only what the change made worse (.agents/HARNESS.md §12.5).
-The baseline is .cache/harness/proxies/baseline/ (warnings.json, size.json); the first run with a build saves one.
+file and name; none for warnings (on the change's own lines) and growth, which are new by construction; the untested
+sources HEAD already had. So verify.py caps only what the change made worse (.agents/HARNESS.md §12.5).
+The baseline is .cache/harness/proxies/baseline/ (size.json for the growth; warnings.json is kept, not compared); the
+first run with a build saves one.
 Python 3.9+, standard library only; ESP-IDF's Python for the size.
 """
 
@@ -227,6 +229,25 @@ def warnings_in(log: str) -> list:
     return out
 
 
+def new_warnings(current: list, lines_of: dict, texts: dict | None = None) -> list:
+    """The warnings a change added: those on a line it changed, in a file it changed (a new file: any line), unless
+    that line's code stands in HEAD's copy of the file too — a moved line, which git shows as changed, keeps its
+    warning from the base. `texts` is {path: (the file's lines now, HEAD's lines stripped, as a set)}. A warning on an
+    unchanged line was there at the base. An incremental build prints only the files it recompiled, so no saved log of
+    an earlier build can stand for the base's warnings. A warning a changed header raises on an unchanged line of
+    another file is not seen."""
+    out = []
+    for w in current:
+        if w["file"] in lines_of:
+            lines = lines_of[w["file"]]
+            if lines is None or w["line"] in lines:
+                now, head = (texts or {}).get(w["file"], ([], set()))
+                code = now[w["line"] - 1].strip() if 0 < w["line"] <= len(now) else ""
+                if not (code and code in head):
+                    out.append(w)
+    return out
+
+
 def newest_build_log() -> Path | None:
     logs = sorted(glob.glob(str(ROOT / ".cache/harness/logs/*.log")), key=os.path.getmtime, reverse=True)
     for path in logs[:40]:
@@ -383,23 +404,27 @@ def measure(build: Path, save_baseline: bool, log_file: Path | None = None, prod
     log = log_file or newest_build_log()
     current = warnings_in(log.read_text(errors="replace")) if log else []
     base_file = BASELINE / "warnings.json"
+    stale = [] if product or log is None or log_file else [
+        f for f in files if (ROOT / f).is_file() and (ROOT / f).stat().st_mtime > log.stat().st_mtime]
     if log is None:
         notes.append("fit: no build log in .cache/harness/logs/ — build through quiet.py to measure warnings")
+    elif stale:
+        notes.append(f"fit: the newest build log, {log.name}, is older than {stale[0]}"
+                     + (f" and {len(stale) - 1} more changed file(s)" if len(stale) > 1 else "")
+                     + " — warnings not measured; build through quiet.py to measure them")
     else:
         if product:
             new, against = current, "every warning in the log (the product)"
-        elif base_file.is_file():
-            known = set(json.loads(base_file.read_text()))
-            new = [w for w in current if w["key"] not in known]
-            against = "the baseline's"
         else:
-            new = [w for w in current if w["file"] in files]
-            against = "none in changed files"
-        # Against the baseline the count is already what the change added: none at the base.
+            texts = {f: ((ROOT / f).read_text(errors="replace").split("\n"),
+                         {t.strip() for t in (at_head(f) or "").split("\n")}) for f in files if (ROOT / f).is_file()}
+            new = new_warnings(current, {f: changed_lines(f) for f in files}, texts)
+            against = "the change's own lines"
+        # On the change's own lines the count is already what the change added: none at the base.
         metrics.append(metric("fit", "new compiler warnings in the project's sources", len(new), 0, 0,
-                              f"{log.name} against {against}: "
+                              f"{log.name}, on {against}: "
                               + ("; ".join(f"{w['file']}:{w['line']} {w['key'].split(': ', 1)[1][:80]}" for w in new[:3])
-                                 or "none"), **({"base": 0} if against == "the baseline's" else {})))
+                                 or "none"), **({} if product else {"base": 0})))
     # Robustness: size.
     size = size_of(build)
     size_file = BASELINE / "size.json"
@@ -511,6 +536,15 @@ bool Thing::Ok() const noexcept { return true; }
     ws = warnings_in(log)
     check([w["file"] for w in ws] == ["components/ui/ui.cpp"], f"only the project's own warnings count: {ws}")
     check(ws and ws[0]["key"] == "components/ui/ui.cpp: unused variable 'y' [-Wunused-variable]", "a warning's key has no line")
+    lines_of = {"components/ui/ui.cpp": {12}, "components/ui/new.cpp": None}
+    check(new_warnings(ws, lines_of) == ws, "a warning on a changed line is new")
+    check(new_warnings(ws, {"components/ui/ui.cpp": {11, 13}}) == [], "a warning on an unchanged line was there")
+    check(new_warnings(ws, {"components/ui/other.cpp": None}) == [], "a warning in a file the change left is not its")
+    check(new_warnings([dict(ws[0], file="components/ui/new.cpp")], lines_of) != [], "a new file's warnings are new")
+    moved = {"components/ui/ui.cpp": ([""] * 11 + ["    int y = 0;"], {"int y = 0;", "}"})}
+    check(new_warnings(ws, lines_of, moved) == [], "a moved line, its code in HEAD's copy, keeps its warning")
+    edited = {"components/ui/ui.cpp": ([""] * 11 + ["    int y = 1;"], {"int y = 0;"})}
+    check(new_warnings(ws, lines_of, edited) == ws, "an edited line's warning is new")
     m = metric("tests", "x", 1, 0, 0, "w")
     check(m["ok"] is False and m["range"] == [0, 0], "a value past its range is not ok")
     check(project_path("/a/b/main/main.cpp") == "main/main.cpp", "main/ is the project's")
@@ -531,7 +565,7 @@ bool Thing::Ok() const noexcept { return true; }
     check(m["base"] == 73 and m["offenders"] == m["base_offenders"], "a metric carries its base and its places")
     for f in failures:
         print(f"FAIL  {f}")
-    total = 14
+    total = 20
     print(f"code_proxies self-test: {total - len(failures)} of {total} checks pass")
     return 1 if failures else 0
 

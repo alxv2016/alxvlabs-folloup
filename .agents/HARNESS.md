@@ -490,23 +490,28 @@ Old debt is the audit's trend, never a review's cap.
   is keyed by its occurrence in the whole file, untouched lines counted. The base counts `HEAD`'s whole file the same
   way, so a second copy the change adds is new, even beside an untouched first.
 - **So a refactor that adds no new hit is scored uncapped**, and needs no acceptance from the person.
-- **Each proxy gets its base the cheapest correct way.** The doc, code and string proxies read `HEAD`'s files with
-  `git show`, in milliseconds. A sentence, function or string is keyed by its words or its name, so a moved or
-  re-wrapped one is carried. Warnings and growth are already new since the saved baseline.
-- **The screen audit draws `HEAD`'s screens once per commit, in a git worktree under `.cache/harness/worktrees/`.**
-  The worktree shares this tree's `managed_components/` and compiled LVGL, so the audit takes about 15 s. Its JSON
-  is cached in `.cache/harness/proxies/base/<commit>/`, and the worktree is removed. A metric is matched by
-  dimension, name, view and the words it quotes; a kit page's number is dropped, since a page added renumbers the
-  rest. Each base metric is matched once, the same `where` first, so a second violation at a place the base held
-  once is new. The trade: one moved to another kit page, while the old one goes, is still carried.
+**Each proxy gets its base the cheapest correct way:**
+
+| Proxy | Its base | The same place, carried |
+| --- | --- | --- |
+| Doc, code, strings | `HEAD`'s files by `git show`, in milliseconds | A sentence, function or string keyed by its words or name: moved or re-wrapped, carried |
+| Compiler warnings | None: an incremental build prints only the files it recompiled, so no saved log stands for the base's | A warning on a line the change did not touch, or on a changed line whose code `HEAD`'s copy holds (a moved line); a build log older than a changed file measures nothing |
+| Growth | The saved baseline | — |
+| Screen audit | `HEAD`'s screens drawn once per commit in a git worktree under `.cache/harness/worktrees/`, sharing `managed_components/` and the compiled LVGL (about 15 s); the JSON cached in `.cache/harness/proxies/base/<commit>/`, the worktree removed | Dimension, name, view and the words it quotes, a kit page's number dropped (a page added renumbers the rest); each base metric matched once, the same `where` first |
+
+- **On the screen audit, a second violation at a place the base held once is new.** The trade: one moved to another
+  kit page, while the old one goes, is still carried.
 - **A renamed place is carried when the base has an offender of the same metric on the same view left unmatched,
   reading the same with its quoted words masked, as far out or farther.** A label reworded changes the words a place
   quotes, so its key finds nothing: "Set clock" to "Set" made the Clock screen's unchanged 40 px and 80 px gaps read
-  as new. Masked, the `where` keeps its px and its layout words, so only the words may differ; a kit page's number
-  is dropped. Such a metric is matched one to one, the farthest out first, each to the nearest such base offender,
-  and `review` and `proxies` name the base's place beside the carried debt. An old one fixed while a new one at
-  another gap appears caps, even on the kit's one view. So does a renamed place farther out than the base's, and a
-  second new place on the view.
+  as new. Masked, the `where` keeps its px and its layout words, so only the words may differ. Such a metric is matched
+  one to one, the farthest out first, each to the nearest such base offender, and `review` and `proxies` name the
+  base's place beside the carried debt. An old one fixed while a new one appears at another gap caps. So does a
+  renamed place farther out than the base's, and a second new place on the view.
+- **Places split across a moved page break are carried when the base's offenders left on the view held each of them,
+  word for word.** A kit page's metric lists its places, `a; b`; kit p13's 28 px and 19 px gaps read as new on p13
+  and p14 once kit p2's reason grew 8 px. Each base place is taken once, so a third copy, or a split page with a
+  place the base did not hold, caps.
 
 ---
 

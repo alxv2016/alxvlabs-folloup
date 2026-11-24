@@ -238,6 +238,12 @@ def masked(m: dict) -> tuple:
     return m.get("dimension"), m.get("name"), re.sub(r"\s+p\d+$", "", view.strip()), re.sub(r"'[^']*'", "''", rest)
 
 
+def parts(m: dict) -> list:
+    """The places a metric's `where` lists after its view, `a; b` — each as written."""
+    _, _, rest = str(m.get("where", "")).partition(":")
+    return [p.strip() for p in rest.split("; ") if p.strip()]
+
+
 def outside(m: dict) -> float:
     lo, hi = m["range"]
     return max(lo - m["value"], m["value"] - hi, 0)
@@ -252,7 +258,8 @@ def with_base(data: dict, base: dict) -> dict:
     masked (the same px, the same layout words), out of range by as much or more: matched one to one, the
     farthest-out offender here first, each to the nearest such base offender, so its value then decides. An old one
     fixed while a new one at another gap appears, a second new place, or one farther out finds none and stays new
-    (.agents/HARNESS.md §12.5)."""
+    (.agents/HARNESS.md §12.5). Places split across a page break that moved — the base's `a; b` on one kit page, here
+    `a` on it and `b` on the next — are carried when the base's offenders left on the view held each, word for word."""
     index = defaultdict(list)
     for b in base.get("metrics", []):
         index[metric_key(b)].append(b)
@@ -286,6 +293,32 @@ def with_base(data: dict, base: dict) -> dict:
         if pick is not None:
             pool.remove(pick)
             picks[k], renamed[k] = pick, pick.get("where")
+    # A page split: a kit page's places moved across a page break, as a section grown above them pushes one onto the
+    # next page. An offender here with no base yet, counting one per place it lists (`a; b`), is carried when the base
+    # offenders left on the same view, of the same metric, held each of those places word for word — each base place
+    # taken once.
+    places = defaultdict(list)
+    for pool in left.values():
+        for b in pool:
+            for part in parts(b):
+                places[masked(b)[:3]].append((part, b.get("where")))
+    for k, m in enumerate(data["metrics"]):
+        if picks[k] is not None or m.get("ok") is not False:
+            continue
+        mine, pool = parts(m), places.get(masked(m)[:3], [])
+        if not mine or m.get("value") != len(mine):
+            continue
+        taken = []
+        for part in mine:
+            hit = next((i for i, (p, _) in enumerate(pool) if p == part and i not in taken), None)
+            if hit is None:
+                break
+            taken.append(hit)
+        else:
+            sources = list(dict.fromkeys(pool[i][1] for i in taken))
+            for i in sorted(taken, reverse=True):
+                pool.pop(i)
+            picks[k], renamed[k] = {"value": m["value"]}, "; ".join(sources)
     for k, m in enumerate(data["metrics"]):
         m["base"] = picks[k]["value"] if picks[k] else None
         if k in renamed:
@@ -521,6 +554,21 @@ void BuildHome(lv_obj_t *home) { for (const Entry &e : kRows) {} }
     got = with_base({"metrics": [dict(off, where="kit p4: 28 px between blocks, above at 'New'")]},
                     {"metrics": [old]})["metrics"][0]
     check(got["base"] == 1, f"the same px with its words changed, on a renumbered page, is a rename: {got['base']}")
+    # A page split: kit p13's two off-scale gaps, pushed onto p13 and p14 by a page break that moved.
+    a, b = "28 px between blocks, above at 'Networks in range'", "19 px between blocks, above at 'Wrong password'"
+    both = dict(off, value=2, where=f"kit p13: {a}; {b}")
+    split = [dict(off, where=f"kit p13: {a}"), dict(off, where=f"kit p14: {b}")]
+    checks[0] += 3
+    got = with_base({"metrics": [dict(x) for x in split]}, {"metrics": [both]})["metrics"]
+    check([m["base"] for m in got] == [1, 1] and got[1].get("base_where") == both["where"],
+          f"places split across a page break are carried, the base's page named: {[m['base'] for m in got]}")
+    got = with_base({"metrics": [dict(x) for x in split] + [dict(off, where=f"kit p15: {a}")]},
+                    {"metrics": [both]})["metrics"]
+    check([m["base"] for m in got] == [1, 1, None], f"a base place taken once: a third copy is new: "
+                                                    f"{[m['base'] for m in got]}")
+    got = with_base({"metrics": [dict(off, value=2, where=f"kit p14: {b}; 36 px between blocks, above at 'New'")]},
+                    {"metrics": [both]})["metrics"][0]
+    check(got["base"] is None, f"a split page with a place the base did not hold is new: {got['base']}")
     check(with_base({"metrics": []}, base)["base_commit"] == "abc", "the results name the base they were held against")
     real = (ROOT / HW_TEST).read_text(errors="replace") if (ROOT / HW_TEST).is_file() else ""
     defined = {n.split("::")[-1] for n, *_ in code_proxies.functions(real)}

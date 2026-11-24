@@ -533,7 +533,7 @@ their value on each refresh — the design check reads them (§7).
 | Glyph beside words | icon 24, gap 9 | 34, 13 | art 40 (ink 18 to 33), 16 of white from its ink to the first letter | `icon`, `md` |
 | Checkbox, radio | — (the person's words: like the switch) | — | 44, `rounded.md` or full, edge 3 off, dot 16 | `check-size`, `check-dot`, `stroke.default` |
 | Scroll indicator | lane 6 × 176, gap 6, 7 from the glass | 8.5 × 249 | 8 × 248, gap 8, x 467 | `scroll-thumb`, `scroll-length`, `scroll-x`, `sm` |
-| Status block | mark 60, column gap 16, heading 22 over 16 | 85, 23 | mark 85, 24 from the mark to its words; a block with no mark leaves the slot empty, its words `spacing.lg` in (x 48); heading `label` 30 over its description in `body` 30 on 40, `pair-md` apart | `status-mark`, `lg`, `pair-md` |
+| Status block | mark 60, column gap 16, heading 22 over 16 | 85, 23 | mark drawn 85 tall, compiled at most 73 wide, flush left in a slot of 73, 24 from the slot to its words, so every block's words stand at x 121 (`edge` + 73 + `lg`); a block with no mark leaves the slot empty; heading `label` 30 over its description in `body` 30 on 40, `pair-md` apart | `status-mark`, `status-mark-slot`, `lg`, `pair-md` |
 
   The deck's type sizes — 16, 18, 22 — are `caption` 20, `label` 30, `label` 30: the scale has no 25. Its names are
   `label_xs` and `label_sm`; its medium and bold are weights 600 and 700.
@@ -550,7 +550,8 @@ their value on each refresh — the design check reads them (§7).
 - **A pair's gap is the gap between the two texts' own boxes.** The line boxes above add leading to each text, so a pair is glued
   with `widgets::detail::Glue` (`internal/glue.h`). It takes the leading back as a negative margin, and the column's `pad_row` is
   then the gap between the font boxes. The dialog's title stands `pair-xl` over its message, and a status block's title `pair-md`
-  over its description. `tests/host/section_gaps_lvgl_test.cpp` measures both, and the heading's gaps `[D]`.
+  over its description. `tests/host/section_gaps_lvgl_test.cpp` measures both, the heading's gaps, and the status block's
+  words at one x and its marks within `status-mark-slot` `[D]`.
 - **The white between two texts, measured on the host render** `[HOST]`, counts the spare room under the upper text and over the
   lower, plus any gap. A home row's title and detail stand 8 px apart, a choice card's name and detail 9, and a status block's
   heading and its line 22. A disabled toggle row's name and reason stand 14 apart and a detail row's name and value 13.

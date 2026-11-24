@@ -221,6 +221,7 @@ spacing:
   scroll-length: 248px
   scroll-x: 467px  # the lane's left edge on the glass, 1 px clear of the 6 px editing ring round a full-width view
   status-mark: 85px
+  status-mark-slot: 73px  # the status block's mark slot: the widest compiled mark (clock, link-off), the art flush left; words stand `edge` + slot + `lg` in
   overlay-offset: 6px  # how far an offset stands from its box, at every elevation level
   key-gap: 12px  # between the keyboard's keys, across and down: a key's 4 px ring 4 px out leaves 4 px
   # The gaps by role, each a step of the scale. A pair's gap is measured between the two texts' own boxes (the font's height, no leading).
@@ -1252,8 +1253,9 @@ serves, reached and used by the keys and by touch.
   options use the select list, for a level the range slider.
 - **Status block** — a heading in `label` over a line in `body`, `spacing.pair-md` apart between their own boxes. The deck's mark
   stands beside them: a check, a clock or a link-off, `spacing.status-mark` of art at one bit, compiled into the widgets component
-  alone, flush left and a `spacing.lg` before the words. It marks an empty or a done state. With no mark the slot stays empty, and
-  the words stand a `spacing.lg` in, where they would after a mark.
+  alone, drawn 85 tall and compiled at most 73 wide. The mark stands flush left in a slot `spacing.status-mark-slot` wide, and the words follow a
+  `spacing.lg` after the slot, so every block's words stand at one x (`edge` + slot + `lg`, 121 px on the glass), whatever its mark.
+  It marks an empty or a done state. With no mark the slot stays empty, and the words stand where they would after a mark.
 - **Recording indicator** — "Recording" and its time, with a distinct tone at start and stop.
 
 ### States
@@ -1427,9 +1429,9 @@ A value off these tokens is argued here — what, where and why — before a scr
 
 `components/hw_test` — a bench tool for V1.0 and V2.0 boards, not a FolloUp screen.
 
-- **What:** its fixtures' sizes (the checker, the grey bands, the touch marks and dot, the microphone bar and its
-  scale, the benchmark's track and its step, the footer's Back), a test's absolute grey levels (the checker's dots,
-  the words on each grey band), its timers and lengths (stats shown after a refresh, the benchmark's frames, a
+- **What:** its fixtures' sizes (the grey bands, the touch marks and dot, the microphone bar and its
+  scale, the benchmark's track and its step, the footer's Back), a test's absolute grey levels (the words on each
+  grey band), its timers and lengths (stats shown after a refresh, the benchmark's frames, a
   second of recording, leaving a screen, the page walk's 3 s on each page, the RTC's 60 s before it turns the board
   on), the buzzer's sounds beyond the six (the Buttons screen's one-second tone, at Seeed's 4 kHz, and the console's
   `sound band`, held pitches across the band), the refresh benchmark's bar, which animates as fast as the glass allows, the page walk, which changes screen

@@ -143,6 +143,7 @@ inline constexpr int16_t kSpacingScrollThumb = 8;
 inline constexpr int16_t kSpacingScrollLength = 248;
 inline constexpr int16_t kSpacingScrollX = 467;
 inline constexpr int16_t kSpacingStatusMark = 85;
+inline constexpr int16_t kSpacingStatusMarkSlot = 73;  // the widest compiled mark: every block's words stand at one x
 inline constexpr int16_t kSpacingKeyGap = 12;
 // The role tokens: the gaps between texts and between whole components, each one step of the scale (DESIGN → Layout → Spacing).
 inline constexpr int16_t kSpacingPairSm = kSpacingSm;   // a row's label over its one line

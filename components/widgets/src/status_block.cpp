@@ -14,16 +14,19 @@ lv_obj_t *MakeStatusBlock(lv_obj_t *parent, const char *heading, const char *des
                                 : mark == StatusMark::kClock   ? &widgets_mark_status_clock
                                 : mark == StatusMark::kLinkOff ? &widgets_mark_status_link_off
                                                                : nullptr;
-    lv_obj_t *block = detail::Bare(parent);
+    lv_obj_t *block = detail::Bare(parent);  // the mark's slot is `status-mark-slot`: one x for the words
     lv_obj_set_size(block, lv_pct(100), LV_SIZE_CONTENT);
     lv_obj_set_flex_flow(block, LV_FLEX_FLOW_ROW);
     lv_obj_set_flex_align(block, LV_FLEX_ALIGN_START, LV_FLEX_ALIGN_CENTER, LV_FLEX_ALIGN_CENTER);
     lv_obj_set_style_pad_column(block, dt::kSpacingLg, 0);
     if (art == nullptr) {
-        lv_obj_set_style_pad_left(block, dt::kSpacingLg, 0);  // the slot stays empty: the words stand one gap in, where a mark would put them
+        lv_obj_t *empty = detail::Bare(block);  // the slot stays empty: the words stand where a mark would put them
+        lv_obj_set_size(empty, dt::kSpacingStatusMarkSlot, 1);
     } else {
         lv_obj_t *image = lv_image_create(block);
         lv_image_set_src(image, art);
+        lv_obj_set_width(image, dt::kSpacingStatusMarkSlot);  // the art flush left in its slot
+        lv_image_set_inner_align(image, LV_IMAGE_ALIGN_TOP_LEFT);
         lv_obj_set_style_image_recolor(image, ui::Level(dt::kColorTextPrimary), 0);
         lv_obj_set_style_image_recolor_opa(image, LV_OPA_COVER, 0);
     }

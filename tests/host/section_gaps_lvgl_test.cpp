@@ -3,7 +3,7 @@
 // place whatever gap its parent sets, and keeps `lg` when it is the first in its parent; its words start at `edge`, or `md` in for
 // the rows whose words stand there; a pair's gap is measured between the two texts' own boxes — the font's height, no leading —
 // which `Glue` takes the line boxes' leading out of; the dialog's title stands `pair-xl` over its message and the message `group`
-// over its buttons; a status block's title stands `pair-md` over its description.
+// over its buttons; a status block's title stands `pair-md` over its description, its words at one x whatever its mark.
 // run.sh builds LVGL's sources from managed_components once, into build/host/lvgl, and the sources named below, against stand-ins
 // for the ESP-IDF headers (tests/host/stubs).
 // host-sources: components/ui/ui.cpp components/ui/line_box.cpp components/ui/fonts/bitcount/*.c components/widgets/marks/marks.c components/widgets/src/*.cpp components/widgets/src/internal/*.cpp components/router/router.cpp components/router/overlays.cpp components/router/focus.cpp components/router/touch.cpp components/router/routes.cpp components/router/screen.cpp components/router/status.cpp
@@ -14,6 +14,7 @@
 #include <string>
 
 #include "design_tokens.h"
+#include "internal/marks.h"
 #include "lvgl.h"
 #include "lvgl_display.h"
 #include "ui.h"
@@ -216,6 +217,39 @@ void TestStatusBlock()
     Check(FontBoxGap(title, description) == dt::kSpacingPairMd, "the title stands pair-md, 16, over its description (font boxes)");
 }
 
+// A status block's words stand at one x whatever its mark: `edge` + `status-mark-slot` + `lg`, the mark flush left in
+// its slot, and a block with no mark keeps the slot empty (DESIGN → Components → Status block). A regenerated mark
+// wider than the slot would clip, so it fails here.
+void TestStatusBlockWordsX()
+{
+    std::printf("the status block's words stand at one x\n");
+    const widgets::StatusMark marks[] = {widgets::StatusMark::kCheck, widgets::StatusMark::kClock,
+                                         widgets::StatusMark::kLinkOff, widgets::StatusMark::kNone};
+    const char *const names[] = {"check", "clock", "link-off", "no mark"};
+    for (size_t i = 0; i < 4; ++i) {
+        lv_obj_t *column = NewColumn(dt::kSpacingMd);
+        lv_obj_t *block = widgets::MakeStatusBlock(column, "Allowed", "Your answer reached the agent.", marks[i]);
+        lv_obj_t *slot = lv_obj_get_child(block, 0);
+        lv_obj_t *words = lv_obj_get_child(block, 1);
+        const lv_area_t b = Area(block), w = Area(words), m = Area(slot);
+        const std::string name = names[i];
+        Check(b.x1 == dt::kSpacingEdge, name + ": the block starts at edge");
+        const int32_t in = dt::kSpacingStatusMarkSlot + dt::kSpacingLg;
+        Check(w.x1 == dt::kSpacingEdge + in, name + ": its words stand at edge + slot + lg");
+        Check(m.x1 == b.x1, name + ": the slot starts the block");
+        if (marks[i] != widgets::StatusMark::kNone) {
+            // The image is forced to the slot's width, so only its inner alignment keeps a narrower mark flush left.
+            Check(lv_image_get_inner_align(slot) == LV_IMAGE_ALIGN_TOP_LEFT, name + ": the mark stands flush left in its slot");
+        }
+    }
+    const lv_image_dsc_t *const art[] = {&widgets_mark_status_check, &widgets_mark_status_clock,
+                                         &widgets_mark_status_link_off};
+    for (size_t i = 0; i < 3; ++i) {
+        Check(art[i]->header.w <= dt::kSpacingStatusMarkSlot,
+              std::string("the compiled ") + names[i] + " mark fits status-mark-slot");
+    }
+}
+
 }  // namespace
 
 int main()
@@ -241,6 +275,7 @@ int main()
 #endif
     TestDialog();
     TestStatusBlock();
+    TestStatusBlockWordsX();
     std::printf("section gaps on LVGL: %d checks, %d failed\n", s_checks, s_failures);
     return s_failures == 0 ? 0 : 1;
 }

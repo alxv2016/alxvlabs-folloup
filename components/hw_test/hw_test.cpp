@@ -251,55 +251,27 @@ void OnTuning(lv_event_t *)
     }
 }
 
-void OnPattern(lv_event_t *e)
-{
-    // A one-pixel checkerboard of levels 0 and 3 — a 50% ghosting fixture, not the UI's one-in-four and three-in-four
-    // dithers — then the same area plain, to show ghosting after partials (STICKY_EPAPER_WAVEFORMS §2).
-    lv_obj_t *box = static_cast<lv_obj_t *>(lv_event_get_user_data(e));
-    static bool dithered = false;
-    dithered = !dithered;
-    lv_obj_set_style_bg_opa(box, dithered ? LV_OPA_COVER : LV_OPA_TRANSP, 0);
-    s_stats_pending = true;
-}
-
-void DrawChecker(lv_event_t *e)
-{
-    lv_obj_t *box = lv_event_get_target_obj(e);
-    if (lv_obj_get_style_bg_opa(box, LV_PART_MAIN) == LV_OPA_TRANSP) {
-        return;
-    }
-    lv_layer_t *layer = lv_event_get_layer(e);
-    lv_area_t area;
-    lv_obj_get_content_coords(box, &area);
-    lv_draw_rect_dsc_t dot;
-    lv_draw_rect_dsc_init(&dot);
-    dot.bg_color = ui::Level(dt::kColorBlack);
-    for (int32_t y = area.y1; y <= area.y2; ++y) {
-        for (int32_t x = area.x1 + ((y + area.x1) & 1); x <= area.x2; x += 2) {
-            const lv_area_t px = {x, y, x, y};
-            lv_draw_rect(layer, &dot, &px);
-        }
-    }
-}
-
 void CreateDisplay(lv_obj_t *screen, lv_group_t *, void *)
 {
     lv_obj_t *content = BeginScreen(screen, "Display");
     const lvgl_display::Stats s = lvgl_display::GetStats();
-    // The heading and its note are a pair: spacing.sm apart, where blocks sit spacing.md apart (DESIGN → Layout → Spacing).
+    // The heading and its note are a pair, a headline over body: `pair-md` apart between their font boxes, and the
+    // block `group` from the readout under it (DESIGN → Layout → Spacing).
     lv_obj_t *heading = lv_obj_create(content);
     lv_obj_remove_style_all(heading);
     lv_obj_set_size(heading, lv_pct(100), LV_SIZE_CONTENT);
     lv_obj_set_flex_flow(heading, LV_FLEX_FLOW_COLUMN);
-    lv_obj_set_style_pad_row(heading, dt::kSpacingSm, 0);
+    lv_obj_set_style_pad_row(heading, dt::kSpacingPairMd, 0);
+    lv_obj_set_style_margin_bottom(heading, dt::kSpacingGroup - dt::kSpacingItem, 0);  // `group`, with the page's gap
     lv_obj_set_scrollable(heading, false);
     ui::LetRingOut(heading);  // not clipped: a glyph's left bearing reaches 2 px past its label, as the column lets it
     ui::NewLabel(heading, Type::kHeadline, s.ssd2677 ? "SSD2677 · V2.0" : "SSD1677 · V1.0");
-    ui::NewLabel(heading, Type::kCaption,
-                 s.ssd2677 ? "Matte glass. The controller answered 0x07 to its ID read."
-                           : "Glossy glass. The controller did not answer the SSD2677's ID.",
+    ui::NewLabel(heading, Type::kBody,
+                 s.ssd2677 ? "Matte glass. The ID read answered 0x07."
+                           : "Glossy glass. The ID read got no answer.",
                  true);
-    // Six short lines in caption, so the readout, the controls and Back all fit above the footer.
+    // Six short lines in caption, so the readout, the controls and Back all fit above the footer; the note over them
+    // is two lines of body, which is why the screen has no ghosting box (the Greys page shows the dither).
     s_display_stats = ui::NewLabel(content, Type::kCaption, "");
     FillStats();
 
@@ -311,7 +283,6 @@ void CreateDisplay(lv_obj_t *screen, lv_group_t *, void *)
     HalfButton(row, "Type scale", false, OnPushRoute,  // ux-exception: "Type" alone reads as a verb
                const_cast<char *>("hw.display.type-scale"));
     HalfButton(row, "UI kit", false, OnPushRoute, const_cast<char *>("hw.display.kit"));  // ux-exception: unclear
-    lv_obj_t *pattern_button = HalfButton(row, "Pattern", false, nullptr);  // in the row, before Speed below it
 
     if (lvgl_display::TuningCount() > 1) {
         // Full width, with its state in its words: a half button holds 10 characters and the presets are longer.
@@ -320,16 +291,6 @@ void CreateDisplay(lv_obj_t *screen, lv_group_t *, void *)
         SetTuningLabel();
     }
 
-    // The ghosting box: a plain outline, filled with the checkerboard each time Pattern is pressed. A fixture, not a control.
-    lv_obj_t *checker = lv_obj_create(content);
-    lv_obj_remove_style_all(checker);
-    lv_obj_set_size(checker, lv_pct(100), 48);
-    lv_obj_set_style_border_width(checker, dt::kSpacingStrokeDefault, 0);
-    lv_obj_set_style_border_color(checker, ui::Level(dt::kColorOutline), 0);
-    lv_obj_set_style_pad_all(checker, dt::kSpacingStrokeDefault, 0);
-    lv_obj_set_style_bg_opa(checker, LV_OPA_TRANSP, 0);
-    lv_obj_add_event_cb(checker, DrawChecker, LV_EVENT_DRAW_MAIN_END, nullptr);
-    lv_obj_add_event_cb(pattern_button, OnPattern, LV_EVENT_CLICKED, checker);
     EndScreen(screen);
 }
 
@@ -349,7 +310,7 @@ void CreateGrays(lv_obj_t *screen, lv_group_t *, void *)
     for (uint8_t level = 0; level < 4; ++level) {
         lv_obj_t *band = lv_obj_create(content);
         lv_obj_remove_style_all(band);
-        lv_obj_set_size(band, lv_pct(100), 112);
+        lv_obj_set_size(band, lv_pct(100), 108);  // 4 px a band: the note's `group` gap under it fits above the footer
         lv_obj_set_style_bg_color(band, ui::Fill(level), 0);
         lv_obj_set_style_bg_opa(band, LV_OPA_COVER, 0);
         lv_obj_set_style_border_width(band, dt::kSpacingStrokeHairline, 0);
@@ -360,7 +321,10 @@ void CreateGrays(lv_obj_t *screen, lv_group_t *, void *)
         lv_obj_set_style_text_color(label, ui::Level(level < 2 ? dt::kColorWhite : dt::kColorBlack), 0);
         lv_obj_center(label);
     }
-    ui::NewLabel(content, Type::kCaption, "Bands run black to white. Back draws the next frame in full.", true);
+    // The note is about the bands over it: `item` under the last band, `group` over the button under it.
+    lv_obj_t *note =
+        ui::NewLabel(content, Type::kCaption, "Bands run black to white. Back draws the next frame in full.", true);
+    lv_obj_set_style_margin_bottom(note, dt::kSpacingGroup - dt::kSpacingItem, 0);
     lv_obj_t *row = ButtonRow(content);
     HalfButton(row, "Display", false, OnBack);
     EndScreen(screen);
@@ -491,9 +455,9 @@ lv_obj_t *KitName(lv_obj_t *content, const char *name)
 }
 
 // The reason a disabled control is disabled, in words under it.
-void KitReason(lv_obj_t *content, const char *reason)
+lv_obj_t *KitReason(lv_obj_t *content, const char *reason)
 {
-    ui::NewLabel(content, Type::kCaption, reason, true);
+    return ui::NewLabel(content, Type::kCaption, reason, true);
 }
 
 // A row of rollers `spacing.lg` apart, which is what a roller's open ring (10 px out) leaves room for, and lets the rings out.
@@ -671,16 +635,10 @@ void OnKitDialog(lv_event_t *)
     widgets::OpenDialog(config);
 }
 
-void CreateKit(lv_obj_t *screen, lv_group_t *, void *)
+// The kit page is built a part at a time, in reading order: each part adds its headings and widgets to `content`, so
+// the widgets and their focus stops come in the order the page shows them.
+void KitButtons(lv_obj_t *content)
 {
-    lv_obj_t *content = BeginScreen(screen, "UI kit");
-    lv_obj_set_scrollable(content, true);
-    lv_obj_set_scroll_dir(content, LV_DIR_VER);
-    lv_obj_set_scrollbar_mode(content, LV_SCROLLBAR_MODE_OFF);
-    // touch-exception: on e-ink a throw or a bounce is a run of partial refreshes, an animation DESIGN.md forbids.
-    lv_obj_remove_flag(content, LV_OBJ_FLAG_SCROLL_MOMENTUM);  // touch-exception: no throw on the glass
-    lv_obj_remove_flag(content, LV_OBJ_FLAG_SCROLL_ELASTIC);   // touch-exception: no bounce on the glass
-
     widgets::MakeSectionHeading(content, "Buttons");
     lv_obj_t *stack = KitColumn(content);
     widgets::MakeButton(stack, "Record", widgets::ButtonVariant::kAction, dt::kSpacingButtonWidth);
@@ -707,7 +665,8 @@ void CreateKit(lv_obj_t *screen, lv_group_t *, void *)
     lv_obj_add_state(widgets::MakeButton(glyphs, "Record", widgets::ButtonVariant::kAction, dt::kSpacingButtonWidth,
                                          widgets::Glyph::kMic),
                      LV_STATE_DISABLED);
-    KitReason(content, "No card to record to");
+    // Between two blocks, the reason is nearer the button it explains: `item` over it, `group` under it.
+    lv_obj_set_style_margin_bottom(KitReason(content, "No card to record to"), dt::kSpacingGroup - dt::kSpacingItem, 0);
     lv_obj_t *glyph_compact = ButtonRow(content);
     widgets::MakeButton(glyph_compact, "Save", widgets::ButtonVariant::kAction, 0, widgets::Glyph::kCheck);
     widgets::MakeButton(glyph_compact, "Retry", widgets::ButtonVariant::kTonal, 0, widgets::Glyph::kRefresh);
@@ -729,7 +688,10 @@ void CreateKit(lv_obj_t *screen, lv_group_t *, void *)
                          LV_STATE_DISABLED);
     }
     KitReason(content, "Nothing to stop");
+}
 
+void KitSettingRows(lv_obj_t *content)
+{
     widgets::MakeSectionHeading(content, "Toggle rows");  // ux-exception: the kit page names the component type
     widgets::MakeToggleRow(content, "Wi-Fi", true);
     widgets::MakeToggleRow(content, "Grid", false);
@@ -773,7 +735,10 @@ void CreateKit(lv_obj_t *screen, lv_group_t *, void *)
     KitReason(content, "Turn Wi-Fi on first");
     lv_obj_t *serial = widgets::MakeDetailRow(content, "Serial number", "FU-0001-2026").root;
     lv_obj_set_style_margin_top(serial, dt::kSpacingGroup - dt::kSpacingItem, 0);  // a detail row stands `group` under the rows above
+}
 
+void KitChoices(lv_obj_t *content)
+{
     widgets::MakeSectionHeading(content, "Chips");
     lv_obj_t *chips = ButtonRow(content);
     for (const char *kind : {"All", "Idea", "Note"}) {
@@ -782,6 +747,7 @@ void CreateKit(lv_obj_t *screen, lv_group_t *, void *)
     }
     lv_obj_add_state(widgets::MakeChip(chips, "To-do"), LV_STATE_DISABLED);  // a disabled chip: the dither, no edge
     lv_obj_add_state(lv_obj_get_child(chips, 0), LV_STATE_CHECKED);
+    KitReason(content, "No to-dos yet");
     widgets::MakeSectionHeading(content, "Segment");
     static const char *const kKinds[] = {"Ideas", "To-dos", "Notes"};
     widgets::MakeSegment(content, kKinds, 3, 1);  // the page's 16 px gap puts the next track 80 px on
@@ -795,6 +761,8 @@ void CreateKit(lv_obj_t *screen, lv_group_t *, void *)
     s_kit_progress.steps = widgets::MakeStepBar(content, dt::kSpacingContent, 5);
     s_kit_progress.dots = widgets::MakePageDots(content, 5, 0);
     s_kit_progress.words = ui::NewLabel(content, Type::kCaption, "", true);
+    // About the bars over it: `item` under them, `group` over Step.
+    lv_obj_set_style_margin_bottom(s_kit_progress.words, dt::kSpacingGroup - dt::kSpacingItem, 0);
     lv_obj_t *step = widgets::MakeButton(content, "Step", widgets::ButtonVariant::kOutline, dt::kSpacingButtonWidth);
     lv_obj_add_event_cb(step, OnKitStep, LV_EVENT_CLICKED, nullptr);
     s_kit_progress.tenths = 4;
@@ -807,6 +775,7 @@ void CreateKit(lv_obj_t *screen, lv_group_t *, void *)
     }
     widgets::SetRadioChosen(lv_obj_get_child(sizes, 1), true);
     lv_obj_add_state(widgets::MakeRadioRow(sizes, "Huge"), LV_STATE_DISABLED);  // disabled: the dither, no edge, its words faint
+    KitReason(content, "Too big for this screen");
     widgets::MakeSectionHeading(content, "Choice cards");
     ui::NewLabel(content, Type::kBody, "What is it?");
     lv_obj_t *kinds_cards = KitColumn(content);
@@ -824,7 +793,10 @@ void CreateKit(lv_obj_t *screen, lv_group_t *, void *)
     widgets::SetChoiceChosen(keep, true);  // a card of any number flips itself
     widgets::MakeChoiceCard(keeps, "Share follow-ups with my phone", true, "Only on your Wi-Fi");
     lv_obj_add_state(widgets::MakeChoiceCard(keeps, "Back up to the card", true, "No card inserted"), LV_STATE_DISABLED);
+}
 
+void KitSlidersAndPages(lv_obj_t *content)
+{
     widgets::MakeSectionHeading(content, "Sliders: OK opens, UP raises, DOWN lowers, OK closes");
     KitName(content, "Brightness");
     widgets::MakeRangeSlider(content, 0, 100, 10, 60, "%");
@@ -863,7 +835,10 @@ void CreateKit(lv_obj_t *screen, lv_group_t *, void *)
         "leads. Ask Sam for the key, and whether the stage can be set the night before.");
     lv_obj_add_event_cb(paged.text.root, ShowKitPages, LV_EVENT_VALUE_CHANGED, nullptr);
     ShowKitPages(nullptr);
+}
 
+void KitNetworksAndMenus(lv_obj_t *content)
+{
     // Wi-Fi network rows: the network in use, then the networks in range as a list view three a page.
     widgets::MakeSectionHeading(content, "Wi-Fi network rows", widgets::HeadingX::kRowWords);
     widgets::MakeNetworkRow(content, "HomeNet", true, 3, widgets::NetworkState::kConnected);
@@ -900,7 +875,16 @@ void CreateKit(lv_obj_t *screen, lv_group_t *, void *)
     widgets::MakeDropdown(content, "Repeat", kRepeat, 3, 0);
     widgets::MakeDropdown(content, "Remind me", kRemind, 8, 4);
     widgets::SetDropdownEnabled(widgets::MakeDropdown(content, "Alert", kAlert, 2, 0), false, "Turn on repeats first");
+}
 
+// The kit's two rollers, for the footer that shows Cancel while one is open.
+struct KitRollers {
+    widgets::Roller count;
+    widgets::Roller hour;
+};
+
+KitRollers KitRollersAndPager(lv_obj_t *content)
+{
     // Rollers: Count stops at its ends, Hour goes round. OK opens one, UP and DOWN step, OK keeps, holding OK or the footer's Cancel
     // puts the value back; while one is open the footer shows Cancel and the hint in Back's place.
     widgets::MakeSectionHeading(content, "Rollers: OK opens, UP or DOWN steps, OK keeps");
@@ -921,7 +905,11 @@ void CreateKit(lv_obj_t *screen, lv_group_t *, void *)
     }
     lv_obj_add_state(lv_obj_get_child(pager.root, 0), LV_STATE_CHECKED);
     widgets::UpdateHorizontalPager(pager);
+    return {kit_count, kit_hour};
+}
 
+void KitInputsAndStatus(lv_obj_t *content)
+{
     // The text input and the password input in every state: OK on the frame opens the keyboard, and the cross or the eye is the next stop.
     widgets::MakeSectionHeading(content, "Text inputs: OK opens the keyboard");
     KitName(content, "Empty: the placeholder and, on focus, the caret");
@@ -958,13 +946,32 @@ void CreateKit(lv_obj_t *screen, lv_group_t *, void *)
     widgets::MakeStatusBlock(statuses, "Timed out", "before an answer came", widgets::StatusMark::kClock);
     widgets::MakeStatusBlock(statuses, "Link lost", "The bridge is not answering.", widgets::StatusMark::kLinkOff);
     widgets::MakeStatusBlock(statuses, "No follow-ups yet", "Hold AI or press Record.");
+}
+
+void CreateKit(lv_obj_t *screen, lv_group_t *, void *)
+{
+    lv_obj_t *content = BeginScreen(screen, "UI kit");
+    lv_obj_set_scrollable(content, true);
+    lv_obj_set_scroll_dir(content, LV_DIR_VER);
+    lv_obj_set_scrollbar_mode(content, LV_SCROLLBAR_MODE_OFF);
+    // touch-exception: on e-ink a throw or a bounce is a run of partial refreshes, an animation DESIGN.md forbids.
+    lv_obj_remove_flag(content, LV_OBJ_FLAG_SCROLL_MOMENTUM);  // touch-exception: no throw on the glass
+    lv_obj_remove_flag(content, LV_OBJ_FLAG_SCROLL_ELASTIC);   // touch-exception: no bounce on the glass
+
+    KitButtons(content);
+    KitSettingRows(content);
+    KitChoices(content);
+    KitSlidersAndPages(content);
+    KitNetworksAndMenus(content);
+    const KitRollers kit_rollers = KitRollersAndPager(content);
+    KitInputsAndStatus(content);
 
     lv_obj_t *row = ButtonRow(content);
     HalfButton(row, "Display", false, OnBack);
     lv_obj_t *footer = EndScreen(screen);
     lv_obj_t *roller_bar = widgets::MakeRollerFooter(footer);
-    widgets::SetRollerFooter(kit_count, roller_bar);
-    widgets::SetRollerFooter(kit_hour, roller_bar);
+    widgets::SetRollerFooter(kit_rollers.count, roller_bar);
+    widgets::SetRollerFooter(kit_rollers.hour, roller_bar);
 }
 
 // --- Refresh benchmark: an animation ---------------------------------------------------------------------------
@@ -1582,6 +1589,8 @@ void CreateStorage(lv_obj_t *screen, lv_group_t *, void *)
                           static_cast<unsigned>(heap_caps_get_free_size(MALLOC_CAP_SPIRAM) / 1024));
     ui::NewDivider(content);
     s_card_label = Value(content, "MicroSD: not read yet");
+    // The readout is Read's, under it: `group` under the rule, `item` over the button.
+    lv_obj_set_style_margin_top(s_card_label, dt::kSpacingGroup - dt::kSpacingItem, 0);
     lv_obj_t *row = ButtonRow(content);
     HalfButton(row, "Read", true, OnProbeCard);
     ui::NewLabel(content, Type::kCaption, "Mounts, reads and unmounts. It never formats the card.", true);
@@ -2087,7 +2096,7 @@ struct Entry {
     const char *route;
 };
 constexpr Entry kEntries[] = {
-    {"Display", "Refresh modes, greys, ghosting", "hw.display"},
+    {"Display", "Refresh modes, greys, type", "hw.display"},
     {"Refresh benchmark", "A bar, timed at each speed", "hw.benchmark"},
     {"Touch", "Where a tap lands", "hw.touch"},
     {"Buttons and buzzer", "UP, DOWN, OK and the tick", "hw.buttons"},
