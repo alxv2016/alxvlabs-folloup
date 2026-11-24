@@ -31,6 +31,9 @@ namespace bc = board_config;
 namespace dt = design_tokens;
 constexpr const char *kTag = "eink_display";
 
+// The content column and its two edges fill the glass's width (STICKY_DESIGN_TOKENS §6).
+static_assert(dt::kSpacingContent + 2 * dt::kSpacingEdge == bc::kScreenWidth, "content and edges fill the glass");
+
 // The panel goes to standby once it has been idle this long; the driver powers it on at the next refresh.
 constexpr uint32_t kStandbyAfterMs = 1000;
 // The room's temperature is read again at most this often, while the glass is idle.

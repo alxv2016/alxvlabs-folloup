@@ -282,8 +282,8 @@ their value on each refresh — the design check reads them (§7).
 | `kSoundSuccess` | 3136 then 4186 Hz on the 25 % pulse; 260 ms | `sound.success`: only once the action succeeded — `devices::Play(sound::Word::kSuccess)`, and the status line's success news (`Cue::kSuccess`) |
 | `kSoundRecordingStart` | 3520, then 5274 Hz on the 25 % pulse; 235 ms | `sound.recording-start` — before the recording, never in it |
 | `kSoundRecordingStop` | 5274, then 3520 Hz on the 25 % pulse; 235 ms | `sound.recording-stop` |
-| `kSoundBandLowHz`, `kSoundBandHighHz` | 2000, 6000 Hz | `sound.band-low`, `sound.band-high`: every pitch between, round the buzzer's 4 kHz resonance; `tests/host/sound_rules_test.cpp` holds the six to it `[HOST]` |
-| `kSoundTickMaxMs`, `kSoundMaxMs` | 40, 600 ms | `sound.tick-max`, `sound.max`: a tick's longest and any other sound's, held by the same test |
+| `kSoundBandLowHz`, `kSoundBandHighHz` | 2000, 6000 Hz | `sound.band-low`, `sound.band-high`: every pitch between, round the buzzer's 4 kHz resonance; the header's `static_assert`s hold the six to it as it compiles (§6), and `tests/host/sound_rules_test.cpp` checks the sounds as played `[HOST]` |
+| `kSoundTickMaxMs`, `kSoundMaxMs` | 40, 600 ms | `sound.tick-max`, `sound.max`: a tick's longest and any other sound's, held by the same two |
 | `kWaitIndicatorDelayMs` | 1000 ms | Declared for DESIGN.md's rule — a wait's indicator drawn only once the wait has run this long, `motion.wait-indicator`; no screen has a wait indicator yet |
 | `kSelfUpdateMinMs` | 5000 ms | The period of the hardware-test screens' self-updates (Sensors, Battery and power) — DESIGN.md's floor between two self-driven redraws of an area, `motion.self-update`, which no code enforces |
 | `kClockTickMs` | 60000 ms | Declared for DESIGN.md's clock redraw, `motion.clock-tick`; the firmware has no clock yet |
@@ -403,6 +403,12 @@ their value on each refresh — the design check reads them (§7).
 
 - **One C++ header carries every token** — `components/design_tokens/include/design_tokens.h`, kept equal to DESIGN.md's
   front matter by hand and named in `TOKEN_FILES` in `.agents/project.py`.
+- **The arithmetic between tokens is checked as the header compiles** — `static_assert`s at its foot: two rings never
+  touch (`kSpacingItem` ≥ twice `kFocusRingReach`, 8), the footer holds its buttons' rings, a list row is at least a target,
+  a flick's movement is inside its distance, every type size is a multiple of 10 px and every line to 80 px a multiple of 4 px,
+  and every sound is in the buzzer's band, the tick at most 40 ms and the others at most 600 ms; `display.cpp` checks
+  that the content and its edges fill the glass's 480 px. A value changed alone that breaks one fails the build. The
+  type check reads the header's own list of primitives, `detail::kScale`, so a new primitive joins it.
 - **A token's path becomes its symbol**: `colors.text-primary` → `kColorTextPrimary`, `spacing.target` →
   `kSpacingTarget`, `spacing.stroke.focus` → `kSpacingStrokeFocus`, `rounded.sm` → `kRoundedSm`.
 - **A colour is stored as its level, 0 to 3**, with the hex in a comment — `kColorTextSecondary = 1;  // #555555`.

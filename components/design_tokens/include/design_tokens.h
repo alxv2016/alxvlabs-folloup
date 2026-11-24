@@ -5,6 +5,7 @@
 
 #pragma once
 
+#include <cstddef>
 #include <cstdint>
 
 namespace design_tokens {
@@ -237,5 +238,58 @@ inline constexpr SoundNote kSoundRecordingStart[] = {
 // sound.recording-stop: the same pair falling (E8, A7).
 inline constexpr SoundNote kSoundRecordingStop[] = {
     {SoundWave::kPulse25, 5274, 0, 70, 255}, {SoundWave::kPulse25, 0, 0, 45, 0}, {SoundWave::kPulse25, 3520, 0, 120, 255}};
+
+// --- What the tokens' arithmetic keeps true, checked as the header compiles (STICKY_DESIGN_TOKENS §6) -------------
+// A value changed alone that breaks one of these fails the build, not the glass.
+
+inline constexpr int16_t kFocusRingReach = kSpacingFocusOffset + kSpacingStrokeFocus;  // how far a focus ring stands out: 8
+static_assert(kSpacingItem >= 2 * kFocusRingReach, "two neighbours' rings never touch: the item gap holds both reaches");
+static_assert((kSpacingFooter - kSpacingTarget) / 2 >= kFocusRingReach, "the footer holds its buttons' rings");
+static_assert(kSpacingListRowHeight >= kSpacingTarget, "a list row is at least one target tall");
+// Both flick values are still open `[?]`; this guards only that the movement threshold is not past the distance.
+static_assert(kTouchFlickMovement <= kTouchFlickDistance, "a flick's last movement is part of its distance");
+
+namespace detail {
+// Every primitive above, kept by hand: a new one joins this list, or the grid check below does not see it.
+inline constexpr TypeRole kScale[] = {
+    kTypographyScale20Semibold,  kTypographyScale20Bold,     kTypographyScale30Regular, kTypographyScale30Semibold,
+    kTypographyScale30Bold,      kTypographyScale40Semibold, kTypographyScale40Bold,    kTypographyScale50Semibold,
+    kTypographyScale50Bold,      kTypographyScale60Semibold, kTypographyScale60Bold,    kTypographyScale70Semibold,
+    kTypographyScale70Bold,      kTypographyScale80Semibold, kTypographyScale80Bold,    kTypographyScale100Semibold,
+    kTypographyScale100Bold,     kTypographyScale120Semibold, kTypographyScale120Bold,  kTypographyScale160Semibold,
+    kTypographyScale160Bold,
+};
+constexpr bool ScaleOnGrid()
+{
+    for (const TypeRole &r : kScale) {
+        // Lines sit on the 4 px grid up to 80 px; figures (100 px and up) sit on their digits' height instead.
+        if (r.size_px % 10 != 0 || (r.size_px <= 80 && r.line_px % 4 != 0)) {
+            return false;
+        }
+    }
+    return true;
+}
+template <size_t N> constexpr bool InBand(const SoundNote (&notes)[N], uint32_t max_ms)
+{
+    uint32_t ms = 0;
+    for (const SoundNote &n : notes) {
+        const bool rest = n.hz == 0 || n.volume == 0;  // silent, as the player takes it (sound_rules.h)
+        const bool in_band = n.hz >= kSoundBandLowHz && n.hz <= kSoundBandHighHz &&
+                             (n.hz_end == 0 || (n.hz_end >= kSoundBandLowHz && n.hz_end <= kSoundBandHighHz));
+        if (!rest && !in_band) {
+            return false;
+        }
+        ms += n.ms;
+    }
+    return ms <= max_ms;
+}
+}  // namespace detail
+
+static_assert(detail::ScaleOnGrid(), "every type size is a multiple of 10 px and every line to 80 px a multiple of 4");
+static_assert(detail::InBand(kSoundTick, kSoundTickMaxMs), "the tick is in the buzzer's band and at most tick-max");
+static_assert(detail::InBand(kSoundAtEnd, kSoundMaxMs) && detail::InBand(kSoundError, kSoundMaxMs) &&
+                  detail::InBand(kSoundSuccess, kSoundMaxMs) && detail::InBand(kSoundRecordingStart, kSoundMaxMs) &&
+                  detail::InBand(kSoundRecordingStop, kSoundMaxMs),
+              "every sound is in the buzzer's band and at most sound.max long");
 
 }  // namespace design_tokens
