@@ -168,12 +168,12 @@ inline constexpr ElevationLevel kElevation2 = {kSpacingStrokeStrong, kColorShado
 inline constexpr ElevationLevel kElevation3 = {kSpacingStrokeStrong, kColorShadow3, kSpacingOverlayOffset, kSpacingStrokeHairline};
 
 // --- Touch: how a swipe turns a page (DESIGN → Focus and input → Buttons and touch; STICKY_DESIGN_TOKENS §10 owns the
-// distances and the 100 ms window, `[?]`: proposed, to be judged on the glass, STICKY_DESIGN_TOKENS §8) ------------------
+// distances and the 100 ms window, held under a finger on a V1.0 and a V2.0) -------------------------------------------
 
 inline constexpr int16_t kTouchSwipeDistance = kSpacingTarget;  // px of travel that commits a page turn: one target, 64
-inline constexpr int16_t kTouchFlickDistance = 24;       // px a flick must have travelled at least `[?]`
-inline constexpr int16_t kTouchFlickMovement = 12;       // px moved in the last kTouchFlickWindowMs that make it a flick `[?]`
-inline constexpr uint32_t kTouchFlickWindowMs = 100;     // the end of the drag a flick is read from `[?]`
+inline constexpr int16_t kTouchFlickDistance = 24;       // px a flick must have travelled at least
+inline constexpr int16_t kTouchFlickMovement = 12;       // px moved in the last kTouchFlickWindowMs that make it a flick
+inline constexpr uint32_t kTouchFlickWindowMs = 100;     // the end of the drag a flick is read from
 
 // --- Motion: nothing animates; the delays are what the code waits (DESIGN → Motion) --------------------------------
 
@@ -247,7 +247,7 @@ inline constexpr int16_t kFocusRingReach = kSpacingFocusOffset + kSpacingStrokeF
 static_assert(kSpacingItem >= 2 * kFocusRingReach, "two neighbours' rings never touch: the item gap holds both reaches");
 static_assert((kSpacingFooter - kSpacingTarget) / 2 >= kFocusRingReach, "the footer holds its buttons' rings");
 static_assert(kSpacingListRowHeight >= kSpacingTarget, "a list row is at least one target tall");
-// Both flick values are still open `[?]`; this guards only that the movement threshold is not past the distance.
+// A flick's last movement is part of its distance, so the movement threshold is never past it.
 static_assert(kTouchFlickMovement <= kTouchFlickDistance, "a flick's last movement is part of its distance");
 
 namespace detail {

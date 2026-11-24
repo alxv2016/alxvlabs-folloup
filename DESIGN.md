@@ -912,7 +912,7 @@ At 235 ppi a pixel is 0.108 mm and a point is 3.26 px.
 - **Direction belongs to the surface** — a floating box's offset falls down and to the right; a surface anchored to the glass's
   edge has one exposed edge, so its offset is its own shape moved from that edge: up from a sheet's top.
 - **Where an offset cannot be told from its ground** — level 2 over the light dither is the same pattern as the ground, and the
-  eighth over it is 1.16 : 1; the keyline and the outline carry the edge there, and judging them on the glass is open.
+  eighth over it is 1.16 : 1; the keyline and the outline carry the edge there, and on the glass they read.
 
 ### Dither
 
@@ -960,7 +960,7 @@ At 235 ppi a pixel is 0.108 mm and a point is 3.26 px.
   on the V2.0; on the V1.0 a change of screen is two, through white, 1 to 1.25 s, so the old page leaves no ghost. A full
   refresh — the whole glass flashing — is kept for the first frame after waking, the update after twenty partial
   refreshes, closing a full-glass overlay (the keyboard), and the frame left on the glass before sleep. A bottom sheet or a
-  dialog is part of the page it stands on, and opens and closes on a partial refresh; the ghost it may leave is judged on the
+  dialog is part of the page it stands on, and opens and closes on a partial refresh; it leaves no ghost on the
   glass. While the keyboard is open only the presses that type, and a page switch, count toward the twenty — the ring moving
   between rows and keys does not, but after sixty of those a full refresh is drawn.
 - **Grey on screens that take input is a dither** — the true greys of a greyscale full refresh are for images on a
@@ -1517,8 +1517,8 @@ A Wi-Fi network's signal shows every bar of the glyph, the lit ones black and th
 - **Why:** the count of lit bars carries the signal, so the unlit bars are decorative and meet no contrast floor; they say
   how much is missing by being faint, as the deck's `wifi_indicator` shows a quiet tint under the lit part, and at one bit the
   only quiet is a dither. A 3 to 4 px arc in a dither is a dotted band — faint on the glass.
-- **Where it stops:** the signal glyph on a network row, and nowhere else; if the dots are too faint on the glass, the way out is a
-  2 px outline, never another grey.
+- **Where it stops:** the signal glyph on a network row, and nowhere else; its unlit bars read as faint grey strokes on a V1.0 and a
+  V2.0, so there is no outline and never another grey.
 
 ### The signal glyph without a word
 
@@ -1569,8 +1569,6 @@ The chosen option of a select sheet is marked by the check, without its word.
   Sleep never loses work) has no home yet.
 - **A status line left up** — it stays until the next change of screen or its caller retracts it, so on a device that sits on
   one screen for days it can read as current when it is not; whether that is acceptable, or a caller's `Clear` is enough.
-- **A hairline cleared from a band** — whether the status line's lower rule leaves a ghost when news is retracted, and so
-  whether it is always drawn, judged on a V1.0 and a V2.0.
 - **The glass's real contrast** — its white and black measured against the nominal 21 : 1.
 - **Whether a 2 px hairline and `caption` at 20 px read from a metre away** — on a V1.0 and a V2.0 board.
 - **How many times a full refresh flashes**, against WCAG's three a second.

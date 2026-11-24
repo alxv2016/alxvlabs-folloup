@@ -153,8 +153,8 @@ their value on each refresh — the design check reads them (§7).
   brief is that it should look inert ("disabled elements are exempted from accessibility contrast"). The ratios are the
   patterns' averages in linear light `[D]`: `colors.text-disabled` (fifteen white in sixteen) on the light-dither face
   (three in four) is 1.23 : 1; `colors.text-disabled-page` (seven in eight) on white is 1.14 : 1; the face against white
-  1.31 : 1. They are held by nothing but legibility on the glass `[?]` and by the reason in solid `caption`,
-  `text-secondary` — a pair under the floor is never filed in the pairs table, so the design check does not read it.
+  1.31 : 1. They are held by nothing but legibility on the glass, which they have on a V1.0 and a V2.0 `[SEEN]`, and by
+  the reason in solid `caption`, `text-secondary` — a pair under the floor is never filed in the pairs table, so the design check does not read it.
 - **A checkbox's check and a radio's dot are `colors.thumb-on` on `colors.surface-on`** — the table's pair, 21 : 1; an
   off box has no black part, so it keeps a `spacing.stroke.default` `colors.outline` edge, 21 : 1 on the glass, rather
   than rely on the dither alone, 1.3 : 1.
@@ -227,7 +227,7 @@ their value on each refresh — the design check reads them (§7).
   level 2 three in four. Every refresh keeps them; a greyscale refresh reads the codes as the true greys. Text and
   lines take `ui::Level`, so their greys threshold to solid black or white; an anti-aliased edge pixel thresholds
   too, unless its blend lands exactly on a code, when it draws as the dither — rare, and why words sit only on the
-  light dither. Both patterns read as distinct greys, and alike, on the V1.0's and the V2.0's glass `[SEEN]`.
+  light dither. Both patterns read as distinct greys, and alike, on both boards `[SEEN]`.
 - **Two sparse dithers are the one text drawn as a pattern** — a disabled control's words (DESIGN → Components → States →
   Disabled). `ui::Fill` gives levels 4 and 5 of the token header (`kColorTextDisabled`, `kColorTextDisabledPage`) their codes,
   `kDitherSixteenth` (`0xC1`) and `kDitherEighth` (`0xC2`), and `OneBitWhite` takes the pixel's column and row on the
@@ -239,10 +239,10 @@ their value on each refresh — the design check reads them (§7).
   pixel as the text colour, so a glyph keeps the pattern with no grey edge; `tests/host/disabled_words_lvgl_test.cpp` renders
   `label` and `caption` in the real Bitcount fonts, and the A1 check and speaker-off marks recoloured, on LVGL's L8 frame
   and checks that the only values are the ground's and the code, and the code is on exactly the mark's ink `[HOST]`.
-  Nothing of this is seen on the glass `[?]` (§8).
+  All of it is legible on both boards `[SEEN]`.
 - **A raised surface's offset is its own shape, `spacing.overlay-offset`, 6 px, away — in the dither of its elevation level,
   with a white keyline round it** — drawn by `ui::AddOffset` (`components/ui/ui.cpp`) before the box, which covers all of it
-  but the exposed edge: a hard offset, never a blur and never solid black. `kLevels[]` there is the one table of the scale
+  but the exposed edge: a hard offset, never a blur or solid black. `kLevels[]` there is the one table of the scale
   (`design_tokens.h`'s `kElevation0` to `kElevation3`): level 0 none; 1 the eighth (`kColorShadow1`, `kDitherEighth`); 2 the light
   dither (`kColorShadow2`, `kDitherLight`); 3 the dark dither (`kColorShadow3`, `kDitherDark`). The keyline is a white rectangle one
   `kSpacingStrokeHairline` larger on every side, drawn under the offset with its radius grown by the same, so a white line rings
@@ -251,7 +251,7 @@ their value on each refresh — the design check reads them (§7).
   The side is the surface's: down and to the right for a floating box (the dialog, `OffsetSide::kBottomRight`), up from the top
   for a sheet that hangs off the glass's bottom and sides (`OffsetSide::kTop`). Each level draws its own pattern at the
   panel's pixel grid, which every one-bit refresh keeps; `tests/host/elevation_lvgl_test.cpp` renders each level on LVGL and
-  reads the band, the keyline over a black ground and the untouched box `[HOST]`.
+  reads the band, the keyline over a black ground and the untouched box `[HOST]`. Each reads on both boards `[SEEN]`.
 ### 4.2 Rows, buttons and pages
 
 - **A list row's padding is two values** — `spacing.sm` above and below, `spacing.md` either side; DESIGN.md's
@@ -301,7 +301,8 @@ their value on each refresh — the design check reads them (§7).
   sounded already, from the input watcher; the at-end sound follows within one read of the keypad and cuts it, so the
   person hears the tick's start and then the double tick. A swipe's tick sounded at the contact; its at-end sounds at the
   lift. UP and DOWN that walk a list's rows leave it at its end for the next control, as the group wraps, and ask nothing.
-  `tests/host/slide_off_lvgl_test.cpp` and `swipe_lvgl_test.cpp` count the cue `[HOST]`.
+  `tests/host/slide_off_lvgl_test.cpp` and `swipe_lvgl_test.cpp` count the cue `[HOST]`. On a V1.0 and a V2.0 the at-end
+  sound cuts a key's tick, and the outcome sounds read through a refresh in flight `[SEEN]`.
 - **Outcomes sound where they happen** — the hardware test's Microphone screen plays `sound.recording-start` at the press,
   lets the microphone settle at least as long as the sound has left, so the recording never holds it, and closes on
   `sound.recording-stop`, or `sound.error` when the read failed; its Storage screen's Read says its outcome in the
@@ -317,7 +318,8 @@ their value on each refresh — the design check reads them (§7).
   pixel from y 124 down is identical empty, with one line and with two. Each counts toward `kRefreshPartialLimit`; a line
   that leaves with its screen costs no refresh of its own. The same words again are no refresh, but success and error sound again. The lower
   rule, a 2 px hairline drawn only while news shows, is the thinnest feature on the glass and the one thing a retraction can
-  leave a faint trace of; judged on a V1.0 and a V2.0, and an always-drawn rule is the way out `[?]`.
+  leave a faint trace of; on a V1.0 and a V2.0 a retraction leaves none and the band reads as plain words with no box, so
+  the rule stays drawn only while news shows `[SEEN]`.
   `tests/host/status_rules_test.cpp` and `status_line_lvgl_test.cpp` hold the rules and the layout `[HOST]`.
 - **A full refresh is drawn for**: the first frame after boot or wake; a full a screen asks for (`RequestFull`, the
   hardware-test screens'); the update after `kRefreshPartialLimit` partials; the one-bit frame after a greyscale
@@ -330,8 +332,8 @@ their value on each refresh — the design check reads them (§7).
 - **DESIGN.md also keeps a full refresh for closing a full-glass overlay and for the frame left before sleep** (DESIGN →
   Motion → Nothing animates): the router sets one as a full-glass overlay closes — the keyboard is the one —
   (`router::CloseOverlay` calls `lvgl_display::RequestFull`), and no screen has that last frame yet. A bottom sheet and a dialog
-  are part of the page and open and close on a partial, and the router asks no full refresh for them; the ghost the sheet's inverted
-  chosen row may leave after its close is judged on the glass `[?]`.
+  are part of the page and open and close on a partial, and the router asks no full refresh for them; the sheet's partial close leaves no
+  ghost where its inverted chosen row stood, on a V1.0 and a V2.0 `[SEEN]`.
 - **While the keyboard is open only the presses that type, and a page switch, count toward the twenty** (the person's decisions): the keyboard sets
   `lvgl_display::SetPartialCounting(PartialCounting::kTypingOnly)` as it opens and `kEvery` as it closes, and calls
   `lvgl_display::NoteTyping()` in each press that changes the text — a character, Space, Delete on a non-empty text, and the field's clear cross, which changes the text as Delete does — and in each page
@@ -343,7 +345,7 @@ their value on each refresh — the design check reads them (§7).
   `glass_rules.h`, 60 (the person's decision; a start, to be tuned on the glass `[?]`), is drawn full, which resets both counts —
   the same `PartialsOverLimit` arithmetic, so the 61st ring move is the first full. `tests/host/glass_rules_test.cpp` runs
   both rules against a counter `[HOST]`. What the moves leave is the dither and the black rings, which build up between
-  those fulls `[?]`: a gate 3 look at the glass after a long entry sets the 60. Opening the keyboard's screen is not a typing
+  those fulls, and leave no ghost on a V1.0 and a V2.0 `[SEEN]`. Opening the keyboard's screen is not a typing
   press; its close is a full refresh.
   **On the V1.0 the ceiling holds unless a scan preset is chosen.** Its default preset is `Keep waveform`
   (`kDefaultTuning1677`), which never scans, so every frame is a partial and both counts apply as on a V2.0. With a scan
@@ -458,14 +460,6 @@ their value on each refresh — the design check reads them (§7).
 | A script that compares DESIGN.md's front matter with §2's tables | Open | A change to a colour role, which §2's tables would have to follow by hand |
 | The glyph ranges beyond ASCII and · ° × – — ’ • … — a name with an accent, a currency — and what a character outside them draws: LVGL's placeholder box is on (`CONFIG_LV_USE_FONT_PLACEHOLDER`) | Open | An out-of-range character drawn on the glass; the first strings that need more |
 | The glass's real white and black, against the levels' nominal 21 : 1 | Open | A reading with a light meter on a V1.0 and a V2.0 board |
-| Whether a disabled control's words, in the two sparse dithers, read on a V1.0 and a V2.0 (1.23 : 1 and 1.14 : 1 against their ground), and whether a disabled checkbox's check and speaker-off glyph are legible at all | Open | The kit page's disabled samples, seen on both boards |
-| Whether an offset reads on the glass: elevation 2's light dither over a dithered field, the eighth (level 1, no surface yet), and the 2 px keyline, on a V1.0 and a V2.0 (§4.1) | Open | Open and close a sheet ten times over the disabled Alert field and look at the offset and where it was |
-| Whether the sheet's close on a partial leaves a ghost where its inverted chosen row stood, and whether the keyboard's ring moves, uncounted, leave one (§5) | Open | The kit page's dropdown and keyboard samples walked ten times on a V1.0 |
-| The unlit bars of the signal glyph, 3 to 4 px arcs in a dither, read as faint grey strokes on the glass (DESIGN → Exceptions) | Open | The kit page's network rows seen on both boards; the way out is a 2 px outline |
-| The text field's eye and clear button, square inside the field's `rounded.xl` corner, and its ring's white gap to the outline, read on the glass (§11.4) | Open | The kit page's text and password inputs seen on both boards |
-| Whether the at-end sound cutting a key's tick, and the outcome sounds, read on the board — heard through a refresh in flight | Open | The Buttons and buzzer screen's rows, a list, a slider and the text view walked to their ends on a V1.0 and a V2.0 |
-| Whether the status line's lower rule, a 2 px hairline drawn only while news shows, leaves a faint trace in the band when news is retracted, and whether it is noticed as plain words with no box (§5) | Open | The hardware test's Storage screen: Read with no card, then with one, ten times on a V1.0 and a V2.0 |
-| The swipe's thresholds, 64 px, and a flick of 24 px with 12 px in the last 100 ms (§10) — proposed, never judged under a finger | Open | A device walk on the glass: a slow long swipe, a flick, a short flick under the limit, a pull-back, a rest before the lift |
 
 ## 9. The ring outside and the ported widgets
 
@@ -617,6 +611,7 @@ their value on each refresh — the design check reads them (§7).
   and `spacing.lg` before the second fact. The signal glyph is a 40 × 30 canvas, alone and with no word (DESIGN → Exceptions → The
   signal glyph without a word), centred on the row's height and floating at the right end. The unlit bars are the strongest glyph
   recoloured `ui::Fill(band)`, the dark dither on the inverted row, under the lit glyph on the same canvas.
+  On a V1.0 and a V2.0 the unlit bars read as faint grey strokes, so the 2 px outline is not needed `[SEEN]`.
   The **dialog** (`MakeDialog`) has outline 4, `rounded.md` and `spacing.lg` inside. Its title is `label` and its message `body`.
   The title stands `pair-xl` (32) over the message between their own boxes, and `group` (24) over the buttons. The two half buttons
   are 180 px wide and `spacing.item` apart.
@@ -736,8 +731,8 @@ their value on each refresh — the design check reads them (§7).
   once, so nothing moves under the finger and the page lands in one refresh after the lift. LVGL's `LV_EVENT_GESTURE`
   is not used: it does not fire while another object scrolls, and the kit page scrolls by pixel beneath its views.
 - **The decision is `PageTurn` in `components/widgets/src/internal/swipe_rules.h`**, a pure function tested on the computer
-  by `tests/host/swipe_test.cpp` (`bash tests/host/run.sh`). The thresholds are in the token header, proposed and to be
-  judged under a finger on the glass `[?]` (§8):
+  by `tests/host/swipe_test.cpp` (`bash tests/host/run.sh`). The thresholds are in the token header and hold
+  under a finger on a V1.0 and a V2.0 `[SEEN]`:
 
   | Rule | Value | Token |
   | --- | --- | --- |
@@ -848,6 +843,8 @@ their value on each refresh — the design check reads them (§7).
   the three distances and the corner points of the square on LVGL's real layout. `IconAction` gains `kClear` (the cross, `glyph_close`),
   `kEyeOpen` and `kEyeSlashed`; the eye pair, `glyph_eye_on` and `glyph_eye_off`, is cut by `make_marks.py` from BYTE-90's `visible-on` and
   `visible-off` with one shared crop (2, 12, 126, 120), 30 × 26, no trim, so the pair registers; the eye shows the action.
+  On a V1.0 and a V2.0 the eye and the clear button read inside the `rounded.xl` corner, and the ring's white gap to the
+  outline shows `[SEEN]`.
 - **The password mask and the reveal**: the field keeps the real text and draws `•` (U+2022, in the font) for each character but the last,
   which is in the clear until `lv_timer` fires after `kMotionPasswordRevealDelayMs` (`motion.password-reveal`, 1500 ms, LVGL's own
   password show time). The next typing press (`InputAppend`) masks it as part of its own redraw and starts the time again; Delete, the

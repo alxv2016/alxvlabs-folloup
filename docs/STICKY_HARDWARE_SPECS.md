@@ -254,7 +254,7 @@ else.**
 | Touch controller | GT911 | Touch I2C | `0x14`, or `0x5D` | Answers at `0x14`; Seeed probes `0x14` first | `[DOC]` `[MEAS]` `[SRC]` |
 | Fuel gauge | BQ27220 | Sensor I2C | `0x55` | 100 mΩ sense resistor (R46); a 10 kΩ NTC on the board at `BIN` (R19); `GPOUT` to GPIO7; stock profile read at a tenth (§1) | `[SCH]` `[SRC]` |
 | RTC | PCF8563, its own 32.768 kHz crystal (X2) | Sensor I2C | `0x51` | Supplied from `VDD_3V3` or `RTC_3V3` through D21 and D22; `INT` to `RTC_INTn`; `CLKOUT` disabled, as it reaches a test point only `[SRC]`; alarm and timer flags cleared before power-off (§5.3) `[SCH]` | `[SCH]` `[SRC]` |
-| IMU | LSM6DS3TR-C, on every unit (confirmed on V1.0) | Sensor I2C | `0x6A` | `SA0` low, `CS` high for I2C; `WHO_AM_I` reads `0x6A`; accel 4 g at 104 Hz, gyro 245 dps at 104 Hz | `[SCH]` `[DS]` `[FW]` `[TEAM]` |
+| IMU | LSM6DS3TR-C, on every unit — confirmed on a V1.0 and a V2.0, though the schematic's block diagram draws it with a dashed border | Sensor I2C | `0x6A` | `SA0` low, `CS` high for I2C; `WHO_AM_I` reads `0x6A`; accel 4 g at 104 Hz, gyro 245 dps at 104 Hz | `[SCH]` `[DS]` `[FW]` `[TEAM]` |
 | Temperature and humidity | SHT40-AD1B | Sensor I2C | `0x44` | Placed in a milled groove away from heat sources | `[SCH]` `[DS]` |
 | Microphone | MSM261DDB020, PDM | I2S PDM RX | — | 16 kHz, 16-bit, mono; `PDM_EN` powers it, 20 ms before the clock starts (Seeed's); a level drops its first 200 ms (`kMicLevelSettleMs`), since a fresh power-up read louder than the room (below) | `[SCH]` `[FW]` `[DOC]` |
 | Buzzer | FUET-5018, magnetic, externally driven | LEDC | — | Q8 (CJ2324) switches it low-side from `VDD_3V3` through 4.7 Ω; 10-bit duty on the 80 MHz APB clock, 50 % duty for the loudest tone; resonant at 4 kHz, where Seeed drives it; a note player sets the pitch and the voice per note (below) | `[SCH]` `[FW]` |
@@ -284,7 +284,8 @@ else.**
   −9.5 dB, heard by their harmonics `[MEAS]`. One run, one board; the microphone's own response is in every number.
   LCSC's listing of the part (C391028) gives a 4 kHz resonance, 75 dB, 3 V rated and 100 mA; the maker's datasheet was
   not read `[?]`. The 25 % pulse is about 3 dB quieter than the 50 % at the same pitch and the 12.5 % about 8 dB `[D]`.
-  FolloUp's sounds are written between 2 and 6 kHz (`sound.band-low`, `sound.band-high`).
+  FolloUp's sounds are written between 2 and 6 kHz (`sound.band-low`, `sound.band-high`). A V2.0 sounds the same band, by
+  the person's ear on 2026-11-24, with no numbers taken `[TEAM]`.
 - **`PDM_EN` is driven, never configured again** — `board::Init` makes it an output, low; the microphone's start sets
   its level only, since `gpio_config` on a pin already driven logs "gpio: conflict found for GPIO[38]" each time `[MEAS]`.
 - **The GT911's address is chosen by `TP_INT`'s level while `TP_RST` is low** — high selects `0x14`, low `0x5D`; the
@@ -632,9 +633,8 @@ pinhole and openings on the bottom** `[DOC]`.
 
 | Item | Status | Unblocked by |
 | --- | --- | --- |
-| The IMU on a V2.0 board — every unit carries it and V1.0 is confirmed (§4.2), though the schematic's block diagram draws it with a dashed border | Open | `WHO_AM_I` reading `0x6A` on a V2.0 board once the IMU driver runs |
 | Whether V2.0 changes anything off the pin map — Seeed's demos drive both controllers with one pin map, but the schematic in `STICKY_assets/` is Rev 01 and names no controller | Open | Seeed's schematic for V2.0, or the team |
 | Whether the CH343P's Q4 on GPIO0 disturbs the sensor I2C bus when a serial monitor toggles DTR or RTS | Open | A logic analyser on GPIO0 while a monitor opens the port |
 | A frame's transfer with the card writing (§4.3), with a date and a build | Open | A refresh timed while the card writes |
 | The IMU motion thresholds in §6, with a date and a build | Open | The motion log on the board, picked up and set down |
-| The buzzer's band on a V2.0, and the maker's datasheet for the FUET-5018 — measured once on a V1.0 (§4.2) | Open | `sound band` on the console of a V2.0, its numbers dated with the build |
+| The maker's datasheet for the FUET-5018 — only LCSC's listing was read (§4.2) | Open | The datasheet read, its resonance, rated voltage and current checked against the listing |
