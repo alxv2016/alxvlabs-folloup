@@ -603,9 +603,9 @@ their value on each refresh — the design check reads them (§7).
   its white mark, which has no edge. A row's own name and state word are `text-disabled-page` (a setting row sets each
   word's colour itself, since a label's own colour outranks its parent's disabled style); the reason stays solid `caption`.
 - **A focused control comes into view at once, by the theme (`ui::ShowWhenFocused`)** — LVGL's own scroll on focus
-  animates, which the glass would draw frame by frame, so `NewButton`, a tappable `NewRow` and every widget's
-  `JoinGroup` take `LV_OBJ_FLAG_SCROLL_ON_FOCUS` off and scroll the pages round the control without animation, then the
-  nearest page that scrolls a little further, so the ring (4 + 6 px, open for editing) is in view too. A list view's rows
+  animates, which the glass would draw frame by frame. So a tappable `NewRow` and every widget's `JoinGroup` take
+  `LV_OBJ_FLAG_SCROLL_ON_FOCUS` off and scroll the pages round the control without animation. The nearest page that
+  scrolls then moves a little further, so the ring (4 + 6 px, open for editing) is in view too. A list view's rows
   name their list, so the page behind brings the whole list into view and the list turns its own pages: a row never
   scrolls the band `[D]`.
 - **BYTE-90's network row, dialog, dropdown and pager are built from the approved drafts.** Each is built from the repo's own rows

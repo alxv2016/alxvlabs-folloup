@@ -65,8 +65,6 @@ def room(call: str, arg: int, context: str) -> tuple | None:
         if "kSpacingButtonWidth" in context or "kSpacingContent - dt::kSpacingMd) / 2" in context:
             return 10, "a standard button"
         return 22, "a compact button (at most the content's width)"
-    if call.endswith("NewButton") and arg == 1:
-        return 22, "a button (at most the content's width)"
     if call.endswith("NewStatusBar") and arg == 1:
         return 36, "the status bar's title"
     if call.endswith("NewRow"):

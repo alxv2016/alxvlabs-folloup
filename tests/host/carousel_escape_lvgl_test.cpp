@@ -100,14 +100,14 @@ void CreateWelcome(lv_obj_t *root, lv_group_t *, void *)
 void CreatePlain(lv_obj_t *root, lv_group_t *, void *)
 {
     ui::StyleScreen(root);
-    ui::NewButton(root, "Back", false, nullptr, nullptr);
+    widgets::MakeButton(root, "Back", widgets::ButtonVariant::kOutline);
     router::AttachEscape(OnLeave, nullptr);  // from OnCreate: heard
 }
 
 void CreateNoEscape(lv_obj_t *root, lv_group_t *, void *)
 {
     ui::StyleScreen(root);
-    ui::NewButton(root, "Back", false, nullptr, nullptr);
+    widgets::MakeButton(root, "Back", widgets::ButtonVariant::kOutline);
 }
 
 void Run()

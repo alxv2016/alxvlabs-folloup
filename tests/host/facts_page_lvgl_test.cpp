@@ -140,7 +140,7 @@ void EndScreen()
     lv_obj_remove_style_all(footer);
     lv_obj_set_size(footer, lv_pct(100), dt::kSpacingFooter);
     lv_obj_set_scrollable(footer, false);
-    s_screen.back = ui::NewButton(footer, "Back", false, nullptr, nullptr);
+    s_screen.back = widgets::MakeButton(footer, "Back", widgets::ButtonVariant::kOutline);
     lv_obj_add_event_cb(s_screen.list.root, OnPage, LV_EVENT_VALUE_CHANGED, nullptr);
     lv_obj_update_layout(s_screen.root);
     Tick();

@@ -43,8 +43,6 @@ lv_obj_t *NewLabel(lv_obj_t *parent, Type role, const char *text, bool secondary
 void FitLineBox(lv_obj_t *label, Type role);
 lv_obj_t *NewRow(lv_obj_t *parent, const char *label, const char *supporting, lv_event_cb_t on_click,
                  void *user_data);                             // list-row: 80 px, rounded.lg, its ring outside, no rule
-lv_obj_t *NewButton(lv_obj_t *parent, const char *label, bool action, lv_event_cb_t on_click,
-                    void *user_data);                          // button-action or button-outline, 64 px
 lv_obj_t *NewDivider(lv_obj_t *parent);
 void SetChosen(lv_obj_t *control, bool chosen);                // list-row-chosen: inverted, never focus
 // The one focus ring, for every control: outside the object, spacing.focus-offset clear of its edge and following its
@@ -58,7 +56,7 @@ void RingOutside(lv_obj_t *obj, int32_t inset = 0);
 void LetRingOut(lv_obj_t *obj);
 // Brings `show` (the object itself when null) and its ring into view when `obj` takes the focus, at once: the pages round
 // it scroll, with no animation — LVGL's own scroll on focus animates, which the glass would draw frame by frame. Nothing
-// happens on a screen that does not scroll. NewRow (with a tap) and NewButton do it already; call it for any other control
+// happens on a screen that does not scroll. NewRow (with a tap) and the widgets do it already; call it for any other control
 // in the focus group, and with `show` for a control inside a view that turns pages itself, so the page brings that view
 // into view and never the control by a pixel (STICKY_DESIGN_TOKENS §9).
 void ShowWhenFocused(lv_obj_t *obj, lv_obj_t *show = nullptr);

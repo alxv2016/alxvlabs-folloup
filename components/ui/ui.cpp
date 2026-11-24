@@ -40,7 +40,7 @@ Role s_roles[] = {
     {dt::kTypographyCaptionLoose, nullptr},
 };
 
-lv_style_t s_screen, s_status_bar, s_row, s_button_outline, s_button_action, s_divider, s_focus, s_chosen;
+lv_style_t s_screen, s_status_bar, s_row, s_divider, s_focus, s_chosen;
 
 struct BitcountFont {
     int16_t size_px;
@@ -106,29 +106,6 @@ void BuildStyles()
     lv_style_set_text_font(&s_row, Font(Type::kLabel));
     lv_style_set_border_width(&s_row, 0);
     lv_style_set_radius(&s_row, dt::kRoundedLg);
-
-    // button-outline and button-action: 64 px, rounded.lg (the deck's base radius), spacing.md inside.
-    lv_style_init(&s_button_outline);
-    lv_style_set_height(&s_button_outline, dt::kSpacingTarget);
-    lv_style_set_pad_hor(&s_button_outline, dt::kSpacingMd);
-    lv_style_set_radius(&s_button_outline, dt::kRoundedLg);
-    lv_style_set_bg_color(&s_button_outline, Level(dt::kColorBackground));
-    lv_style_set_bg_opa(&s_button_outline, LV_OPA_COVER);
-    lv_style_set_border_color(&s_button_outline, Level(dt::kColorOutline));
-    lv_style_set_border_width(&s_button_outline, dt::kSpacingStrokeDefault);
-    lv_style_set_text_color(&s_button_outline, Level(dt::kColorTextPrimary));
-    lv_style_set_text_font(&s_button_outline, Font(Type::kLabel));
-
-    lv_style_init(&s_button_action);
-    lv_style_set_height(&s_button_action, dt::kSpacingTarget);
-    lv_style_set_pad_hor(&s_button_action, dt::kSpacingMd);
-    lv_style_set_radius(&s_button_action, dt::kRoundedLg);
-    lv_style_set_bg_color(&s_button_action, Level(dt::kColorSurfaceAction));
-    lv_style_set_bg_opa(&s_button_action, LV_OPA_COVER);
-    lv_style_set_border_width(&s_button_action, dt::kSpacingStrokeDefault);  // the edge every variant reserves, undrawn here
-    lv_style_set_border_opa(&s_button_action, LV_OPA_TRANSP);
-    lv_style_set_text_color(&s_button_action, Level(dt::kColorTextOnFill));
-    lv_style_set_text_font(&s_button_action, Font(Type::kLabel));
 
     lv_style_init(&s_divider);
     lv_style_set_height(&s_divider, dt::kSpacingStrokeHairline);
@@ -275,23 +252,6 @@ lv_obj_t *NewRow(lv_obj_t *parent, const char *label, const char *supporting, lv
         lv_group_add_obj(lvgl_display::Group(), row);
     }
     return row;
-}
-
-lv_obj_t *NewButton(lv_obj_t *parent, const char *label, bool action, lv_event_cb_t on_click, void *user_data)
-{
-    lv_obj_t *button = lv_button_create(parent);
-    lv_obj_add_style(button, action ? &s_button_action : &s_button_outline, 0);
-    NoScroll(button);
-    lv_obj_t *text = lv_label_create(button);
-    lv_label_set_text(text, label);
-    lv_obj_center(text);
-    RingOutside(button);
-    ShowWhenFocused(button);
-    if (on_click != nullptr) {
-        lv_obj_add_event_cb(button, on_click, LV_EVENT_CLICKED, user_data);
-    }
-    lv_group_add_obj(lvgl_display::Group(), button);
-    return button;
 }
 
 lv_obj_t *NewDivider(lv_obj_t *parent)

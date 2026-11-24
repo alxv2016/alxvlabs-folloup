@@ -146,7 +146,7 @@ void NewScreen()
     lv_obj_set_size(s.footer, lv_pct(100), dt::kSpacingFooter);
     lv_obj_set_flex_flow(s.footer, LV_FLEX_FLOW_ROW);
     lv_obj_set_scrollable(s.footer, false);
-    s.back = ui::NewButton(s.footer, "Back", false, nullptr, nullptr);
+    s.back = widgets::MakeButton(s.footer, "Back", widgets::ButtonVariant::kOutline);
     s.bar = widgets::MakeRollerFooter(s.footer);
     s.cancel = lv_obj_get_child(s.bar, 0);
     widgets::SetRollerFooter(s.hour, s.bar);

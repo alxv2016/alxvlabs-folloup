@@ -119,8 +119,8 @@ lv_obj_t *EndScreen(lv_obj_t *screen)
     lv_obj_set_flex_flow(footer, LV_FLEX_FLOW_ROW);
     lv_obj_set_flex_align(footer, LV_FLEX_ALIGN_START, LV_FLEX_ALIGN_CENTER, LV_FLEX_ALIGN_CENTER);
     lv_obj_set_scrollable(footer, false);
-    lv_obj_t *back = ui::NewButton(footer, "Back", false, OnBack, nullptr);
-    lv_obj_set_width(back, 160);
+    lv_obj_t *back = widgets::MakeButton(footer, "Back", widgets::ButtonVariant::kOutline, 160);
+    lv_obj_add_event_cb(back, OnBack, LV_EVENT_CLICKED, nullptr);
     return footer;
 }
 
@@ -167,8 +167,12 @@ lv_obj_t *ButtonRow(lv_obj_t *parent)
 
 lv_obj_t *HalfButton(lv_obj_t *row, const char *label, bool action, lv_event_cb_t cb, void *data = nullptr)
 {
-    lv_obj_t *button = ui::NewButton(row, label, action, cb, data);
-    lv_obj_set_width(button, (dt::kSpacingContent - dt::kSpacingMd) / 2);  // 208: a half button holds 10 characters
+    // 208 wide: a half button holds 10 characters
+    const auto variant = action ? widgets::ButtonVariant::kAction : widgets::ButtonVariant::kOutline;
+    lv_obj_t *button = widgets::MakeButton(row, label, variant, (dt::kSpacingContent - dt::kSpacingMd) / 2);
+    if (cb != nullptr) {
+        lv_obj_add_event_cb(button, cb, LV_EVENT_CLICKED, data);
+    }
     return button;
 }
 
@@ -310,8 +314,8 @@ void CreateDisplay(lv_obj_t *screen, lv_group_t *, void *)
 
     if (lvgl_display::TuningCount() > 1) {
         // Full width, with its state in its words: a half button holds 10 characters and the presets are longer.
-        s_tuning_button = ui::NewButton(content, "", false, OnTuning, nullptr);
-        lv_obj_set_width(s_tuning_button, lv_pct(100));
+        s_tuning_button = widgets::MakeButton(content, "", widgets::ButtonVariant::kOutline, lv_pct(100));
+        lv_obj_add_event_cb(s_tuning_button, OnTuning, LV_EVENT_CLICKED, nullptr);
         SetTuningLabel();
     }
 

@@ -91,7 +91,8 @@ E1–E5.**
 - **`components/hw_test` is the shape to copy**: a `CMakeLists.txt` that requires only what the feature uses, and a
   `<name>.cpp` whose `<name>::Install()` registers with `app_hooks` — here, rows on home through `OnHomeBuilt`.
 - **A screen is a route on the router's stack** (§7), built into the root the router makes — styled by `ui::StyleScreen`
-  — from `ui`'s components, `NewStatusBar`, `NewRow`, `NewButton`, and its values from `design_tokens.h`, never a literal
+  — from `ui`'s `NewStatusBar` and `NewRow` and the kit's `widgets` controls. Its values come from `design_tokens.h`,
+  never a literal
   (STICKY_DESIGN_TOKENS §6). Its routes are registered in a `kBoardUp` boot step (§3, §7).
 - **No header unless another component needs one** — and never another feature, which would break E4.
 - **The line is the whole wiring**: `FEATURE(<name>)` makes the component a requirement of `main` and calls its
