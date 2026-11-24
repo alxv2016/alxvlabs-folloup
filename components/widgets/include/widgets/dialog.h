@@ -29,7 +29,7 @@ using DialogDone = void (*)(bool accepted, void *user);
 struct DialogConfig {
     const char *title;
     const char *message;
-    const char *action;  // named for what it does: "Delete note"
+    const char *action;  // named for what it does: "Delete"
     const char *cancel;  // "Cancel"; nullptr is "Cancel"
     bool destructive;    // the action destroys something: the dialog opens with focus on Cancel (DESIGN → Components → Dialog)
     DialogDone done;

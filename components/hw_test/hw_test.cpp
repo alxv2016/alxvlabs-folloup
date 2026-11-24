@@ -236,7 +236,7 @@ lv_obj_t *s_tuning_button = nullptr;
 
 void SetTuningLabel()
 {
-    lv_label_set_text_fmt(lv_obj_get_child(s_tuning_button, 0), "Speed: %s",
+    lv_label_set_text_fmt(lv_obj_get_child(s_tuning_button, 0), "Speed: %s",  // ux-exception: shows its value
                           lvgl_display::TuningName(lvgl_display::Tuning()));
 }
 
@@ -307,9 +307,10 @@ void CreateDisplay(lv_obj_t *screen, lv_group_t *, void *)
     HalfButton(row, "Full", true, OnFull);  // a half button holds 10 characters of label (STICKY_DESIGN_TOKENS §4)
     HalfButton(row, "Partial", false, OnPartial);
     // Display's sub-screens push over it, and pop back to it with focus on the button that opened them.
-    HalfButton(row, "Four greys", false, OnPushRoute, const_cast<char *>("hw.display.grays"));
-    HalfButton(row, "Type scale", false, OnPushRoute, const_cast<char *>("hw.display.type-scale"));
-    HalfButton(row, "UI kit", false, OnPushRoute, const_cast<char *>("hw.display.kit"));
+    HalfButton(row, "Greys", false, OnPushRoute, const_cast<char *>("hw.display.grays"));
+    HalfButton(row, "Type scale", false, OnPushRoute,  // ux-exception: "Type" alone reads as a verb
+               const_cast<char *>("hw.display.type-scale"));
+    HalfButton(row, "UI kit", false, OnPushRoute, const_cast<char *>("hw.display.kit"));  // ux-exception: unclear
     lv_obj_t *pattern_button = HalfButton(row, "Pattern", false, nullptr);  // in the row, before Speed below it
 
     if (lvgl_display::TuningCount() > 1) {
@@ -663,7 +664,7 @@ void OnKitDialog(lv_event_t *)
     widgets::DialogConfig config{};
     config.title = "Delete this note?";
     config.message = "It goes from the device and the card.";
-    config.action = "Delete note";
+    config.action = "Delete";
     config.cancel = "Cancel";
     config.destructive = true;
     config.done = KitDialogDone;
@@ -884,7 +885,7 @@ void CreateKit(lv_obj_t *screen, lv_group_t *, void *)
 
     // The failed-join dialog, static: the offset in the dark dither falls down and to the right (DESIGN → Elevation & Depth).
     widgets::MakeSectionHeading(content, "Dialog");
-    widgets::MakeDialog(content, "Office", "Wrong password. Check it and try again.", "Try again", "Cancel");
+    widgets::MakeDialog(content, "Office", "Wrong password. Check it and try again.", "Retry", "Cancel");
     lv_obj_t *dialogs = ButtonRow(content);
     HalfButton(dialogs, "Delete", false, OnKitDialog);
     s_kit_dialog_label = ui::NewLabel(content, Type::kCaption, "Opens a real dialog, on Cancel.", true);
@@ -1223,7 +1224,7 @@ void CreateButtons(lv_obj_t *screen, lv_group_t *, void *)
     s_keys_seen = 0;
     lv_obj_t *row = ButtonRow(content);
     HalfButton(row, "Tick", true, OnTick);
-    HalfButton(row, "Tone, 1 s", false, OnTone);
+    HalfButton(row, "Tone", false, OnTone);
     if (!devices::Found().buzzer) {
         Value(content, "The buzzer did not start. Check the log.");
     }
@@ -1278,7 +1279,7 @@ void CreateSensors(lv_obj_t *screen, lv_group_t *, void *)
     FillSensors();
     ui::NewLabel(content, Type::kCaption, "Reads again every 5 seconds.", true);
     lv_obj_t *row = ButtonRow(content);
-    HalfButton(row, "Read now", true, OnReadSensors);
+    HalfButton(row, "Read", true, OnReadSensors);
     EndScreen(screen);
 }
 
@@ -1289,9 +1290,10 @@ void EnterSensors(void *)
 
 // --- Clock ------------------------------------------------------------------------------------------------------
 
-// "Now 08:12", read once as the screen opens and again after a set (no ticking, so no repaint runs under an open roller), the Hour
-// and Minute rollers — 24-hour until a 12 or 24 hour setting exists — and Set clock, which writes them to the RTC with seconds at 0 and
-// the date as read, then says so on the status line. A roller kept changes only the screen's draft, never the RTC.
+// "Now 08:12", read once as the screen opens and again after a set (no ticking, so no repaint runs under an open
+// roller), the Hour and Minute rollers — 24-hour until a 12 or 24 hour setting exists — and Set, which writes them to
+// the RTC with seconds at 0 and the date as read, then says so on the status line. A roller kept changes only the
+// screen's draft, never the RTC.
 struct ClockScreen {
     lv_obj_t *now = nullptr;
     widgets::Roller hour{};
@@ -1316,8 +1318,9 @@ void ShowClockNow(const std::tm *reading)
     lv_label_set_text(s_clock.now, words);
 }
 
-// Set clock: the chosen hour and minute, seconds 0, with the date the RTC holds as it is written (read again here, so a set after
-// midnight keeps today's). The rollers are never touched: a failed set leaves what the person chose for another try.
+// Set: the chosen hour and minute, seconds 0, with the date the RTC holds as it is written (read again here, so a set
+// after midnight keeps today's). The rollers are never touched: a failed set leaves what the person chose for another
+// try.
 void OnSetClock(lv_event_t *)
 {
     const clock_rules::SetOutcome out = clock_rules::Set(
@@ -1353,7 +1356,7 @@ void CreateClock(lv_obj_t *screen, lv_group_t *, void *)
     s_clock.minute = widgets::MakeNumberRoller(rollers, "Minute", 0, 59, 1, 2, true, read ? t.tm_min : 0);
     lv_obj_t *buttons = ButtonRow(content);
     lv_obj_set_style_margin_top(buttons, dt::kSpacingLg, 0);
-    HalfButton(buttons, "Set clock", true, OnSetClock);
+    HalfButton(buttons, "Set", true, OnSetClock);
     lv_obj_t *footer = EndScreen(screen);
     lv_obj_t *bar = widgets::MakeRollerFooter(footer);
     widgets::SetRollerFooter(s_clock.hour, bar);
@@ -1524,10 +1527,11 @@ void CreatePower(lv_obj_t *screen, lv_group_t *, void *)
     s_power_label = Value(content, "");
     FillPower();
     lv_obj_t *row = ButtonRow(content);
-    s_charge_button = HalfButton(row, board::ChargingEnabled() ? "Charge off" : "Charge on", false, OnCharge);
-    HalfButton(row, "Deep sleep", false, OnSleep);
-    HalfButton(row, "Power off", true, OnPowerOff);
-    HalfButton(row, "Off, 60 s", false, OnPowerOffTimed);
+    const char *charge = board::ChargingEnabled() ? "Charge off" : "Charge on";
+    s_charge_button = HalfButton(row, charge, false, OnCharge);  // ux-exception: a state
+    HalfButton(row, "Sleep", false, OnSleep);
+    HalfButton(row, "Power off", true, OnPowerOff);  // ux-exception: "Off" is unclear
+    HalfButton(row, "Off, 60 s", false, OnPowerOffTimed);  // ux-exception: a number with its unit
     ui::NewLabel(content, Type::kCaption,
                  "On USB, power off restarts the board. On battery it turns off; hold OK to turn on. On battery, "
                  "Off, 60 s turns it on again by itself.",
@@ -1579,7 +1583,7 @@ void CreateStorage(lv_obj_t *screen, lv_group_t *, void *)
     ui::NewDivider(content);
     s_card_label = Value(content, "MicroSD: not read yet");
     lv_obj_t *row = ButtonRow(content);
-    HalfButton(row, "Read card", true, OnProbeCard);
+    HalfButton(row, "Read", true, OnProbeCard);
     ui::NewLabel(content, Type::kCaption, "Mounts, reads and unmounts. It never formats the card.", true);
     EndScreen(screen);
 }

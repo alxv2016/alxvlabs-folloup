@@ -304,7 +304,7 @@ their value on each refresh — the design check reads them (§7).
   `tests/host/slide_off_lvgl_test.cpp` and `swipe_lvgl_test.cpp` count the cue `[HOST]`.
 - **Outcomes sound where they happen** — the hardware test's Microphone screen plays `sound.recording-start` at the press,
   lets the microphone settle at least as long as the sound has left, so the recording never holds it, and closes on
-  `sound.recording-stop`, or `sound.error` when the read failed; its Storage screen's Read card says its outcome in the
+  `sound.recording-stop`, or `sound.error` when the read failed; its Storage screen's Read says its outcome in the
   status line — "Card read." sounds `sound.success`, "No card. Insert one to read it." and the mount failure sound
   `sound.error` — while its label keeps the facts (the next bullet). The kit page's keyboard and dialog
   are samples with no real outcome — Join with too short a password is a disabled action, which gets the tick alone, and
@@ -464,7 +464,7 @@ their value on each refresh — the design check reads them (§7).
 | The unlit bars of the signal glyph, 3 to 4 px arcs in a dither, read as faint grey strokes on the glass (DESIGN → Exceptions) | Open | The kit page's network rows seen on both boards; the way out is a 2 px outline |
 | The text field's eye and clear button, square inside the field's `rounded.xl` corner, and its ring's white gap to the outline, read on the glass (§11.4) | Open | The kit page's text and password inputs seen on both boards |
 | Whether the at-end sound cutting a key's tick, and the outcome sounds, read on the board — heard through a refresh in flight | Open | The Buttons and buzzer screen's rows, a list, a slider and the text view walked to their ends on a V1.0 and a V2.0 |
-| Whether the status line's lower rule, a 2 px hairline drawn only while news shows, leaves a faint trace in the band when news is retracted, and whether it is noticed as plain words with no box (§5) | Open | The hardware test's Storage screen: Read card with no card, then with one, ten times on a V1.0 and a V2.0 |
+| Whether the status line's lower rule, a 2 px hairline drawn only while news shows, leaves a faint trace in the band when news is retracted, and whether it is noticed as plain words with no box (§5) | Open | The hardware test's Storage screen: Read with no card, then with one, ten times on a V1.0 and a V2.0 |
 | The swipe's thresholds, 64 px, and a flick of 24 px with 12 px in the last 100 ms (§10) — proposed, never judged under a finger | Open | A device walk on the glass: a slow long swipe, a flick, a short flick under the limit, a pull-back, a rest before the lift |
 
 ## 9. The ring outside and the ported widgets

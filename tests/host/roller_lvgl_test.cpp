@@ -448,7 +448,7 @@ void TestClockSet()
     read_before.tm_mon = 10;
     read_before.tm_mday = 22;
     read_before.tm_wday = 0;
-    std::tm today = read_before;  // the RTC has rolled over to the next day by the time Set clock is pressed
+    std::tm today = read_before;  // the RTC has rolled over to the next day by the time Set is pressed
     today.tm_mday = 23;
     today.tm_wday = 1;
     std::tm written{};

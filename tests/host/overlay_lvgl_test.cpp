@@ -126,7 +126,7 @@ void OpenTestDialog(bool destructive)
     widgets::DialogConfig config{};
     config.title = "Delete this note?";
     config.message = "It goes from the device.";
-    config.action = "Delete note";
+    config.action = "Delete";
     config.destructive = destructive;
     config.done = [](bool accepted, void *) {
         ++s_dialog_answers;
@@ -197,7 +197,7 @@ void TestDialogOverSheet()
 
     OpenTestDialog(false);
     focused = lv_group_get_focused(s_bound);
-    Check(focused != nullptr && std::string(lv_label_get_text(lv_obj_get_child(focused, 0))) == "Delete note",
+    Check(focused != nullptr && std::string(lv_label_get_text(lv_obj_get_child(focused, 0))) == "Delete",
           "any other dialog opens on its action");
     widgets::CloseDialog();
     s_log.clear();

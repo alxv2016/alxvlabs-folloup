@@ -1023,8 +1023,10 @@ At 235 ppi a pixel is 0.108 mm and a point is 3.26 px.
 
 ### Labels and states
 
-- **A button names what happens** — "Save", "Keep it", "Let it go", "Record" — never "OK" or "Submit". OK is the
-  button's name, never its label. The icon button's closed set names it by its glyph alone (DESIGN → Exceptions).
+- **A button names what happens in one word** — "Save", "Keep", "Discard", "Record" — never "OK" or "Submit"; OK is
+  the button's name, never its label. A second word only where one would be unclear. Never restate the title or the
+  object it names: under "Delete this note?" the button is "Delete". The icon button's closed set names it by its
+  glyph alone (DESIGN → Exceptions).
 - **A button's words fit it on one line** — at `label`'s 18 px a character, a full-width button holds 22, a half
   button 10 and a third 6 (19 and 7 beside a glyph, and a third none); a longer name is shortened, never cut off or
   wrapped.
@@ -1116,8 +1118,9 @@ serves, reached and used by the keys and by touch.
   the first card, and Skip (outline) stands in the middle slot on every card. A swipe left or right turns one card on the lift,
   with `sound.at-end` past either end. A turn is one partial refresh. Holding OK leaves, as Skip does, at any depth: the screen's
   own escape, which the router runs when nothing is open.
-- **Dialog** — a decision the person must make now, with one action button and Cancel. A destructive action names
-  what it destroys ("Delete note", under the title "Delete this note?"), and its dialog opens with focus on Cancel. It sits
+- **Dialog** — a decision the person must make now, with one action button and Cancel. A destructive action is
+  one verb under a title that names what it destroys ("Delete", under "Delete this note?"), and its dialog opens with
+  focus on Cancel. It sits
   in the middle of the glass, `spacing.edge` from its sides, behind a catcher the size of the glass. It stands on a `spacing.stroke.strong`
   outline, `rounded.md`, `spacing.lg` inside, its title in `label` and its message in `body` `spacing.pair-xl` under it, and `spacing.group` over the two buttons, half width
   `spacing.item` apart. Its offset, `spacing.overlay-offset` down and to the right in `shadow-3`, stands inside the page's margin

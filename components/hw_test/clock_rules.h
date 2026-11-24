@@ -1,6 +1,7 @@
-// The Clock screen's set, with no LVGL and no board in it, so tests/host checks it on the computer: which moment is written (the hour
-// and minute the person chose, seconds at 0, and the date the RTC holds when Set clock is pressed — read again just before the write, so
-// a set after midnight keeps today's), what the screen shows after it, and that a failed set changes nothing the person chose.
+// The Clock screen's set, with no LVGL and no board in it, so tests/host checks it on the computer: which moment is
+// written (the hour and minute the person chose, seconds at 0, and the date the RTC holds when Set is pressed — read
+// again just before the write, so a set after midnight keeps today's), what the screen shows after it,
+// and that a failed set changes nothing the person chose.
 
 #pragma once
 
@@ -20,8 +21,8 @@ inline std::tm DefaultDate()
     return date;
 }
 
-// The moment to write: the date the RTC holds now (`now`, null when it would not read), else the date last read (`kept`, null when
-// none was), else the default; the chosen `hour` and `minute`, seconds 0.
+// The moment to write: the date the RTC holds now (`now`, null when it would not read), else the date last read
+// (`kept`, null when none was), else the default; the chosen `hour` and `minute`, seconds 0.
 inline std::tm When(const std::tm *now, const std::tm *kept, int hour, int minute)
 {
     std::tm when = now != nullptr ? *now : kept != nullptr ? *kept : DefaultDate();
@@ -33,13 +34,13 @@ inline std::tm When(const std::tm *now, const std::tm *kept, int hour, int minut
 
 struct SetOutcome {
     bool ok = false;
-    std::tm shown{};  // after a set: what "Now" shows — the RTC read back, or the moment written when it will not read back
+    std::tm shown{};  // after a set, what "Now" shows: the RTC read back, else the moment written
     std::tm date{};   // the date to keep for the next set
     bool dated = false;
 };
-
-// Set clock: `read(std::tm *)` reads the RTC and `write(const std::tm &)` writes it, each returning whether it worked. The screen's
-// rollers are not an input to what comes back, and nothing here changes them: a failed set leaves what the person chose as it was.
+// Set: `read(std::tm *)` reads the RTC and `write(const std::tm &)` writes it, each returning whether it worked. The
+// screen's rollers are not an input to what comes back, and nothing here changes them: a failed set leaves what the
+// person chose as it was.
 template <class Read, class Write>
 SetOutcome Set(Read read, Write write, const std::tm *kept, int hour, int minute)
 {

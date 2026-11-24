@@ -195,7 +195,8 @@ void TestDialog()
 {
     std::printf("the dialog's gaps\n");
     lv_obj_t *column = NewColumn(dt::kSpacingMd);
-    const widgets::Dialog dialog = widgets::MakeDialog(column, "Office", "Wrong password. Check it and try again.", "Try again", "Cancel");
+    const widgets::Dialog dialog =
+        widgets::MakeDialog(column, "Office", "Wrong password. Check it and try again.", "Retry", "Cancel");
     lv_obj_t *title = lv_obj_get_child(dialog.box, 0);
     lv_obj_t *message = lv_obj_get_child(dialog.box, 1);
     lv_obj_t *buttons = lv_obj_get_child(dialog.box, 2);

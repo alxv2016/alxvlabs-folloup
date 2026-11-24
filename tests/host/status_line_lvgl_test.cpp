@@ -101,7 +101,7 @@ public:
         ui::StyleScreen(root);
         ui::NewStatusBar(root, "Storage");
         lv_obj_t *band = widgets::MakeStatusLine(root);
-        lv_obj_t *below = widgets::MakeButton(root, "Read card", widgets::ButtonVariant::kAction);
+        lv_obj_t *below = widgets::MakeButton(root, "Read", widgets::ButtonVariant::kAction);
         s_page = Page{root, band, below};
     }
 };
@@ -296,7 +296,7 @@ widgets::DialogConfig TestDialog()
     widgets::DialogConfig config{};
     config.title = "Read the card?";
     config.message = "It mounts, reads and unmounts.";
-    config.action = "Read card";
+    config.action = "Read";
     config.destructive = false;
     return config;
 }
